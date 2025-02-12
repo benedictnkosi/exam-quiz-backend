@@ -90,7 +90,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/public/learn/learner/update', name: 'update_learner', methods: ['POST', 'OPTIONS'])]
+    #[Route('/learn/learner/update', name: 'update_learner', methods: ['POST', 'OPTIONS'])]
     public function updateLearner(Request $request): JsonResponse
     {
         if ($request->getMethod() === 'OPTIONS') {
