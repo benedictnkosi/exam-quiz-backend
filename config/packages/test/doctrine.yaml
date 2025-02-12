@@ -1,0 +1,24 @@
+doctrine:
+    dbal:
+        # Use a separate database for testing
+        driver: pdo_mysql
+        dbname: 'app_test'
+        host: '127.0.0.1'
+        port: 3306
+        user: 'root'
+        password: 'Nhlaka@02'
+        charset: utf8mb4
+    orm:
+        auto_generate_proxy_classes: true
+        enable_lazy_ghost_objects: true
+        report_fields_where_declared: true
+        validate_xml_mapping: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+        auto_mapping: true
+        mappings:
+            App:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Entity'
+                prefix: 'App\Entity'
+                alias: App 
