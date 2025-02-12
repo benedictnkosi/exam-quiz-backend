@@ -90,14 +90,22 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/learn/learner/update', name: 'update_learner', methods: ['POST'])]
+    #[Route('/public/learn/learner/update', name: 'update_learner', methods: ['POST', 'OPTIONS'])]
     public function updateLearner(Request $request): JsonResponse
     {
+        if ($request->getMethod() === 'OPTIONS') {
+            return new JsonResponse([], Response::HTTP_OK);
+        }
+
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->updateLearner($request);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+        return new JsonResponse($jsonContent, 200, [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'POST, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type'
+        ], true);
     }
 
     #[Route('/learn/learner/subjects', name: 'get_learner_subjects', methods: ['GET'])]

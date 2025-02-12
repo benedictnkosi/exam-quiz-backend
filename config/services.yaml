@@ -39,3 +39,7 @@ services:
         arguments:
             $api: '@App\Service\LearnMzansiApi'
             $logger: '@monolog.logger.api'
+
+    App\EventListener\CorsListener:
+        tags:
+            - { name: kernel.event_subscriber }
