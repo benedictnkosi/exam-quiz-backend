@@ -22,4 +22,23 @@ monolog:
             channels: ["api"]
             formatter: monolog.formatter.json
 
+when@test:
+    monolog:
+        handlers:
+            main:
+                type: fingers_crossed
+                action_level: error
+                handler: nested
+                excluded_http_codes: [404, 405]
+                channels: ["!event"]
+            nested:
+                type: stream
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: debug
+            api_test:
+                type: stream
+                path: "%kernel.logs_dir%/api_test.log"
+                level: debug
+                channels: ["api"]
+
     # Different logging setup for test environmen
