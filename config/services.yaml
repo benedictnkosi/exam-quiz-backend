@@ -23,7 +23,19 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    # Configure the api logger
+    api_logger:
+        class: Symfony\Bridge\Monolog\Logger
+        arguments: ['api']
+        tags:
+            - { name: monolog.logger, channel: api }
+
+    App\Service\Base\BaseLearnMzansiService:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $apiLogger: '@monolog.logger.api'
+
     App\Controller\LearnMzansiApiController:
         arguments:
             $api: '@App\Service\LearnMzansiApi'
-            $logger: '@logger'
+            $logger: '@monolog.logger.api'

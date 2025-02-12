@@ -12,10 +12,12 @@ class BaseLearnMzansiService extends AbstractController
     protected $em;
     protected $logger;
 
-    public function __construct(EntityManagerInterface $entityManager, LoggerInterface $logger)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager, 
+        LoggerInterface $apiLogger
+    ) {
         $this->em = $entityManager;
-        $this->logger = $logger;
+        $this->logger = $apiLogger;
     }
 
     /**
