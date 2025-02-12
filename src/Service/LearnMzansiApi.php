@@ -441,10 +441,11 @@ class LearnMzansiApi extends AbstractController
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
+                $learner = new Learner();
+                $learner->setUid($uid);
+                $learner->setCreated(new \DateTime());
+                $this->em->persist($learner);
+                $this->em->flush();
             }
 
             $gradeName = str_replace('Grade ', '', $gradeName);
