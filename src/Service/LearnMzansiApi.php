@@ -236,7 +236,7 @@ class LearnMzansiApi extends AbstractController
 
                 return array(
                     'status' => 'NOK',
-                    'message' => 'A question with the same subject and text already exists. Question ID: '  . $existingQuestion->getId()
+                    'message' => 'A question with the same subject and text already exists. Question ID: ' . $existingQuestion->getId()
                 );
             }
 
@@ -342,7 +342,7 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
 
         try {
-            $currentMonth = (int)date('m');
+            $currentMonth = (int) date('m');
             $termCondition = '';
             $statusCondition = '';
 
@@ -501,7 +501,7 @@ class LearnMzansiApi extends AbstractController
                 'number' => $grade->getNumber(),
                 'active' => $grade->getActive()
             ], $grades);
-            
+
             return [
                 'status' => 'OK',
                 'grades' => $formattedGrades
@@ -576,6 +576,7 @@ class LearnMzansiApi extends AbstractController
                     ->select('count(q.id)')
                     ->where('q.subject = :subject')
                     ->andWhere('q.status = \'approved\'')
+                    ->andWhere('q.active = 1')
                     ->setParameter('subject', $learnerSubject->getSubject())
                     ->getQuery()
                     ->getSingleScalarResult();
@@ -719,6 +720,7 @@ class LearnMzansiApi extends AbstractController
                 $queryBuilder->select('count(q.id)')
                     ->from('App\Entity\Question', 'q')
                     ->where('q.subject = :subject')
+                    ->andWhere('q.active = 1')
                     ->setParameter('subject', $subject);
 
                 $totalQuestions = $queryBuilder->getQuery()->getSingleScalarResult();
@@ -1318,9 +1320,9 @@ class LearnMzansiApi extends AbstractController
             }
 
             if (empty($status)) {
-                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1]);
+                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1], ['created' => 'DESC']);
             } else {
-                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1]);
+                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1], ['created' => 'DESC']);
             }
 
             return array(
