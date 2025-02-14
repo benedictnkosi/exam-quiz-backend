@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-#[Route('/api', name: 'api_')]
+#[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
 {
     private $serializer;

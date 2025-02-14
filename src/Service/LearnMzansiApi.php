@@ -724,13 +724,15 @@ class LearnMzansiApi extends AbstractController
                     ->setParameter('subject', $subject);
 
                 $totalQuestions = $queryBuilder->getQuery()->getSingleScalarResult();
-                $subjectDetails[] = [
-                    'id' => $subject->getId(),
-                    'name' => $subject->getName(),
-                    'active' => $subject->isActive(),
-                    'grade' => $subject->getGrade(),
-                    'totalQuestions' => $totalQuestions
-                ];
+                if ($totalQuestions > 0) {
+                    $subjectDetails[] = [
+                        'id' => $subject->getId(),
+                        'name' => $subject->getName(),
+                        'active' => $subject->isActive(),
+                        'grade' => $subject->getGrade(),
+                        'totalQuestions' => $totalQuestions
+                    ];
+                }
             }
 
             //push change
