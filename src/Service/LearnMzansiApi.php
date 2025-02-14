@@ -290,6 +290,8 @@ class LearnMzansiApi extends AbstractController
             $question->setCapturer($data['capturer'] ?? null);
             $question->setReviewer($data['capturer'] ?? null);
             $question->setCreated(new \DateTime());
+            $question->setActive(true);
+            $question->setStatus('new');
 
             $this->logger->info("debug 2");
             // Persist and flush the new entity
@@ -337,12 +339,12 @@ class LearnMzansiApi extends AbstractController
         return $cleanedOptions;
     }
 
-    public function getRandomQuestionBySubjectId(int $subjectId, string $uid, int $questionId)
+    public function getRandomQuestionBySubjectId(int $subjectId, string $uid, int $questionId, string $showAllQuestions)
     {
         $this->logger->info("Starting Method: " . __METHOD__);
 
         try {
-            $currentMonth = (int) date('m');
+
             $termCondition = '';
             $statusCondition = '';
 
@@ -364,6 +366,7 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
+
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 return array(
@@ -375,7 +378,10 @@ class LearnMzansiApi extends AbstractController
 
             $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subjectId]);
 
-            if ($currentMonth < 7 && !$learner->isOverideterm()) {
+            $this->logger->info("in method: " . $showAllQuestions);
+            if ($showAllQuestions == 'no') {
+                //pausing functionality, will return all questions for now
+                $this->logger->info("filter by term");
                 $termCondition = 'AND q.term = 2 ';
             }
 
