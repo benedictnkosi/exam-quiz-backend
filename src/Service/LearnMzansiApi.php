@@ -254,10 +254,10 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             } else {
-                return array(
-                    'status' => 'NOK',
-                    'message' => "Question capturing paused, quality control is being done on the questions."
-                );
+                // return array(
+                //     'status' => 'NOK',
+                //     'message' => "Question capturing paused, quality control is being done on the questions."
+                // );
                 $question = new Question();
             }
 
