@@ -426,4 +426,83 @@ class LearnMzansiApiController extends AbstractController
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
     }
+
+    #[Route('/learn/git/pull', name: 'git_pull', methods: ['GET'])]
+    public function gitPull(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $command = 'git config --global user.email nkosi.benedict@gmail.com';
+            $result = $this->execute($command);
+            $responseArray[] = array(
+                'command' => $command,
+                'result_message_auto' => print_r($result, true),
+                'result_code' => 0
+            );
+
+            $command = 'git config --global user.name nkosibenedict';
+            $result = $this->execute($command);
+            $responseArray[] = array(
+                'command' => $command,
+                'result_message_auto' => print_r($result, true),
+                'result_code' => 0
+            );
+
+
+            $command = 'git stash';
+            $result = $this->execute($command);
+            $responseArray[] = array(
+                'command' => $command,
+                'result_message_auto' => print_r($result, true),
+                'result_code' => 0
+            );
+
+            $command = 'git pull https://github.com/benedictnkosi/exam-quiz-backend.git main --force';
+
+            $result = $this->execute($command);
+            $responseArray[] = array(
+                'command' => $command,
+                'result_message_auto' => print_r($result, true),
+                'result_code' => 0
+            );
+            return new JsonResponse($responseArray, 200, array());
+        } catch (Exception $ex) {
+            $this->logger->error($ex->getMessage() . ' - ' . __METHOD__ . ':' . $ex->getLine() . ' ' . $ex->getTraceAsString());
+        }
+        return new JsonResponse($responseArray, 200, array());
+    }
+
+    /**
+     * Executes a command and reurns an array with exit code, stdout and stderr content
+     * @param string $cmd - Command to execute
+     * @param string|null $workdir - Default working directory
+     * @return string[] - Array with keys: 'code' - exit code, 'out' - stdout, 'err' - stderr
+     */
+    function execute($cmd, $workdir = null)
+    {
+
+        if (is_null($workdir)) {
+            $workdir = __DIR__;
+        }
+
+        $descriptorspec = array(
+            0 => array("pipe", "r"),  // stdin
+            1 => array("pipe", "w"),  // stdout
+            2 => array("pipe", "w"),  // stderr
+        );
+
+        $process = proc_open($cmd, $descriptorspec, $pipes, $workdir, null);
+
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        return [
+            'code' => proc_close($process),
+            'out' => trim($stdout),
+            'err' => trim($stderr),
+        ];
+    }
 }
