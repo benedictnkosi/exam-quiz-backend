@@ -401,8 +401,9 @@ class LearnMzansiApi extends AbstractController
                 'SELECT q
             FROM App\Entity\Question q
             JOIN q.subject s
-            LEFT JOIN App\Entity\Result r WITH r.question = q AND r.learner = :learner
-            WHERE s.id = :subjectId AND r.id IS NULL
+            LEFT JOIN App\Entity\Result r WITH r.question = q AND r.learner = :learner AND r.outcome = \'correct\'
+            WHERE s.id = :subjectId 
+            AND r.id IS NULL
             AND q.active = 1 ' . $termCondition . $statusCondition
             )->setParameter('subjectId', $subjectId)->setParameter('learner', $learner);
 
