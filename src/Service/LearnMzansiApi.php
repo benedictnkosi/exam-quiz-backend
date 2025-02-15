@@ -162,10 +162,7 @@ class LearnMzansiApi extends AbstractController
                 return $adminCheck;
             }
 
-            return array(
-                'status' => 'NOK',
-                'message' => "Question capturing paused, quality control is being done on the questions."
-            );
+
 
             $questionId = $data['question_id'] ?? null;
 
@@ -207,7 +204,6 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             }
-
 
             //check that the expected answer is not too long
             //spit answer by |
@@ -258,6 +254,10 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             } else {
+                return array(
+                    'status' => 'NOK',
+                    'message' => "Question capturing paused, quality control is being done on the questions."
+                );
                 $question = new Question();
             }
 
