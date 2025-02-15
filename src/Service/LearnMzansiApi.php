@@ -162,6 +162,11 @@ class LearnMzansiApi extends AbstractController
                 return $adminCheck;
             }
 
+            return array(
+                'status' => 'NOK',
+                'message' => "Question capturing paused, quality control is being done on the questions."
+            );
+
             $questionId = $data['question_id'] ?? null;
 
             // Validate required fields
@@ -851,10 +856,13 @@ class LearnMzansiApi extends AbstractController
             $isCorrect = false;
 
             foreach ($correctAnswers as $correctAnswer) {
-                $this->logger->info("correctAnswer: " . $correctAnswer);
-                $this->logger->info("normalizedLearnerAnswer: " . $normalizedLearnerAnswer);
+
 
                 $normalizedCorrectAnswer = $this->normalizeNumericAnswer($correctAnswer);
+
+                //replace spaces from both answers
+                $normalizedCorrectAnswer = str_replace(' ', '', $normalizedCorrectAnswer);
+                $normalizedLearnerAnswer = str_replace(' ', '', $normalizedLearnerAnswer);
 
                 // If either answer has a currency symbol or percentage, normalize both to numeric
                 if (
@@ -878,6 +886,9 @@ class LearnMzansiApi extends AbstractController
                     $isCorrect = true;
                     break;
                 }
+
+                $this->logger->info("correctAnswer: " . $normalizedCorrectAnswer);
+                $this->logger->info("normalizedLearnerAnswer: " . $normalizedLearnerAnswer);
             }
 
             // Create result record
