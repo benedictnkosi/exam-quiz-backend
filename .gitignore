@@ -18,3 +18,8 @@
 /phpunit.xml
 .phpunit.result.cache
 ###< phpunit/phpunit ###
+
+###> DOCTRINE.YAML ###
+/config/packages/doctrine.yaml
+###< DOCTRINE.YAML ###
+.env
