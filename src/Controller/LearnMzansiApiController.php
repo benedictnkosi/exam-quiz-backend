@@ -84,7 +84,7 @@ class LearnMzansiApiController extends AbstractController
         $subjectId = $request->query->get('subject_id');
         $uid = $request->query->get('uid');
         $questionId = $request->query->get('question_id') ?? 0;
-        $showAllQuestions = $request->query->get('show_all_questions') ?? 'true';
+        $showAllQuestions = $request->query->get('show_all_questions') ?? 'yes';
         $this->logger->info("showAllQuestions: " . $showAllQuestions);
         $response = $this->api->getRandomQuestionBySubjectId($subjectId, $uid, $questionId, $showAllQuestions);
         $context = SerializationContext::create()->enableMaxDepthChecks();

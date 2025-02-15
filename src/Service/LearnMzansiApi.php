@@ -378,7 +378,6 @@ class LearnMzansiApi extends AbstractController
 
             $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subjectId]);
 
-            $this->logger->info("in method: " . $showAllQuestions);
             if ($showAllQuestions == 'no') {
                 //pausing functionality, will return all questions for now
                 $this->logger->info("filter by term");
