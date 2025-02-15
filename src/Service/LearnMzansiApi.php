@@ -2077,4 +2077,58 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    /**
+     * Get all rejected questions for a specific capturer
+     * 
+     * @param string $capturer The capturer's email/id
+     * @return array List of rejected questions or status message
+     */
+    public function getRejectedQuestionsByCapturer(string $capturer): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            if (empty($capturer)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Capturer is required'
+                ];
+            }
+
+            // Get all rejected questions for the capturer
+            $queryBuilder = $this->em->createQueryBuilder();
+            $queryBuilder->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.capturer = :capturer')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.active = :active')
+                ->orderBy('q.created', 'DESC')
+                ->setParameter('capturer', $capturer)
+                ->setParameter('status', 'rejected')
+                ->setParameter('active', true);
+
+            $questions = $queryBuilder->getQuery()->getResult();
+
+            if (empty($questions)) {
+                return [
+                    'status' => 'OK',
+                    'message' => 'No rejected questions found',
+                    'questions' => []
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'questions' => $questions,
+                'count' => count($questions)
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting rejected questions: ' . $e->getMessage()
+            ];
+        }
+    }
 }

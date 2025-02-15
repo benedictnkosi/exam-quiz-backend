@@ -407,4 +407,23 @@ class LearnMzansiApiController extends AbstractController
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
     }
+
+    #[Route('/learn/questions/rejected', name: 'get_rejected_questions', methods: ['GET'])]
+    public function getRejectedQuestions(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $capturer = $request->query->get('capturer');
+        if (!$capturer) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Capturer parameter is required'
+            ], 400);
+        }
+
+        $response = $this->api->getRejectedQuestionsByCapturer($capturer);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
 }
