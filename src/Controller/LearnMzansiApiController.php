@@ -427,7 +427,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
     }
 
-    #[Route('/learn/git/pull', name: 'git_pull', methods: ['GET'])]
+    #[Route('/learn/git/pull', name: 'git_pull', methods: ['POST'])]
     public function gitPull(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
