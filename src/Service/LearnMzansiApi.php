@@ -1403,11 +1403,20 @@ class LearnMzansiApi extends AbstractController
             $questionId = $requestBody['question_id'];
             $status = $requestBody['status'];
             $reviewerEmail = $requestBody['email'];
+            $comment = $requestBody['comment'];
 
             if (empty($questionId) || empty($status) || empty($reviewerEmail)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'fields are required'
+                );
+            }
+
+            //if status is reject then comment is required
+            if ($status == 'rejected' && empty($comment)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Comment is required'
                 );
             }
 
@@ -1429,18 +1438,21 @@ class LearnMzansiApi extends AbstractController
 
             $question->setStatus($status);
             $question->setReviewer($reviewerEmail);
+            if (!empty($comment)) {
+                $question->setComment($comment);
+            }
             $this->em->persist($question);
             $this->em->flush();
 
             return array(
                 'status' => 'OK',
-                'message' => 'Successfully set question to inactive'
+                'message' => 'Successfully set question to ' . $status
             );
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
                 'status' => 'NOK',
-                'message' => 'Error setting question to inactive'
+                'message' => 'Error setting question to ' . $status
             );
         }
     }
@@ -2005,6 +2017,64 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error getting new questions count: ' . $e->getMessage()
             );
+        }
+    }
+
+    /**
+     * Get the next new question for review based on subject
+     * 
+     * @param int $questionId Current question ID to get its subject
+     * @return array Question data or status message
+     */
+    public function getNextNewQuestion(int $questionId): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Get current question to determine subject
+            $currentQuestion = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$currentQuestion) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Current question not found'
+                ];
+            }
+
+            $subject = $currentQuestion->getSubject();
+
+            // Get next new question from same subject
+            $queryBuilder = $this->em->createQueryBuilder();
+            $queryBuilder->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.subject = :subject')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.id != :currentId')
+                ->andWhere('q.active = :active')
+                ->setParameter('subject', $subject)
+                ->setParameter('status', 'new')
+                ->setParameter('currentId', $questionId)
+                ->setParameter('active', true)
+                ->setMaxResults(1);
+
+            $question = $queryBuilder->getQuery()->getOneOrNullResult();
+
+            if (!$question) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No more new questions available for this subject'
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'question' => $question
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting next new question: ' . $e->getMessage()
+            ];
         }
     }
 }

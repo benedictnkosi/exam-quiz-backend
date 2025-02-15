@@ -66,6 +66,9 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $questionImagePath = null;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $comment = null;
+
     #[ORM\ManyToOne(targetEntity: Subject::class)]
     #[ORM\JoinColumn(name: 'subject', referencedColumnName: 'id')]
     private ?Subject $subject = null;
@@ -292,6 +295,18 @@ class Question
     public function setSubject(?Subject $subject): static
     {
         $this->subject = $subject;
+
+        return $this;
+    }
+
+    public function getComment(): ?string
+    {
+        return $this->comment;
+    }
+
+    public function setComment(?string $comment): static
+    {
+        $this->comment = $comment;
 
         return $this;
     }

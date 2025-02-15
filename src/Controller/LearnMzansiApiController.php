@@ -388,4 +388,23 @@ class LearnMzansiApiController extends AbstractController
         $jsonContent = $this->serializer->serialize($subjects, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
+
+    #[Route('/learn/question/next-new', name: 'get_next_new_question', methods: ['GET'])]
+    public function getNextNewQuestion(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $questionId = $request->query->get('question_id');
+        if (!$questionId) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID is required'
+            ], 400);
+        }
+
+        $response = $this->api->getNextNewQuestion((int) $questionId);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
 }
