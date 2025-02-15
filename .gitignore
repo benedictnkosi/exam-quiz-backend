@@ -1,5 +1,6 @@
 
 ###> symfony/framework-bundle ###
+
 /.env.local
 /.env.local.php
 /.env.*.local
@@ -18,8 +19,4 @@
 /phpunit.xml
 .phpunit.result.cache
 ###< phpunit/phpunit ###
-
-###> DOCTRINE.YAML ###
-/config/packages/doctrine.yaml
-###< DOCTRINE.YAML ###
 .env
