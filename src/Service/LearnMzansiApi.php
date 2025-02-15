@@ -764,6 +764,39 @@ class LearnMzansiApi extends AbstractController
         return trim($string);
     }
 
+    /**
+     * Normalize numeric answer by removing formatting
+     * 
+     * @param string $answer Answer to normalize
+     * @return string Normalized answer
+     */
+    private function normalizeNumericAnswer(string $answer): string
+    {
+        // Remove spaces and convert commas to dots
+        $normalized = str_replace([' ', ','], ['', '.'], trim($answer));
+
+        // Remove currency symbols and spaces
+        $hasCurrency = preg_match('/^[R$€£]/', $normalized);
+        $normalized = preg_replace('/^[R$€£]/', '', $normalized);
+
+        // Remove percentage sign if present
+        $hasPercentage = str_contains($normalized, '%');
+        $normalized = str_replace('%', '', $normalized);
+
+        // If it's a numeric value, format it consistently
+        if (is_numeric($normalized)) {
+            // Convert to float and back to string to handle both integer and decimal formats
+            $value = (string) floatval($normalized);
+            // Add back the appropriate symbol
+            if ($hasCurrency) {
+                return 'R' . $value;
+            }
+            return $hasPercentage ? $value . '%' : $value;
+        }
+
+        return $normalized;
+    }
+
     public function checkLearnerAnswer(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -811,64 +844,65 @@ class LearnMzansiApi extends AbstractController
             }
 
             $correctAnswers = json_decode($question->getAnswer(), true);
-            if (!is_array($correctAnswers)) {
-                throw new \Exception('Invalid correct answers format');
+            $learnerAnswer = $requestBody['answer'];
+
+            // Normalize both correct and learner answers
+            $normalizedLearnerAnswer = $this->normalizeNumericAnswer($learnerAnswer);
+            $isCorrect = false;
+
+            foreach ($correctAnswers as $correctAnswer) {
+                $this->logger->info("correctAnswer: " . $correctAnswer);
+                $this->logger->info("normalizedLearnerAnswer: " . $normalizedLearnerAnswer);
+
+                $normalizedCorrectAnswer = $this->normalizeNumericAnswer($correctAnswer);
+
+                // If either answer has a currency symbol or percentage, normalize both to numeric
+                if (
+                    preg_match('/^[R$€£]/', $normalizedCorrectAnswer) ||
+                    preg_match('/^[R$€£]/', $normalizedLearnerAnswer) ||
+                    str_contains($normalizedCorrectAnswer, '%') ||
+                    str_contains($normalizedLearnerAnswer, '%')
+                ) {
+
+                    $correctValue = preg_replace('/^[R$€£$]/', '', $normalizedCorrectAnswer);
+                    $correctValue = str_replace('%', '', $correctValue);
+
+                    $learnerValue = preg_replace('/^[R$€£$]/', '', $normalizedLearnerAnswer);
+                    $learnerValue = str_replace('%', '', $learnerValue);
+
+                    if (floatval($correctValue) === floatval($learnerValue)) {
+                        $isCorrect = true;
+                        break;
+                    }
+                } else if ($normalizedCorrectAnswer === $normalizedLearnerAnswer) {
+                    $isCorrect = true;
+                    break;
+                }
             }
 
-            $correctAnswers = array_map(function ($answer) {
-                return str_replace(' ', '', $answer);
-            }, $correctAnswers);
-
-            $correctAnswers = array_map(function ($answer) {
-                return $this->normalizeString(str_replace(' ', '', $answer));
-            }, $correctAnswers);
-
-            $isCorrect = !array_udiff($learnerAnswers, $correctAnswers, function ($a, $b) {
-                $bParts = explode('|', $b);
-                foreach ($bParts as $part) {
-                    if (strcasecmp($this->normalizeString(urldecode($a)), $this->normalizeString(urldecode($part))) === 0) {
-                        $this->logger->info("a: $a, b: $part");
-                        return 0;
-                    } else {
-                        $this->logger->info("a: $a, b: $b");
-                    }
-                }
-                return 1;
-            });
-
-            $outcome = $isCorrect ? 'correct' : 'incorrect';
-
-            // Save the result in the Result entity
+            // Create result record
             if ($RequestType !== 'mock') {
                 $result = new Result();
                 $result->setLearner($learner);
                 $result->setQuestion($question);
-                $result->setOutcome($outcome);
+                $result->setOutcome($isCorrect ? 'correct' : 'incorrect');
+                $result->setCreated(new \DateTime());
+
                 $this->em->persist($result);
                 $this->em->flush();
-
-                $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $question->getSubject()]);
-                if (!$learnerSubject) {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => 'Learner subject not found ' . $question->getSubject()->getId() . ' ' . $learner->getId()
-                    );
-                }
-                $learnerSubject->setLastUpdated(new \DateTime());
-                $this->em->persist($learnerSubject);
-                $this->em->flush();
             }
+            ;
 
             return array(
                 'status' => 'OK',
-                'is_correct' => $isCorrect,
-                'correct_answers' => implode(', ', json_decode($question->getAnswer(), true))
+                'result' => $isCorrect ? 'correct' : 'incorrect'
             );
+
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
                 'status' => 'NOK',
-                'message' => 'Error checking learner answer'
+                'message' => 'Error checking answer'
             );
         }
     }
