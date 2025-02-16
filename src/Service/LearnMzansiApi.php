@@ -731,6 +731,7 @@ class LearnMzansiApi extends AbstractController
                 $queryBuilder->select('count(q.id)')
                     ->from('App\Entity\Question', 'q')
                     ->where('q.subject = :subject')
+                    ->andWhere('q.status = \'approved\'')
                     ->andWhere('q.active = 1')
                     ->setParameter('subject', $subject);
 
