@@ -906,7 +906,8 @@ class LearnMzansiApi extends AbstractController
 
             return array(
                 'status' => 'OK',
-                'result' => $isCorrect ? 'correct' : 'incorrect'
+                'result' => $isCorrect ? 'correct' : 'incorrect',
+                'is_correct' => $isCorrect
             );
 
         } catch (\Exception $e) {
