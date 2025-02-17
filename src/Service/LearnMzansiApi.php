@@ -297,6 +297,7 @@ class LearnMzansiApi extends AbstractController
             $question->setCreated(new \DateTime());
             $question->setActive(true);
             $question->setStatus('new');
+            $question->setComment("new");
 
             $this->logger->info("debug 2");
             // Persist and flush the new entity
