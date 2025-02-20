@@ -18,7 +18,7 @@ class LearnerSubjectStatsService
     ) {
     }
 
-    public function getSubjectStats(string $learnerUid, int $subjectId): array
+    public function getSubjectStats(string $learnerUid, string $subjectName): array
     {
         try {
             // Find the learner
@@ -34,7 +34,7 @@ class LearnerSubjectStatsService
 
             // Find the subject
             $subject = $this->entityManager->getRepository(Subject::class)
-                ->find($subjectId);
+                ->findOneBy(['name' => $subjectName, 'grade' => $learner->getGrade()]);
 
             if (!$subject) {
                 return [
@@ -79,11 +79,11 @@ class LearnerSubjectStatsService
                         'total_answers' => $totalAnswers,
                         'correct_answers' => $correctAnswers,
                         'incorrect_answers' => $incorrectAnswers,
-                        'correct_percentage' => $totalAnswers > 0 
-                            ? round(($correctAnswers / $totalAnswers) * 100, 2) 
+                        'correct_percentage' => $totalAnswers > 0
+                            ? round(($correctAnswers / $totalAnswers) * 100, 2)
                             : 0,
-                        'incorrect_percentage' => $totalAnswers > 0 
-                            ? round(($incorrectAnswers / $totalAnswers) * 100, 2) 
+                        'incorrect_percentage' => $totalAnswers > 0
+                            ? round(($incorrectAnswers / $totalAnswers) * 100, 2)
                             : 0
                     ]
                 ]
@@ -97,4 +97,4 @@ class LearnerSubjectStatsService
             ];
         }
     }
-} 
+}

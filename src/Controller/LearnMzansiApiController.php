@@ -469,16 +469,16 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
 
         $uid = $request->query->get('uid');
-        $subjectId = $request->query->get('subject_id');
+        $subjectName = $request->query->get('subject_name');
 
-        if (!$uid || !$subjectId) {
+        if (!$uid || !$subjectName) {
             return new JsonResponse([
                 'status' => 'NOK',
-                'message' => 'UID and subject_id are required'
+                'message' => 'UID and subject_name are required'
             ], 400);
         }
 
-        $response = $subjectStatsService->getSubjectStats($uid, (int) $subjectId);
+        $response = $subjectStatsService->getSubjectStats($uid, $subjectName);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
