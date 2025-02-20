@@ -544,7 +544,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $learner->getGrade()], ['lastUpdated' => 'DESC']);
+            $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $learner->getGrade()], ['name' => 'ASC']);
 
             if (empty($subjects)) {
                 return array(
