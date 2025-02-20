@@ -24,8 +24,9 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $name = null;
 
-    #[ORM\Column(type: Types::BOOLEAN)]
-    private bool $overideTerm = false;
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $streak = null;
+
 
     #[ORM\Column(type: Types::STRING, length: 10, options: ['default' => 'learner'])]
     private string $role = 'learner';
@@ -87,17 +88,6 @@ class Learner
         return $this;
     }
 
-    public function isOverideTerm(): ?bool
-    {
-        return $this->overideTerm;
-    }
-
-    public function setOverideTerm(bool $overideTerm): static
-    {
-        $this->overideTerm = $overideTerm;
-
-        return $this;
-    }
 
     public function getRole(): ?string
     {
@@ -143,6 +133,18 @@ class Learner
     public function setGrade(?Grade $grade): static
     {
         $this->grade = $grade;
+
+        return $this;
+    }
+
+    public function getStreak(): ?int
+    {
+        return $this->streak;
+    }
+
+    public function setStreak(?int $streak): static
+    {
+        $this->streak = $streak;
 
         return $this;
     }
