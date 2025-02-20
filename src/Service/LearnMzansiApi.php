@@ -218,8 +218,9 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
+            $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $data['grade']]);
             // Fetch the associated Subject entity
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $data['subject']]);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $data['subject'], 'grade' => $grade]);
             if (!$subject) {
                 return array(
                     'status' => 'NOK',
