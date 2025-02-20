@@ -33,6 +33,7 @@ class LearnMzansiApi extends AbstractController
             $requestBody = json_decode($request->getContent(), true);
             $uid = $requestBody['uid'];
             $name = $requestBody['name'];
+            $grade = $requestBody['grade'];
 
             if (empty($uid)) {
                 return array(
@@ -51,6 +52,10 @@ class LearnMzansiApi extends AbstractController
                 $learner->setScore(0);
                 $learner->setCreated(new \DateTime());
                 $learner->setStreak(0);
+
+                $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
+                $learner->setGrade($grade);
+
                 $learner->setLastSeen(new \DateTime());
                 $this->em->persist($learner);
                 $this->em->flush();
