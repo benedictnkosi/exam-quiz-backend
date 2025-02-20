@@ -433,6 +433,104 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $showAllQuestions)
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        try {
+
+            $termCondition = '';
+            $statusCondition = '';
+
+            if ($questionId !== 0) {
+                $query = $this->em->createQuery(
+                    'SELECT q
+                    FROM App\Entity\Question q
+                    WHERE q.id = :id'
+                )->setParameter('id', $questionId);
+
+                $question = $query->getOneOrNullResult();
+                if ($question) {
+                    return $question;
+                } else {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'Question not found'
+                    );
+                }
+            }
+
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                );
+            }
+
+            //get subject by name
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName]);
+            if (!$subject) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                );
+            }
+
+            $subjectId = $subject->getId();
+
+            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subjectId]);
+
+            if ($showAllQuestions == 'no') {
+                //pausing functionality, will return all questions for now
+                $this->logger->info("filter by term");
+                $termCondition = 'AND q.term = 2 ';
+            }
+
+            if ($learner->getName() == 'admin') {
+                $statusCondition = '';
+            } else {
+                $statusCondition = ' AND q.status = \'approved\' ';
+            }
+
+            if (!$learnerSubject) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Learner subject not found'
+                );
+            }
+
+            $query = $this->em->createQuery(
+                'SELECT q
+            FROM App\Entity\Question q
+            JOIN q.subject s
+            LEFT JOIN App\Entity\Result r WITH r.question = q AND r.learner = :learner AND r.outcome = \'correct\'
+            WHERE s.id = :subjectId 
+            AND r.id IS NULL
+            AND q.active = 1 ' . $termCondition . $statusCondition
+            )->setParameter('subjectId', $subjectId)->setParameter('learner', $learner);
+
+            $questions = $query->getResult();
+            if (!empty($questions)) {
+                shuffle($questions);
+                $randomQuestion = $questions[0]; // Get the first random question
+            } else {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'No more questions available',
+                    'context' => '',
+                    'image_path' => ''
+                );
+            }
+
+            return $randomQuestion;
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return null;
+        }
+    }
+
     public function updateLearner(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -762,6 +860,7 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
+
 
     function normalizeString($string)
     {
