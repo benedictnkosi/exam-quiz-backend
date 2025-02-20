@@ -50,6 +50,7 @@ class LearnMzansiApi extends AbstractController
                 }
                 $learner->setScore(0);
                 $learner->setCreated(new \DateTime());
+                $learner->setStreak(0);
                 $learner->setLastSeen(new \DateTime());
                 $this->em->persist($learner);
                 $this->em->flush();
