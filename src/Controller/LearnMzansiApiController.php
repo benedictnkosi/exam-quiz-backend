@@ -12,6 +12,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use App\Service\LearnerGradeStatsService;
+use App\Service\LearnerSubjectStatsService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -457,6 +459,29 @@ class LearnMzansiApiController extends AbstractController
             $this->logger->error($ex->getMessage() . ' - ' . __METHOD__ . ':' . $ex->getLine() . ' ' . $ex->getTraceAsString());
         }
         return new JsonResponse($responseArray, 200, array());
+    }
+
+    #[Route('/learn/learner/subject-stats', name: 'get_subject_stats', methods: ['GET'])]
+    public function getLearnerSubjectStats(
+        Request $request,
+        LearnerSubjectStatsService $subjectStatsService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $uid = $request->query->get('uid');
+        $subjectId = $request->query->get('subject_id');
+
+        if (!$uid || !$subjectId) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'UID and subject_id are required'
+            ], 400);
+        }
+
+        $response = $subjectStatsService->getSubjectStats($uid, (int) $subjectId);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
     }
 
     /**
