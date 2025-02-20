@@ -296,7 +296,7 @@ class LearnMzansiApi extends AbstractController
             $question->setReviewer($data['capturer'] ?? null);
             $question->setCreated(new \DateTime());
             $question->setActive(true);
-            $question->setStatus('new');
+            $question->setStatus('approved');
             $question->setComment("new");
 
             $this->logger->info("debug 2");
