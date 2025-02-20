@@ -50,10 +50,21 @@ class LearnMzansiApi extends AbstractController
                 if ($name) {
                     $learner->setName($name);
                 }
-                $learner->setOverideTerm(true);
+                $learner->setScore(0);
                 $learner->setCreated(new \DateTime());
                 $learner->setLastSeen(new \DateTime());
                 $this->em->persist($learner);
+                $this->em->flush();
+
+                //add all subjects for the grade to learner 
+                $grade = $learner->getGrade();
+                $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $grade]);
+                foreach ($subjects as $subject) {
+                    $learnerSubject = new Learnersubjects();
+                    $learnerSubject->setLearner($learner);
+                    $learnerSubject->setSubject($subject);
+                    $this->em->persist($learnerSubject);
+                }
                 $this->em->flush();
 
                 return array(
@@ -1185,46 +1196,6 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function setOverrideTerm(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $override = $requestBody['override'];
-
-            if (empty($uid)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-
-            $learner->setOverideTerm($override);
-            $this->em->persist($learner);
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully set override term'
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error setting override term'
-            );
-        }
-    }
 
     public function setHigherGradeFlag(Request $request): array
     {
@@ -1690,81 +1661,6 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function logIssue(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $comment = $requestBody['comment'];
-            $uid = $requestBody['uid'];
-            $questionId = $requestBody['question_id'];
-
-            if (empty($comment)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'comment is required'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $question = $this->em->getRepository(Question::class)->find($questionId);
-            if (!$question) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Question not found'
-                );
-            }
-
-            // Create a new Issue entity
-            $issue = new Issue();
-            $issue->setComment($comment);
-            $issue->setLearner($learner);
-            $issue->setCreated(new \DateTime());
-            $issue->setQuestion($question);
-
-            // Persist and flush the new entity
-            $this->em->persist($issue);
-            $this->em->flush();
-
-            $this->logger->info("Logged new issue with ID {$issue->getId()}.");
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully logged issue',
-                'issue_id' => $issue->getId()
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error logging issue'
-            );
-        }
-    }
-
-    public function getAllActiveIssues(): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $issues = $this->em->getRepository(Issue::class)->findBy(['status' => 'new']);
-            return array(
-                'status' => 'OK',
-                'issues' => $issues
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error getting active issues'
-            );
-        }
-    }
 
     /**
      * Helper method to check if a user has admin role

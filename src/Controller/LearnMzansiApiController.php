@@ -188,15 +188,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/learn/learner/update-overide-term', name: 'update_override_term', methods: ['POST'])]
-    public function updateOverideTerm(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->setOverrideTerm($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
+
 
     #[Route('/learn/learner/set-higher-grade-flag', name: 'set_higher_grade', methods: ['POST'])]
     public function setHigherGradeFlag(Request $request): JsonResponse
@@ -280,26 +272,6 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->removeSubjectFromLearner($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
-
-    #[Route('/learn/issue/log', name: 'log_issue', methods: ['POST'])]
-    public function logIssue(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->logIssue($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
-
-    #[Route('/learn/issues/active', name: 'get_active_issues', methods: ['GET'])]
-    public function getAllActiveIssues(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->getAllActiveIssues($request);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
