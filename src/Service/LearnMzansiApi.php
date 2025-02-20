@@ -8,12 +8,10 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use App\Entity\Learner;
-use App\Entity\Learnersubjects;
 use App\Entity\Question;
 use App\Entity\Result;
 use App\Entity\Subject;
 use App\Entity\Issue;
-use phpDocumentor\Reflection\Types\Boolean;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query\Parameter;
 
@@ -54,17 +52,6 @@ class LearnMzansiApi extends AbstractController
                 $learner->setCreated(new \DateTime());
                 $learner->setLastSeen(new \DateTime());
                 $this->em->persist($learner);
-                $this->em->flush();
-
-                //add all subjects for the grade to learner 
-                $grade = $learner->getGrade();
-                $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $grade]);
-                foreach ($subjects as $subject) {
-                    $learnerSubject = new Learnersubjects();
-                    $learnerSubject->setLearner($learner);
-                    $learnerSubject->setSubject($subject);
-                    $this->em->persist($learnerSubject);
-                }
                 $this->em->flush();
 
                 return array(
@@ -357,94 +344,6 @@ class LearnMzansiApi extends AbstractController
         return $cleanedOptions;
     }
 
-    public function getRandomQuestionBySubjectId(int $subjectId, string $uid, int $questionId, string $showAllQuestions)
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-
-        try {
-
-            $termCondition = '';
-            $statusCondition = '';
-
-            if ($questionId !== 0) {
-                $query = $this->em->createQuery(
-                    'SELECT q
-                    FROM App\Entity\Question q
-                    WHERE q.id = :id'
-                )->setParameter('id', $questionId);
-
-                $question = $query->getOneOrNullResult();
-                if ($question) {
-                    return $question;
-                } else {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => 'Question not found'
-                    );
-                }
-            }
-
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-
-            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subjectId]);
-
-            if ($showAllQuestions == 'no') {
-                //pausing functionality, will return all questions for now
-                $this->logger->info("filter by term");
-                $termCondition = 'AND q.term = 2 ';
-            }
-
-            if ($learner->getName() == 'admin') {
-                $statusCondition = '';
-            } else {
-                $statusCondition = ' AND q.status = \'approved\' ';
-            }
-
-            if (!$learnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner subject not found'
-                );
-            }
-
-            $query = $this->em->createQuery(
-                'SELECT q
-            FROM App\Entity\Question q
-            JOIN q.subject s
-            LEFT JOIN App\Entity\Result r WITH r.question = q AND r.learner = :learner AND r.outcome = \'correct\'
-            WHERE s.id = :subjectId 
-            AND r.id IS NULL
-            AND q.active = 1 ' . $termCondition . $statusCondition
-            )->setParameter('subjectId', $subjectId)->setParameter('learner', $learner);
-
-            $questions = $query->getResult();
-            if (!empty($questions)) {
-                shuffle($questions);
-                $randomQuestion = $questions[0]; // Get the first random question
-            } else {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'No more questions available',
-                    'context' => '',
-                    'image_path' => ''
-                );
-            }
-
-            return $randomQuestion;
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return null;
-        }
-    }
-
     public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $showAllQuestions)
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -492,7 +391,6 @@ class LearnMzansiApi extends AbstractController
 
             $subjectId = $subject->getId();
 
-            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subjectId]);
 
             if ($showAllQuestions == 'no') {
                 //pausing functionality, will return all questions for now
@@ -504,13 +402,6 @@ class LearnMzansiApi extends AbstractController
                 $statusCondition = '';
             } else {
                 $statusCondition = ' AND q.status = \'approved\' ';
-            }
-
-            if (!$learnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner subject not found'
-                );
             }
 
             $query = $this->em->createQuery(
@@ -575,28 +466,9 @@ class LearnMzansiApi extends AbstractController
             $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $gradeName]);
             if ($grade) {
                 if ($grade !== $learner->getGrade()) {
-                    //remove all learner subject and results
-                    $learnerSubjects = $this->em->getRepository(Learnersubjects::class)->findBy(['learner' => $learner]);
-                    foreach ($learnerSubjects as $learnerSubject) {
-                        $this->em->remove($learnerSubject);
-                    }
-                    $this->em->flush();
-
                     $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
                     foreach ($results as $result) {
                         $this->em->remove($result);
-                    }
-                    $this->em->flush();
-
-                    //add new learner subjects
-                    $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $grade]);
-                    foreach ($subjects as $subject) {
-                        $learnerSubject = new Learnersubjects();
-                        $learnerSubject->setLearner($learner);
-                        $learnerSubject->setSubject($subject);
-                        $learnerSubject->setLastUpdated(new \DateTime());
-                        $learnerSubject->setPercentage(0);
-                        $this->em->persist($learnerSubject);
                     }
                     $this->em->flush();
                 }
@@ -672,9 +544,9 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $learnerSubjects = $this->em->getRepository(Learnersubjects::class)->findBy(['learner' => $learner], ['lastUpdated' => 'DESC']);
+            $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $learner->getGrade()], ['lastUpdated' => 'DESC']);
 
-            if (empty($learnerSubjects)) {
+            if (empty($subjects)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'No subjects found for learner'
@@ -683,7 +555,7 @@ class LearnMzansiApi extends AbstractController
             $answeredQuestions = 0;
 
             $returnArray = array();
-            foreach ($learnerSubjects as $learnerSubject) {
+            foreach ($subjects as $subject) {
                 $query = $this->em->createQueryBuilder()
                     ->select('r, q')
                     ->from('App\Entity\Result', 'r')
@@ -691,7 +563,7 @@ class LearnMzansiApi extends AbstractController
                     ->where('r.learner = :learner')
                     ->andWhere('q.subject = :subject')
                     ->setParameter('learner', $learner)
-                    ->setParameter('subject', $learnerSubject->getSubject())
+                    ->setParameter('subject', $subject)
                     ->getQuery();
 
 
@@ -712,12 +584,12 @@ class LearnMzansiApi extends AbstractController
                     ->where('q.subject = :subject')
                     ->andWhere('q.status = \'approved\'')
                     ->andWhere('q.active = 1')
-                    ->setParameter('subject', $learnerSubject->getSubject())
+                    ->setParameter('subject', $subject)
                     ->getQuery()
                     ->getSingleScalarResult();
 
                 $returnArray[] = array(
-                    'subject' => $learnerSubject,
+                    'subject' => $subject,
                     'total_questions' => $totalSubjectQuestion,
                     'answered_questions' => $answeredQuestions,
                     'correct_answers' => $correctAnswers
@@ -730,158 +602,6 @@ class LearnMzansiApi extends AbstractController
             return array(
                 'status' => 'NOK',
                 'message' => 'Error getting learner subjects'
-            );
-        }
-    }
-
-    public function assignSubjectToLearner(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $subjectId = $requestBody['subject_id'];
-
-            if (empty($uid) || empty($subjectId)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $subject = $this->em->getRepository(Subject::class)->find($subjectId);
-            if (!$subject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
-                );
-            }
-
-            $existingLearnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy([
-                'learner' => $learner,
-                'subject' => $subject
-            ]);
-
-            if ($existingLearnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Subject already assigned to learner'
-                );
-            }
-
-            $learnerSubject = new Learnersubjects();
-            $learnerSubject->setLearner($learner);
-            $learnerSubject->setSubject($subject);
-            $learnerSubject->setLastUpdated(new \DateTime());
-            $learnerSubject->setPercentage(0);
-            $this->em->persist($learnerSubject);
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully assigned subject to learner'
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error assigning subject to learner'
-            );
-        }
-    }
-
-    public function getSubjectsNotEnrolledByLearner(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $uid = $request->query->get('uid');
-
-            if (empty($uid)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'UID values are required'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $enrolledSubjects = $this->em->getRepository(Learnersubjects::class)->findBy(['learner' => $learner]);
-            $enrolledSubjectIds = array_map(function ($learnerSubject) {
-                return $learnerSubject->getSubject()->getId();
-            }, $enrolledSubjects);
-
-            if (empty($enrolledSubjectIds)) {
-                $queryBuilder = $this->em->createQueryBuilder();
-                $queryBuilder->select('s')
-                    ->from('App\Entity\Subject', 's')
-                    ->where('s.active = 1')
-                    ->andWhere('s.grade = :grade')
-                    ->setParameter('grade', $learner->getGrade())
-                    ->orderBy('s.name');
-
-                $query = $queryBuilder->getQuery();
-            } else {
-                $queryBuilder = $this->em->createQueryBuilder();
-                $query = $queryBuilder->select('s')
-                    ->from('App\Entity\Subject', 's')
-                    ->where('s.id NOT IN (:enrolledSubjectIds)')
-                    ->andWhere('s.active = 1')
-                    ->andWhere('s.grade = :grade')
-                    ->setParameter('enrolledSubjectIds', $enrolledSubjectIds)
-                    ->setParameter('grade', $learner->getGrade())
-                    ->orderBy('s.name')
-                    ->getQuery();
-            }
-
-            $subjects = $query->getResult();
-
-            $subjectDetails = [];
-            foreach ($subjects as $subject) {
-                $queryBuilder = $this->em->createQueryBuilder();
-                $queryBuilder->select('count(q.id)')
-                    ->from('App\Entity\Question', 'q')
-                    ->where('q.subject = :subject')
-                    ->andWhere('q.status = \'approved\'')
-                    ->andWhere('q.active = 1')
-                    ->setParameter('subject', $subject);
-
-                $totalQuestions = $queryBuilder->getQuery()->getSingleScalarResult();
-                if ($totalQuestions > 0) {
-                    $subjectDetails[] = [
-                        'id' => $subject->getId(),
-                        'name' => $subject->getName(),
-                        'active' => $subject->isActive(),
-                        'grade' => $subject->getGrade(),
-                        'totalQuestions' => $totalQuestions
-                    ];
-                }
-            }
-
-            //push change
-
-            return array(
-                'status' => 'OK',
-                'subjects' => $subjectDetails
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error getting subjects not enrolled by learner'
             );
         }
     }
@@ -1119,145 +839,6 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getLearnerSubjectPercentage(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $uid = $request->query->get('uid');
-            $subjectId = $request->query->get('subject_id');
-
-            if (empty($uid) || empty($subjectId)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'UID and Subject ID are required'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $subject = $this->em->getRepository(Subject::class)->find($subjectId);
-            if (!$subject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
-                );
-            }
-
-            $results = $this->em->getRepository(Result::class)->createQueryBuilder('r')
-                ->join('r.question', 'q')
-                ->where('r.learner = :learner')
-                ->andWhere('q.subject = :subject')
-                ->setParameter('learner', $learner)
-                ->setParameter('subject', $subject)
-                ->getQuery()
-                ->getResult();
-
-            $totalQuestions = count($results);
-            $correctAnswers = 0;
-
-            foreach ($results as $result) {
-                if ($result->getOutcome() === 'correct') {
-                    $correctAnswers++;
-                }
-            }
-
-
-            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subject]);
-
-            if (!$learnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner subject not found'
-                );
-            }
-
-            if (empty($results)) {
-
-                $learnerSubject->setPercentage(0);
-                $this->em->persist($learnerSubject);
-                $this->em->flush();
-
-                return array(
-                    'status' => 'OK',
-                    'percentage' => 0
-                );
-            }
-
-
-            $percentage = ($correctAnswers / $totalQuestions);
-            $learnerSubject->setPercentage($percentage);
-            $this->em->persist($learnerSubject);
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'learner_subject' => $learnerSubject,
-                'percentage' => $percentage
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error calculating learner subject percentage'
-            );
-        }
-    }
-
-
-    public function setHigherGradeFlag(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $learnerSubjectId = $requestBody['learner_subject_id'];
-            $higherGrade = $requestBody['higher_grade'];
-
-            if (empty($uid) || empty($learnerSubjectId)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'id' => $learnerSubjectId]);
-            if (!$learnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner subject not found'
-                );
-            }
-
-            $learnerSubject->setHigherGrade($higherGrade);
-            $this->em->persist($learnerSubject);
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully set higher grade flag'
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error setting higher grade flag'
-            );
-        }
-    }
 
     public function getAllActiveSubjects($request): array
     {
@@ -1600,76 +1181,6 @@ class LearnMzansiApi extends AbstractController
             return array(
                 'status' => 'NOK',
                 'message' => 'Error setting question to ' . $status
-            );
-        }
-    }
-
-    public function removeSubjectFromLearner(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $subjectId = $requestBody['subject_id'];
-
-            if (empty($uid) || empty($subjectId)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $subject = $this->em->getRepository(Subject::class)->find($subjectId);
-            if (!$subject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
-                );
-            }
-
-            $learnerSubject = $this->em->getRepository(Learnersubjects::class)->findOneBy(['learner' => $learner, 'subject' => $subject]);
-            if (!$learnerSubject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner subject not found'
-                );
-            }
-
-            // Remove all results for the learner and subject
-            $results = $this->em->getRepository(Result::class)->createQueryBuilder('r')
-                ->join('r.question', 'q')
-                ->where('r.learner = :learner')
-                ->andWhere('q.subject = :subject')
-                ->setParameter('learner', $learner)
-                ->setParameter('subject', $subject)
-                ->getQuery()
-                ->getResult();
-
-            foreach ($results as $result) {
-                $this->em->remove($result);
-            }
-
-            // Remove the learner subject
-            $this->em->remove($learnerSubject);
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully removed subject from learner and deleted related results'
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error removing subject from learner'
             );
         }
     }
