@@ -20,3 +20,4 @@
 .phpunit.result.cache
 ###< phpunit/phpunit ###
 .env
+.env
