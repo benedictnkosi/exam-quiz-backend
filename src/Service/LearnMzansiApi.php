@@ -586,6 +586,18 @@ class LearnMzansiApi extends AbstractController
                         $this->em->remove($result);
                     }
                     $this->em->flush();
+
+                    //add new learner subjects
+                    $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $grade]);
+                    foreach ($subjects as $subject) {
+                        $learnerSubject = new Learnersubjects();
+                        $learnerSubject->setLearner($learner);
+                        $learnerSubject->setSubject($subject);
+                        $learnerSubject->setLastUpdated(new \DateTime());
+                        $learnerSubject->setPercentage(0);
+                        $this->em->persist($learnerSubject);
+                    }
+                    $this->em->flush();
                 }
             } else {
                 return array(
