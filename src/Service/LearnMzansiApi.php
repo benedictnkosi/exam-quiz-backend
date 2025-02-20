@@ -993,6 +993,20 @@ class LearnMzansiApi extends AbstractController
                 $this->logger->info("normalizedLearnerAnswer: " . $normalizedLearnerAnswer);
             }
 
+            //update learner score, add one if correct, minus one if incorrect. should not go below 0
+            if ($isCorrect) {
+                $learner->setScore($learner->getScore() + 1);
+            } else {
+                $learner->setScore($learner->getScore() - 1);
+            }
+
+            if ($learner->getScore() < 0) {
+                $learner->setScore(0);
+            }
+
+            $this->em->persist($learner);
+            $this->em->flush();
+
             // Create result record
             if ($RequestType !== 'mock') {
                 $result = new Result();
