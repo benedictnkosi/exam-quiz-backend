@@ -565,6 +565,7 @@ class LearnMzansiApi extends AbstractController
             if (!$learner) {
                 $learner = new Learner();
                 $learner->setUid($uid);
+                $learner->setStreak(0);
                 $learner->setCreated(new \DateTime());
                 $this->em->persist($learner);
                 $this->em->flush();
