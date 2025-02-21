@@ -387,7 +387,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             //get subject by name
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName]);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName, 'grade' => $learner->getGrade()]);
             if (!$subject) {
                 return array(
                     'status' => 'NOK',
