@@ -1106,9 +1106,7 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Question not found'
                 );
             }
-
-            $question->setActive(0);
-            $this->em->persist($question);
+            $this->em->remove($question);
             $this->em->flush();
 
             return array(
