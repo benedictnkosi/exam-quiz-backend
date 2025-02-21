@@ -1106,9 +1106,7 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Question not found'
                 );
             }
-
-            $question->setActive(0);
-            $this->em->persist($question);
+            $this->em->remove($question);
             $this->em->flush();
 
             return array(
@@ -1174,6 +1172,9 @@ class LearnMzansiApi extends AbstractController
             $question->setReviewer($reviewerEmail);
             if (!empty($comment)) {
                 $question->setComment($comment);
+            }
+            if ($status == 'approved') {
+                $question->setComment("approved");
             }
             $this->em->persist($question);
             $this->em->flush();
@@ -1638,10 +1639,12 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.status = :status')
                 ->andWhere('q.id != :currentId')
                 ->andWhere('q.active = :active')
+                ->andWhere('q.comment = :comment')
                 ->setParameter('subject', $subject)
-                ->setParameter('status', 'new')
+                ->setParameter('status', 'approved')
                 ->setParameter('currentId', $questionId)
                 ->setParameter('active', true)
+                ->setParameter('comment', "new")
                 ->setMaxResults(1);
 
             $question = $queryBuilder->getQuery()->getOneOrNullResult();
