@@ -177,13 +177,13 @@ class LearnMzansiApi extends AbstractController
             }
 
             //return an error if the capturer has more than 10 rejected questions
-            $rejectedQuestionsCount = $this->em->getRepository(Question::class)->countBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
-            if ($rejectedQuestionsCount >= 10) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
-                );
-            }
+            // $rejectedQuestionsCount = $this->em->getRepository(Question::class)->countBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
+            // if ($rejectedQuestionsCount >= 10) {
+            //     return array(
+            //         'status' => 'NOK',
+            //         'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
+            //     );
+            // }
             // Check number of questions in new status not captured by this user
             $queryBuilder = $this->em->createQueryBuilder();
             $parameters = new ArrayCollection([
