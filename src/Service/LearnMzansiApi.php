@@ -177,13 +177,13 @@ class LearnMzansiApi extends AbstractController
             }
 
             //return an error if the capturer has more than 10 rejected questions
-            // $rejectedQuestionsCount = $this->em->getRepository(Question::class)->countBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
-            // if ($rejectedQuestionsCount >= 10) {
-            //     return array(
-            //         'status' => 'NOK',
-            //         'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
-            //     );
-            // }
+            $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
+            if (count($rejectedQuestions) >= 10) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
+                );
+            }
             // Check number of questions in new status not captured by this user
             $queryBuilder = $this->em->createQueryBuilder();
             $parameters = new ArrayCollection([
@@ -306,6 +306,11 @@ class LearnMzansiApi extends AbstractController
             $question->setActive(true);
             $question->setStatus('approved');
             $question->setComment("new");
+
+            //reset images
+            $question->setImagePath('');
+            $question->setQuestionImagePath('');
+            $question->setAnswerImage('');
 
             // Persist and flush the new entity
             $this->em->persist($question);
