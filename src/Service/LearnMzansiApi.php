@@ -184,6 +184,16 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
                 );
             }
+
+            //return error if the capturer has question with type "single" or "true_false"
+            $singleQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'type' => 'single']);
+            if (count($singleQuestions) >= 1) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'You have single questions to convert to multiple choice'
+                );
+            }
+
             // Check number of questions in new status not captured by this user
             $queryBuilder = $this->em->createQueryBuilder();
             $parameters = new ArrayCollection([
