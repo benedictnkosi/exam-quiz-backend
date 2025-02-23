@@ -178,7 +178,7 @@ class LearnMzansiApi extends AbstractController
 
             //return an error if the capturer has more than 10 rejected questions
             $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
-            if (count($rejectedQuestions) >= 10) {
+            if (count($rejectedQuestions) >= 10 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
@@ -187,7 +187,7 @@ class LearnMzansiApi extends AbstractController
 
             //return error if the capturer has question with type "single" or "true_false"
             $singleQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'type' => 'single']);
-            if (count($singleQuestions) >= 1) {
+            if (count($singleQuestions) >= 1 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'You have single questions to convert to multiple choice'
