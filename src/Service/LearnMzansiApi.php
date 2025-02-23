@@ -307,14 +307,10 @@ class LearnMzansiApi extends AbstractController
             $question->setStatus('approved');
             $question->setComment("new");
 
-            //reset images
-            $question->setImagePath('');
-            $question->setQuestionImagePath('');
-            $question->setAnswerImage('');
-
             // Persist and flush the new entity
             $this->em->persist($question);
             $this->em->flush();
+
 
             $this->logger->info("Created new question with ID {$question->getId()}.");
 
