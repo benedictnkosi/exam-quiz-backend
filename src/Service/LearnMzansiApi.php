@@ -1174,7 +1174,7 @@ class LearnMzansiApi extends AbstractController
                 $question->setComment($comment);
             }
             if ($status == 'approved') {
-                $question->setComment("approved");
+                $question->setComment(comment: "approved");
             }
             $this->em->persist($question);
             $this->em->flush();
