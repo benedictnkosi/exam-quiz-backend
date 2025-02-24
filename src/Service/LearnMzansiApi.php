@@ -450,7 +450,9 @@ class LearnMzansiApi extends AbstractController
             }
 
             //shuffle the options
-            $randomQuestion->setOptions(shuffle($randomQuestion->getOptions()));
+            $options = $randomQuestion->getOptions();
+            shuffle($options);
+            $randomQuestion->setOptions($options);    
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
