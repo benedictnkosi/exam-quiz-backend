@@ -449,6 +449,8 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            //shuffle the options
+            $randomQuestion->setOptions(shuffle($randomQuestion->getOptions()));
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
