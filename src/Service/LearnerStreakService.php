@@ -9,12 +9,13 @@ use Psr\Log\LoggerInterface;
 
 class LearnerStreakService
 {
-    private const REQUIRED_DAILY_QUESTIONS = 5;
+    private const REQUIRED_DAILY_QUESTIONS = 1;
 
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     public function trackQuestionAnswered(string $learnerUid): array
     {
@@ -47,7 +48,7 @@ class LearnerStreakService
             // Check if daily goal is met
             if ($streak->getQuestionsAnsweredToday() === self::REQUIRED_DAILY_QUESTIONS) {
                 $streak->setCurrentStreak($streak->getCurrentStreak() + 1);
-                
+
                 if ($streak->getCurrentStreak() > $streak->getLongestStreak()) {
                     $streak->setLongestStreak($streak->getCurrentStreak());
                 }
@@ -147,4 +148,4 @@ class LearnerStreakService
             ];
         }
     }
-} 
+}
