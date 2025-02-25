@@ -523,6 +523,6 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->subscribe($request);
-        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*'], true);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 }
