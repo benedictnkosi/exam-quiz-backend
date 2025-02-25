@@ -14,6 +14,7 @@ use App\Entity\Subject;
 use App\Entity\Issue;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query\Parameter;
+use App\Entity\Subscription;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -452,7 +453,7 @@ class LearnMzansiApi extends AbstractController
             //shuffle the options
             $options = $randomQuestion->getOptions();
             shuffle($options);
-            $randomQuestion->setOptions($options);    
+            $randomQuestion->setOptions($options);
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
@@ -1741,6 +1742,60 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error getting rejected questions: ' . $e->getMessage()
             ];
+        }
+    }
+
+    public function subscribe(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $phoneNumber = $request->query->get('phone');
+
+            if (empty($phoneNumber)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Phone number is required'
+                );
+            }
+
+            // Basic phone number validation
+            if (!preg_match('/^[0-9]{10}$/', $phoneNumber)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Invalid phone number format. Please use 10 digits'
+                );
+            }
+
+            // Check if phone number already exists
+            $existingSubscription = $this->em->getRepository(Subscription::class)
+                ->findOneBy(['phoneNumber' => $phoneNumber]);
+
+            if ($existingSubscription) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Phone number already subscribed'
+                );
+            }
+
+            // Create new subscription
+            $subscription = new Subscription();
+            $subscription->setPhoneNumber($phoneNumber);
+            $subscription->setCreated(new \DateTime());
+
+            $this->em->persist($subscription);
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'Successfully subscribed'
+            );
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error creating subscription'
+            );
         }
     }
 }

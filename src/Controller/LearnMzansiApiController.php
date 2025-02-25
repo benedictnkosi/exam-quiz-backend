@@ -517,4 +517,12 @@ class LearnMzansiApiController extends AbstractController
             'err' => trim($stderr),
         ];
     }
+
+    #[Route('/learn/subscribe', name: 'subscribe', methods: ['POST'])]
+    public function subscribe(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->subscribe($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
 }
