@@ -518,7 +518,7 @@ class LearnMzansiApiController extends AbstractController
         ];
     }
 
-    #[Route('/learn/subscribe', name: 'subscribe', methods: ['POST'])]
+    #[Route('/learn/subscribe', name: 'subscribe', methods: ['GET'])]
     public function subscribe(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
