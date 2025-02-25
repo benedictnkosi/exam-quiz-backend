@@ -1057,11 +1057,6 @@ class LearnMzansiApi extends AbstractController
             $gradeNumber = $request->query->get('grade');
             $subjectName = $request->query->get('subject');
             $status = $request->query->get('status');
-            $forSocial = $request->query->get('social');
-
-            if (empty($forSocial)) {
-                $forSocial = 'false';
-            }
 
             if (empty($gradeNumber) || empty($subjectName)) {
                 return array(
@@ -1086,19 +1081,10 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            if ($forSocial == 'true') {
-                //if for social then only get the questions that are dont have images
-                if (empty($status)) {
-                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1, 'imagePath' => null], ['created' => 'DESC']);
-                } else {
-                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1, , 'imagePath' => null], ['created' => 'DESC']);
-                }
+            if (empty($status)) {
+                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1], ['created' => 'DESC']);
             } else {
-                if (empty($status)) {
-                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1], ['created' => 'DESC']);
-                } else {
-                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1], ['created' => 'DESC']);
-                }
+                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1], ['created' => 'DESC']);
             }
 
             return array(
