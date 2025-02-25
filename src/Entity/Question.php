@@ -45,6 +45,9 @@ class Question
     #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => true])]
     private ?bool $active = true;
 
+    #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => false])]
+    private ?bool $posted = false;
+
     #[ORM\Column(type: Types::INTEGER)]
     private int $year;
 
@@ -307,6 +310,18 @@ class Question
     public function setComment(?string $comment): static
     {
         $this->comment = $comment;
+
+        return $this;
+    }
+
+    public function isPosted(): ?bool
+    {
+        return $this->posted;
+    }
+
+    public function setPosted(?bool $posted): static
+    {
+        $this->posted = $posted;
 
         return $this;
     }

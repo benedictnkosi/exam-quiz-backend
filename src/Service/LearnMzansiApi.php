@@ -1057,6 +1057,11 @@ class LearnMzansiApi extends AbstractController
             $gradeNumber = $request->query->get('grade');
             $subjectName = $request->query->get('subject');
             $status = $request->query->get('status');
+            $forSocial = $request->query->get('social');
+
+            if (empty($forSocial)) {
+                $forSocial = 'false';
+            }
 
             if (empty($gradeNumber) || empty($subjectName)) {
                 return array(
@@ -1081,10 +1086,19 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            if (empty($status)) {
-                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1], ['created' => 'DESC']);
+            if ($forSocial == 'true') {
+                //if for social then only get the questions that are dont have images
+                if (empty($status)) {
+                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1, 'imagePath' => null], ['created' => 'DESC']);
+                } else {
+                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1, , 'imagePath' => null], ['created' => 'DESC']);
+                }
             } else {
-                $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1], ['created' => 'DESC']);
+                if (empty($status)) {
+                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'active' => 1], ['created' => 'DESC']);
+                } else {
+                    $questions = $this->em->getRepository(Question::class)->findBy(['subject' => $subject, 'status' => $status, 'active' => 1], ['created' => 'DESC']);
+                }
             }
 
             return array(
@@ -1795,6 +1809,38 @@ class LearnMzansiApi extends AbstractController
             return array(
                 'status' => 'NOK',
                 'message' => 'Error creating subscription'
+            );
+        }
+    }
+
+    //service to update the posted status of a question
+    public function updateQuestionPostedStatus(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $questionId = $request->query->get('questionId');
+        $posted = $request->query->get('posted');
+
+        try {
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                );
+            }
+
+            $question->setPosted($posted);
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'Question posted status updated'
+            );
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error updating question posted status'
             );
         }
     }

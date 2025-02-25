@@ -525,4 +525,13 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->subscribe($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/question/update-posted-status', name: 'update_question_posted_status', methods: ['POST'])]
+    public function updateQuestionPostedStatus(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $response = $this->api->updateQuestionPostedStatus($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }
