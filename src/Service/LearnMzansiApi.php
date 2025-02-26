@@ -1147,12 +1147,12 @@ class LearnMzansiApi extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
+            $requestBody = json_decode($request->getContent(), true);
             $adminCheck = $this->validateAdminAccess($request);
-            if ($adminCheck['status'] === 'NOK') {
+            if ($adminCheck['status'] === 'NOK' && $requestBody['status'] !== 'rejected') {
                 return $adminCheck;
             }
 
-            $requestBody = json_decode($request->getContent(), true);
             $questionId = $requestBody['question_id'];
             $status = $requestBody['status'];
             $reviewerEmail = $requestBody['email'];
