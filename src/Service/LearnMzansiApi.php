@@ -1971,6 +1971,7 @@ class LearnMzansiApi extends AbstractController
                     continue;
                 }
 
+                $this->logger->info("File size: " . filesize($fullPath));
                 if (filesize($fullPath) > 200 * 1024) { // 200KB
                     $this->logger->info("Image file is too large. " . $fullPath);
                     continue;
@@ -1978,6 +1979,7 @@ class LearnMzansiApi extends AbstractController
 
                 $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $imagePath;
 
+                $this->logger->info("Image URL: " . $imageUrl);
                 $data = [
                     "model" => "gpt-4o-mini",
                     "messages" => [
