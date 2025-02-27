@@ -1918,4 +1918,115 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
+
+    /**
+     * Process question images and update context with extracted text
+     * 
+     * @return array Status and count of processed questions
+     */
+    public function processQuestionImages($count = 10): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Get all questions with images that haven't been processed
+            $queryBuilder = $this->em->createQueryBuilder();
+            $queryBuilder->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.image_path IS NOT NULL')
+                ->andWhere('q.active = :active')
+                ->setParameter('active', true);
+
+            $questions = $queryBuilder->getQuery()->getResult();
+
+            $processedCount = 0;
+
+            foreach ($questions as $question) {
+                $imagePath = $question->getImagePath();
+                if (!$imagePath) {
+                    continue;
+                }
+
+                // Check file size
+                $fullPath = $this->getParameter('public_dir') . '/assets/images/learnMzansi/' . $imagePath;
+                if (!file_exists($fullPath) || filesize($fullPath) > 200 * 1024) { // 200KB
+                    continue;
+                }
+
+                // Prepare OpenAI API request
+                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $imagePath;
+
+                $data = [
+                    "model" => "gpt-4o-mini",
+                    "messages" => [
+                        [
+                            "role" => "system",
+                            "content" => "You are an AI that checks if an image contains only text. return the extracted text as a string. If the image contains objects, return false."
+                        ],
+                        [
+                            "role" => "user",
+                            "content" => [
+                                [
+                                    "type" => "image_url",
+                                    "image_url" => ["url" => $imageUrl]
+                                ]
+                            ]
+                        ]
+                    ]
+                ];
+
+                $ch = curl_init('https://api.openai.com/v1/chat/completions');
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->getParameter('OPENAI_API_KEY')
+                ]);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                $this->logger->info("Response: " . $response);
+
+                if ($httpCode === 200) {
+                    $result = json_decode($response, true);
+                    if (isset($result['choices'][0]['message']['content'])) {
+                        $extractedText = $result['choices'][0]['message']['content'];
+
+                        // If the response is not 'false', update the question context
+                        if ($extractedText !== 'false') {
+                            $currentContext = $question->getContext() ?? '';
+                            $newContext = trim($currentContext . "\n" . $extractedText);
+                            $question->setContext($newContext);
+                            $question->setImagePath(null);
+                            $question->setComment("Image converted to text by AI");
+                            $question->setStatus('new');
+                            $this->em->persist($question);
+                            $processedCount++;
+                        }
+                    }
+                }
+
+                if ($processedCount >= $count) {
+                    break;
+                }
+            }
+
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => "Processed $processedCount question images",
+                'processed_count' => $processedCount
+            );
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error processing question images: ' . $e->getMessage()
+            );
+        }
+    }
 }
