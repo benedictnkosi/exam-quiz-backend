@@ -20,11 +20,19 @@ class LearnMzansiApi extends AbstractController
 {
     private $em;
     private $logger;
+    private $projectDir;
+    private $openAiKey;
 
-    public function __construct(EntityManagerInterface $entityManager, LoggerInterface $logger)
-    {
-        $this->em = $entityManager;
+    public function __construct(
+        EntityManagerInterface $em,
+        LoggerInterface $logger,
+        string $projectDir,
+        string $openAiKey
+    ) {
+        $this->em = $em;
         $this->logger = $logger;
+        $this->projectDir = $projectDir;
+        $this->openAiKey = $openAiKey;
     }
 
     public function createLearner(Request $request): array
@@ -924,7 +932,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $uploadDir = $this->getParameter('kernel.project_dir') . '/public/assets/images/learnMzansi';
+            $uploadDir = $this->projectDir . '/public/assets/images/learnMzansi';
             $newFilename = uniqid() . '.' . $file->guessExtension();
 
             $file->move($uploadDir, $newFilename);
@@ -1924,7 +1932,7 @@ class LearnMzansiApi extends AbstractController
      * 
      * @return array Status and count of processed questions
      */
-    public function processQuestionImages($count = 10): array
+    public function processQuestionImages(): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
@@ -1932,7 +1940,7 @@ class LearnMzansiApi extends AbstractController
             $queryBuilder = $this->em->createQueryBuilder();
             $queryBuilder->select('q')
                 ->from('App\Entity\Question', 'q')
-                ->where('q.image_path IS NOT NULL')
+                ->where('q.imagePath IS NOT NULL')
                 ->andWhere('q.active = :active')
                 ->setParameter('active', true);
 
@@ -1946,8 +1954,10 @@ class LearnMzansiApi extends AbstractController
                     continue;
                 }
 
+                $this->logger->info("Image Path: " . $imagePath);
+
                 // Check file size
-                $fullPath = $this->getParameter('public_dir') . '/assets/images/learnMzansi/' . $imagePath;
+                $fullPath = $this->projectDir . '/public/learn/learner/' . $imagePath;
                 if (!file_exists($fullPath) || filesize($fullPath) > 200 * 1024) { // 200KB
                     continue;
                 }
@@ -1980,14 +1990,12 @@ class LearnMzansiApi extends AbstractController
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
                 curl_setopt($ch, CURLOPT_HTTPHEADER, [
                     'Content-Type: application/json',
-                    'Authorization: Bearer ' . $this->getParameter('OPENAI_API_KEY')
+                    'Authorization: Bearer ' . $this->openAiKey
                 ]);
 
                 $response = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
-
-                $this->logger->info("Response: " . $response);
 
                 if ($httpCode === 200) {
                     $result = json_decode($response, true);
@@ -1999,17 +2007,10 @@ class LearnMzansiApi extends AbstractController
                             $currentContext = $question->getContext() ?? '';
                             $newContext = trim($currentContext . "\n" . $extractedText);
                             $question->setContext($newContext);
-                            $question->setImagePath(null);
-                            $question->setComment("Image converted to text by AI");
-                            $question->setStatus('new');
                             $this->em->persist($question);
                             $processedCount++;
                         }
                     }
-                }
-
-                if ($processedCount >= $count) {
-                    break;
                 }
             }
 

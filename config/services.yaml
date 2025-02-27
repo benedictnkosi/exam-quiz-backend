@@ -43,3 +43,8 @@ services:
     App\EventListener\CorsListener:
         tags:
             - { name: kernel.event_subscriber }
+
+    App\Service\LearnMzansiApi:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $openAiKey: '%env(OPENAI_API_KEY)%'
