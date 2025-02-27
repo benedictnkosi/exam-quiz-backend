@@ -534,4 +534,12 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->updateQuestionPostedStatus($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/question/auto-reject', name: 'auto_reject_questions', methods: ['POST'])]
+    public function autoRejectQuestions(): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->autoRejectQuestions();
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }

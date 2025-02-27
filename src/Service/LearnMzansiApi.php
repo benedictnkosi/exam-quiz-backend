@@ -1830,4 +1830,81 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
+
+    /**
+     * Auto reject questions where answer options are significantly shorter than correct answer
+     * 
+     * @return array Status and count of rejected questions
+     */
+    public function autoRejectQuestions(): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Get all approved questions that haven't been auto-checked
+            $queryBuilder = $this->em->createQueryBuilder();
+            $queryBuilder->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.status = :status')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.type IN (:types)')
+                ->setParameter('status', 'approved')
+                ->setParameter('active', true)
+                ->setParameter('types', ['multiple_choice']);
+
+            $questions = $queryBuilder->getQuery()->getResult();
+
+            $rejectedCount = 0;
+
+            foreach ($questions as $question) {
+                $options = $question->getOptions();
+                $answer = json_decode($question->getAnswer(), true);
+
+                // Skip if no options or answer
+                if (!$options || !$answer) {
+                    continue;
+                }
+
+                // Get correct answer length
+                $correctAnswerLength = strlen($options[$answer[0]]);
+
+                // Calculate average length of incorrect options
+                $incorrectLengths = [];
+                foreach ($options as $key => $option) {
+                    if (!in_array($key, $answer)) {
+                        $incorrectLengths[] = strlen($option);
+                    }
+                }
+
+                $avgIncorrectLength = array_sum($incorrectLengths) / count($incorrectLengths);
+
+                // Reject if average incorrect length is more than 20 chars shorter
+                if (($correctAnswerLength - $avgIncorrectLength) > 20) {
+                    $question->setStatus('rejected');
+                    $question->setComment('Auto-rejected: Answer options are significantly shorter than correct answer');
+                    $question->setReviewer("AI");
+                    $this->em->persist($question);
+                    $rejectedCount++;
+                }
+
+                if ($rejectedCount > 100) {
+                    break;
+                }
+            }
+
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => "Auto-rejected $rejectedCount questions",
+                'rejected_count' => $rejectedCount
+            );
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error auto-rejecting questions: ' . $e->getMessage()
+            );
+        }
+    }
 }
