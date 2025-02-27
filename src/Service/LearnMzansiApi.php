@@ -1999,7 +1999,6 @@ class LearnMzansiApi extends AbstractController
                     ]
                 ];
 
-                $this->logger->info("Processing question: " . $data);
 
                 $processedCount++;
                 $ch = curl_init('https://api.openai.com/v1/chat/completions');
