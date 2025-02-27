@@ -1849,7 +1849,7 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.type IN (:types)')
                 ->setParameter('status', 'approved')
                 ->setParameter('active', true)
-                ->setParameter('types', ['multiple_choice']);
+                ->setParameter('types', ['multiple_choice', 'multi_select']);
 
             $questions = $queryBuilder->getQuery()->getResult();
 
@@ -1860,19 +1860,35 @@ class LearnMzansiApi extends AbstractController
                 $answer = json_decode($question->getAnswer(), true);
 
                 // Skip if no options or answer
-                if (!$options || !$answer) {
+                if (!$options || !$answer || !is_array($answer)) {
                     continue;
                 }
 
                 // Get correct answer length
-                $correctAnswerLength = strlen($options[$answer[0]]);
+                $correctAnswerLength = strlen($answer[0]);
+
+
+                // If there are multiple correct answers, get average length
+                $correctAnswerLength = $correctAnswerLength / count($answer);
 
                 // Calculate average length of incorrect options
                 $incorrectLengths = [];
+                $numberOfIncorrectOptions = 0;
                 foreach ($options as $key => $option) {
-                    if (!in_array($key, $answer)) {
+                    if (strpos($option, $answer[0]) === false) {
                         $incorrectLengths[] = strlen($option);
+                        $numberOfIncorrectOptions++;
                     }
+                }
+
+                if ($numberOfIncorrectOptions == 4) {
+                    $this->logger->info("No correct option found for question: " . $question->getId());
+                    continue;
+                }
+
+                if (empty($incorrectLengths)) {
+                    $this->logger->info("No incorrect options found for question: " . $question->getId());
+                    continue;
                 }
 
                 $avgIncorrectLength = array_sum($incorrectLengths) / count($incorrectLengths);
@@ -1880,14 +1896,9 @@ class LearnMzansiApi extends AbstractController
                 // Reject if average incorrect length is more than 20 chars shorter
                 if (($correctAnswerLength - $avgIncorrectLength) > 20) {
                     $question->setStatus('rejected');
-                    $question->setComment('Auto-rejected: Answer options are significantly shorter than correct answer');
-                    $question->setReviewer("AI");
+                    $question->setComment('Auto-rejected: answer length is ' . $correctAnswerLength . ' and average incorrect length is ' . $avgIncorrectLength);
                     $this->em->persist($question);
                     $rejectedCount++;
-                }
-
-                if ($rejectedCount > 100) {
-                    break;
                 }
             }
 
