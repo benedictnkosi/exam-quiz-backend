@@ -1955,6 +1955,7 @@ class LearnMzansiApi extends AbstractController
             $rejectedCount = 0;
             $processedCount = 0;
 
+            $this->logger->info("Questions: " . count($questions));
             foreach ($questions as $question) {
                 $imagePath = $question->getImagePath();
                 if (!$imagePath) {
@@ -1963,6 +1964,7 @@ class LearnMzansiApi extends AbstractController
                 }
 
                 // Check file size
+                $this->logger->info("Image path: " . $imagePath);
                 $fullPath = $this->projectDir . '/public/assets/images/learnMzansi/' . $imagePath;
                 if (!file_exists($fullPath)) { // 200KB
                     $this->logger->info("Image file does not exist . " . $fullPath);
