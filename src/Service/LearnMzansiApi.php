@@ -1941,9 +1941,11 @@ class LearnMzansiApi extends AbstractController
             $queryBuilder->select('q')
                 ->from('App\Entity\Question', 'q')
                 ->where('q.imagePath IS NOT NULL')
+                ->andWhere('q.imagePath != :empty')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status')
                 ->andWhere('q.comment = :comment')
+                ->setParameter('empty', '')
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved')
                 ->setParameter('comment', 'new');
