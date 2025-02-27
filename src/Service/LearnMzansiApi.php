@@ -486,6 +486,10 @@ class LearnMzansiApi extends AbstractController
             $uid = $requestBody['uid'];
             $name = $requestBody['name'] ?? null;
             $gradeName = $requestBody['grade'] ?? null;
+            $schoolName = $requestBody['school_name'] ?? null;
+            $schoolAddress = $requestBody['school_address'] ?? null;
+            $schoolLatitude = $requestBody['school_latitude'] ?? null;
+            $schoolLongitude = $requestBody['school_longitude'] ?? null;
 
             $this->logger->info("UID: $uid, Name: $name, Grade: $gradeName");
 
@@ -525,6 +529,10 @@ class LearnMzansiApi extends AbstractController
 
             $learner->setName($name);
             $learner->setGrade($grade);
+            $learner->setSchoolName($schoolName);
+            $learner->setSchoolAddress($schoolAddress);
+            $learner->setSchoolLatitude($schoolLatitude);
+            $learner->setSchoolLongitude($schoolLongitude);
             $this->em->persist($learner);
             $this->em->flush();
 

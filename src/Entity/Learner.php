@@ -41,6 +41,20 @@ class Learner
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
     private ?Grade $grade = null;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $schoolName = null;
+
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $schoolAddress = null;
+
+    //school latitude and longitude
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    private ?float $schoolLatitude = null;
+
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    private ?float $schoolLongitude = null;
+
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -145,6 +159,54 @@ class Learner
     public function setStreak(?int $streak): static
     {
         $this->streak = $streak;
+
+        return $this;
+    }
+
+    public function getSchoolName(): ?string
+    {
+        return $this->schoolName;
+    }
+
+    public function setSchoolName(?string $schoolName): static
+    {
+        $this->schoolName = $schoolName;
+
+        return $this;
+    }
+
+    public function getSchoolAddress(): ?string
+    {
+        return $this->schoolAddress;
+    }
+
+    public function setSchoolAddress(?string $schoolAddress): static
+    {
+        $this->schoolAddress = $schoolAddress;
+
+        return $this;
+    }
+
+    public function getSchoolLatitude(): ?float
+    {
+        return $this->schoolLatitude;
+    }
+
+    public function setSchoolLatitude(?float $schoolLatitude): static
+    {
+        $this->schoolLatitude = $schoolLatitude;
+
+        return $this;
+    }
+
+    public function getSchoolLongitude(): ?float
+    {
+        return $this->schoolLongitude;
+    }
+
+    public function setSchoolLongitude(?float $schoolLongitude): static
+    {
+        $this->schoolLongitude = $schoolLongitude;
 
         return $this;
     }
