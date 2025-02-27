@@ -1932,7 +1932,7 @@ class LearnMzansiApi extends AbstractController
      * 
      * @return array Status and count of processed questions
      */
-    public function processQuestionImages(): array
+    public function processQuestionImages($count): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
@@ -1942,27 +1942,36 @@ class LearnMzansiApi extends AbstractController
                 ->from('App\Entity\Question', 'q')
                 ->where('q.imagePath IS NOT NULL')
                 ->andWhere('q.active = :active')
-                ->setParameter('active', true);
+                ->andWhere('q.status = :status')
+                ->andWhere('q.comment = :comment')
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved')
+                ->setParameter('comment', 'new');
 
             $questions = $queryBuilder->getQuery()->getResult();
 
+            $rejectedCount = 0;
             $processedCount = 0;
 
             foreach ($questions as $question) {
                 $imagePath = $question->getImagePath();
                 if (!$imagePath) {
+                    $this->logger->info("No image path found for question: " . $question->getImagePath());
                     continue;
                 }
-
-                $this->logger->info("Image Path: " . $imagePath);
 
                 // Check file size
-                $fullPath = $this->projectDir . '/public/learn/learner/' . $imagePath;
-                if (!file_exists($fullPath) || filesize($fullPath) > 200 * 1024) { // 200KB
+                $fullPath = $this->projectDir . '/public/assets/images/learnMzansi/' . $imagePath;
+                if (!file_exists($fullPath)) { // 200KB
+                    $this->logger->info("Image file does not exist . " . $fullPath);
                     continue;
                 }
 
-                // Prepare OpenAI API request
+                if (filesize($fullPath) > 200 * 1024) { // 200KB
+                    $this->logger->info("Image file is too large. " . $fullPath);
+                    continue;
+                }
+
                 $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $imagePath;
 
                 $data = [
@@ -1970,7 +1979,7 @@ class LearnMzansiApi extends AbstractController
                     "messages" => [
                         [
                             "role" => "system",
-                            "content" => "You are an AI that checks if an image contains only text. return the extracted text as a string. If the image contains objects, return false."
+                            "content" => "You are an AI that checks if an image contains only text. Return true if the image contains only text, return false if the image contains any objects, diagrams, or mixed content."
                         ],
                         [
                             "role" => "user",
@@ -1984,6 +1993,9 @@ class LearnMzansiApi extends AbstractController
                     ]
                 ];
 
+                $this->logger->info("Processing question: " . $data);
+
+                $processedCount++;
                 $ch = curl_init('https://api.openai.com/v1/chat/completions');
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_POST, true);
@@ -2000,17 +2012,22 @@ class LearnMzansiApi extends AbstractController
                 if ($httpCode === 200) {
                     $result = json_decode($response, true);
                     if (isset($result['choices'][0]['message']['content'])) {
-                        $extractedText = $result['choices'][0]['message']['content'];
+                        $isTextOnly = strtolower(trim($result['choices'][0]['message']['content'])) === 'true';
 
-                        // If the response is not 'false', update the question context
-                        if ($extractedText !== 'false') {
-                            $currentContext = $question->getContext() ?? '';
-                            $newContext = trim($currentContext . "\n" . $extractedText);
-                            $question->setContext($newContext);
+                        if ($isTextOnly) {
+                            $question->setStatus('rejected');
+                            $question->setComment('Rejected by AI: Image is text only');
                             $this->em->persist($question);
-                            $processedCount++;
+                            $rejectedCount++;
+                        } else {
+                            $question->setComment('Image checked by AI: Image is not text only');
+                            $this->em->persist($question);
                         }
                     }
+                }
+
+                if ($processedCount >= $count) {
+                    break;
                 }
             }
 
@@ -2018,8 +2035,8 @@ class LearnMzansiApi extends AbstractController
 
             return array(
                 'status' => 'OK',
-                'message' => "Processed $processedCount question images",
-                'processed_count' => $processedCount
+                'message' => "Rejected $rejectedCount questions with text-only images",
+                'rejected_count' => $rejectedCount
             );
 
         } catch (\Exception $e) {
