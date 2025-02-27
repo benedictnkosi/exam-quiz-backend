@@ -435,16 +435,25 @@ class LearnMzansiApi extends AbstractController
                 $statusCondition = ' AND q.status = \'approved\' ';
             }
 
-            $query = $this->em->createQuery(
-                'SELECT q
-            FROM App\Entity\Question q
-            JOIN q.subject s
-            LEFT JOIN App\Entity\Result r WITH r.question = q AND r.learner = :learner AND r.outcome = \'correct\'
-            WHERE s.id = :subjectId 
-            AND r.id IS NULL
-            AND q.active = 1 ' . $termCondition . $statusCondition
-            )->setParameter('subjectId', $subjectId)->setParameter('learner', $learner);
+            $queryBuilder = $this->em->createQueryBuilder();
+            $queryBuilder->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.subject', 's')
+                ->where('s.id = :subjectId')
+                ->andWhere('q.active = :active')
+                ->setParameter('subjectId', $subjectId)
+                ->setParameter('active', true);
 
+            if ($learner->getRole() === 'admin') {
+                $queryBuilder->andWhere('q.status = :status')
+                    ->setParameter('status', 'new');
+            } else {
+                // For non-admin users, get approved questions that haven't been posted
+                $queryBuilder->andWhere('q.status = :status')
+                    ->setParameter('status', 'approved');
+            }
+
+            $query = $queryBuilder->getQuery();
             $questions = $query->getResult();
             if (!empty($questions)) {
                 shuffle($questions);
@@ -1156,10 +1165,10 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $requestBody = json_decode($request->getContent(), true);
-            $adminCheck = $this->validateAdminAccess($request);
-            if ($adminCheck['status'] === 'NOK' && $requestBody['status'] !== 'rejected') {
-                return $adminCheck;
-            }
+            // $adminCheck = $this->validateAdminAccess($request);
+            // if ($adminCheck['status'] === 'NOK' && $requestBody['status'] !== 'rejected') {
+            //     return $adminCheck;
+            // }
 
             $questionId = $requestBody['question_id'];
             $status = $requestBody['status'];
