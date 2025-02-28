@@ -1201,6 +1201,22 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['email' => $reviewerEmail]);
+            if (!$learner) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Reviewer not found'
+                );
+            }
+
+            //only learner with role admin can approve a question
+            if ($learner->getRole() !== 'admin' && $status === 'approved') {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Only admin can approve a question'
+                );
+            }
+
             //if status is reject then comment is required
             if ($status == 'rejected' && empty($comment)) {
                 return array(
