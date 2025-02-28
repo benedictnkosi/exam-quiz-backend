@@ -541,7 +541,9 @@ class LearnMzansiApi extends AbstractController
             if (!empty($schoolLongitude)) {
                 $learner->setSchoolLongitude($schoolLongitude);
             }
-            $learner->setNotificationHour($notificationHour);
+            if (!empty($notificationHour)) {
+                $learner->setNotificationHour($notificationHour);
+            }
             $this->em->persist($learner);
             $this->em->flush();
 
