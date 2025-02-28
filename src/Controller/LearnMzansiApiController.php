@@ -552,7 +552,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
-    #[Route('/learn/question/ai-explanation', name: 'get_ai_explanation', methods: ['POST'])]
+    #[Route('/learn/question/ai-explanation', name: 'get_ai_explanation', methods: ['GET'])]
     public function getAIExplanation(
         Request $request,
     ): JsonResponse {
