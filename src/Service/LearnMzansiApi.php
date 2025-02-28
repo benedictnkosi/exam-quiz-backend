@@ -1193,6 +1193,7 @@ class LearnMzansiApi extends AbstractController
             $status = $requestBody['status'];
             $reviewerEmail = $requestBody['email'];
             $comment = $requestBody['comment'];
+            $uid = $requestBody['uid'];
 
             if (empty($questionId) || empty($status) || empty($reviewerEmail)) {
                 return array(
@@ -1201,7 +1202,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['email' => $reviewerEmail]);
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 return array(
                     'status' => 'NOK',
