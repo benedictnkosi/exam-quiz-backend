@@ -25,7 +25,7 @@ class Learner
     private ?string $name = null;
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    private ?int $streak = null;
+    private ?int $notificationHour = null;
 
 
     #[ORM\Column(type: Types::STRING, length: 10, options: ['default' => 'learner'])]
@@ -151,14 +151,14 @@ class Learner
         return $this;
     }
 
-    public function getStreak(): ?int
+    public function getNotificationHour(): ?int
     {
-        return $this->streak;
+        return $this->notificationHour;
     }
 
-    public function setStreak(?int $streak): static
+    public function setNotificationHour(?int $notificationHour): static
     {
-        $this->streak = $streak;
+        $this->notificationHour = $notificationHour;
 
         return $this;
     }
