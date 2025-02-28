@@ -529,10 +529,18 @@ class LearnMzansiApi extends AbstractController
 
             $learner->setName($name);
             $learner->setGrade($grade);
-            $learner->setSchoolName($schoolName);
-            $learner->setSchoolAddress($schoolAddress);
-            $learner->setSchoolLatitude($schoolLatitude);
-            $learner->setSchoolLongitude($schoolLongitude);
+            if (!empty($schoolName)) {
+                $learner->setSchoolName($schoolName);
+            }
+            if (!empty($schoolAddress)) {
+                $learner->setSchoolAddress($schoolAddress);
+            }
+            if (!empty($schoolLatitude)) {
+                $learner->setSchoolLatitude($schoolLatitude);
+            }
+            if (!empty($schoolLongitude)) {
+                $learner->setSchoolLongitude($schoolLongitude);
+            }
             $learner->setNotificationHour($notificationHour);
             $this->em->persist($learner);
             $this->em->flush();
