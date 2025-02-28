@@ -2070,4 +2070,125 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
+
+    public function getAIExplanation(int $questionId): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
+            //if question ai explanation is not null, return
+            if ($question->getAiExplanation()) {
+                return [
+                    'status' => 'OK',
+                    'explanation' => $question->getAiExplanation()
+                ];
+            }
+
+            $messages = [
+                [
+                    "role" => "system",
+                    "content" => "You are an AI tutor that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
+                ],
+                [
+                    "role" => "user",
+                    "content" => []
+                ]
+            ];
+
+            // Add question context
+            $messages[1]['content'][] = [
+                "type" => "text",
+                "text" => "Context: " . ($question->getContext() ?? "Choose an Answer that matches the description.")
+            ];
+
+            // Add question text
+            $messages[1]['content'][] = [
+                "type" => "text",
+                "text" => "Question: " . $question->getQuestion()
+            ];
+
+            // Add correct answer
+            $messages[1]['content'][] = [
+                "type" => "text",
+                "text" => "Correct Answer: " . $question->getAnswer()
+            ];
+
+            // Add image if exists
+            if ($question->getImagePath()) {
+                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $question->getImagePath();
+                $messages[1]['content'][] = [
+                    "type" => "image_url",
+                    "image_url" => ["url" => $imageUrl]
+                ];
+            }
+
+            //add image for questionImagePath
+            if ($question->getQuestionImagePath()) {
+                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $question->getQuestionImagePath();
+                $messages[1]['content'][] = [
+                    "type" => "image_url",
+                    "image_url" => ["url" => $imageUrl]
+                ];
+            }
+
+            $data = [
+                "model" => "gpt-4o-mini",
+                "messages" => $messages
+            ];
+
+            $ch = curl_init('https://api.openai.com/v1/chat/completions');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->openAiKey
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode !== 200) {
+                $this->logger->error('OpenAI API error: ' . $response);
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Error getting AI explanation'
+                ];
+            }
+
+            $result = json_decode($response, true);
+            if (!isset($result['choices'][0]['message']['content'])) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Invalid response from OpenAI'
+                ];
+            }
+
+            $explanation = $result['choices'][0]['message']['content'];
+
+            // Update question with AI explanation
+            $question->setAiExplanation($explanation);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'explanation' => $explanation
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error generating explanation: ' . $e->getMessage()
+            ];
+        }
+    }
 }

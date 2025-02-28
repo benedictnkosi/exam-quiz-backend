@@ -72,6 +72,9 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $comment = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $aiExplanation = null;
+
     #[ORM\ManyToOne(targetEntity: Subject::class)]
     #[ORM\JoinColumn(name: 'subject', referencedColumnName: 'id')]
     private ?Subject $subject = null;
@@ -323,6 +326,17 @@ class Question
     {
         $this->posted = $posted;
 
+        return $this;
+    }
+
+    public function getAiExplanation(): ?string
+    {
+        return $this->aiExplanation;
+    }
+
+    public function setAiExplanation(?string $aiExplanation): static
+    {
+        $this->aiExplanation = $aiExplanation;
         return $this;
     }
 }

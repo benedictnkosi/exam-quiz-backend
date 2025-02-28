@@ -551,4 +551,24 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->processQuestionImages($count);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/question/ai-explanation', name: 'get_ai_explanation', methods: ['POST'])]
+    public function getAIExplanation(
+        Request $request,
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $questionId = $request->query->get('question_id');
+        if (!$questionId) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID is required'
+            ], 400);
+        }
+
+        $response = $this->api->getAIExplanation((int) $questionId);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
 }
