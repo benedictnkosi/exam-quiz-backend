@@ -840,9 +840,9 @@ class LearnMzansiApi extends AbstractController
         try {
             $requestBody = json_decode($request->getContent(), true);
             $uid = $requestBody['uid'];
-            $subjectId = $requestBody['subject_id'];
+            $subjectName = $requestBody['subject_name'];
 
-            if (empty($uid) || empty($subjectId)) {
+            if (empty($uid) || empty($subjectName)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Mandatory values missing'
@@ -857,7 +857,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $subject = $this->em->getRepository(Subject::class)->find($subjectId);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $learner->getGrade()]);
             if (!$subject) {
                 return array(
                     'status' => 'NOK',
