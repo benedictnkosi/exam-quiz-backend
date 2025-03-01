@@ -400,6 +400,15 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            // Get learner's grade
+            $grade = $learner->getGrade();
+            if (!$grade) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Learner grade not found'
+                );
+            }
+
             // Get learner's terms and curriculum as arrays from comma-delimited strings
             $learnerTerms = $learner->getTerms() ? array_map('trim', explode(',', $learner->getTerms())) : [];
             $learnerCurriculum = $learner->getCurriculum() ? array_map('trim', explode(',', $learner->getCurriculum())) : [];
@@ -441,6 +450,7 @@ class LearnMzansiApi extends AbstractController
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
                 ->where('s.name = :subjectName')
+                ->andWhere('s.grade = :grade')  // Add grade condition
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
@@ -462,6 +472,7 @@ class LearnMzansiApi extends AbstractController
             // Set parameters
             $parameters = new ArrayCollection([
                 new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                new Parameter('grade', $grade),  // Add grade parameter
                 new Parameter('active', true),
                 new Parameter('status', 'approved')
             ]);
