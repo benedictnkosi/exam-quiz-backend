@@ -526,6 +526,8 @@ class LearnMzansiApi extends AbstractController
             $terms = $requestBody['terms'] ?? null;
             $curriculum = $requestBody['curriculum'] ?? null;
             $this->logger->info("UID: $uid, Name: $name, Grade: $gradeName");
+            $this->logger->info("Terms: " . json_encode($terms));
+            $this->logger->info("Curriculum: " . json_encode($curriculum));
 
             if (empty($uid) || empty($name) || empty($gradeName)) {
                 return array(
