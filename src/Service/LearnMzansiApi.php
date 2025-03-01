@@ -400,9 +400,9 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            // Get learner's terms and curriculum
-            $learnerTerms = json_decode($learner->getTerms() ?? '[]', true);
-            $learnerCurriculum = json_decode($learner->getCurriculum() ?? '[]', true);
+            // Get learner's terms and curriculum as arrays from comma-delimited strings
+            $learnerTerms = $learner->getTerms() ? array_map('trim', explode(',', $learner->getTerms())) : [];
+            $learnerCurriculum = $learner->getCurriculum() ? array_map('trim', explode(',', $learner->getCurriculum())) : [];
 
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
             $masteredQuestionsQb = $this->em->createQueryBuilder();
