@@ -528,6 +528,11 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("UID: $uid, Name: $name, Grade: $gradeName");
             $this->logger->info("Terms: " . json_encode($terms));
             $this->logger->info("Curriculum: " . json_encode($curriculum));
+            $this->logger->info("School Name: $schoolName");
+            $this->logger->info("School Address: $schoolAddress");
+            $this->logger->info("School Latitude: $schoolLatitude");
+            $this->logger->info("School Longitude: $schoolLongitude");
+            $this->logger->info("Notification Hour: $notificationHour");
 
             if (empty($uid) || empty($name) || empty($gradeName)) {
                 return array(
