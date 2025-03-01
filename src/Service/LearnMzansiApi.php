@@ -388,34 +388,10 @@ class LearnMzansiApi extends AbstractController
         return $cleanedOptions;
     }
 
-    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $showAllQuestions)
+    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId)
     {
-        $this->logger->info("Starting Method: " . __METHOD__);
-
         try {
-
-            $termCondition = '';
-            $statusCondition = '';
-
-            if ($questionId !== 0) {
-                $query = $this->em->createQuery(
-                    'SELECT q
-                    FROM App\Entity\Question q
-                    WHERE q.id = :id'
-                )->setParameter('id', $questionId);
-
-                $question = $query->getOneOrNullResult();
-                if ($question) {
-                    return $question;
-                } else {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => 'Question not found'
-                    );
-                }
-            }
-
-
+            // Get the learner first
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 return array(
@@ -424,49 +400,87 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            //get subject by name
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName, 'grade' => $learner->getGrade()]);
-            if (!$subject) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
-                );
-            }
+            // Get learner's terms and curriculum
+            $learnerTerms = json_decode($learner->getTerms() ?? '[]', true);
+            $learnerCurriculum = json_decode($learner->getCurriculum() ?? '[]', true);
 
-            $subjectId = $subject->getId();
+            // First, get the IDs of mastered questions (answered correctly 3 times in a row)
+            $masteredQuestionsQb = $this->em->createQueryBuilder();
+            $masteredQuestionsQb->select('DISTINCT IDENTITY(r1.question) as questionId')
+                ->from('App\Entity\Result', 'r1')
+                ->join('r1.question', 'q1')
+                ->where('r1.learner = :learner')
+                ->andWhere('r1.outcome = :outcome')
+                ->andWhere('EXISTS (
+                    SELECT 1 
+                    FROM App\Entity\Result r2 
+                    WHERE r2.learner = r1.learner 
+                    AND r2.question = r1.question 
+                    AND r2.outcome = :outcome 
+                    AND r2.created < r1.created 
+                    AND EXISTS (
+                        SELECT 1 
+                        FROM App\Entity\Result r3 
+                        WHERE r3.learner = r1.learner 
+                        AND r3.question = r1.question 
+                        AND r3.outcome = :outcome 
+                        AND r3.created < r2.created
+                    )
+                )')
+                ->setParameter('learner', $learner)
+                ->setParameter('outcome', 'correct');
 
+            $masteredQuestions = $masteredQuestionsQb->getQuery()->getResult();
+            $masteredQuestionIds = array_map(function ($result) {
+                return $result['questionId'];
+            }, $masteredQuestions);
 
-            if ($showAllQuestions == 'no') {
-                //pausing functionality, will return all questions for now
-                $this->logger->info("filter by term");
-                $termCondition = 'AND q.term = 2 ';
-            }
-
-            if ($learner->getName() == 'admin') {
-                $statusCondition = '';
-            } else {
-                $statusCondition = ' AND q.status = \'approved\' ';
-            }
-
-            $queryBuilder = $this->em->createQueryBuilder();
-            $queryBuilder->select('q')
+            // Build query with term and curriculum conditions
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q')
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
-                ->where('s.id = :subjectId')
+                ->where('s.name = :subjectName')
                 ->andWhere('q.active = :active')
-                ->setParameter('subjectId', $subjectId)
-                ->setParameter('active', true);
+                ->andWhere('q.status = :status');
 
-            if ($learner->getRole() === 'admin') {
-                $queryBuilder->andWhere('q.status = :status')
-                    ->setParameter('status', 'new');
-            } else {
-                // For non-admin users, get approved questions that haven't been posted
-                $queryBuilder->andWhere('q.status = :status')
-                    ->setParameter('status', 'approved');
+            // Exclude mastered questions if any exist
+            if (!empty($masteredQuestionIds)) {
+                $qb->andWhere('q.id NOT IN (:masteredIds)');
             }
 
-            $query = $queryBuilder->getQuery();
+            // Add term condition if learner has terms specified
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)');
+            }
+
+            // Add curriculum condition if learner has curriculum specified
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere('q.curriculum IN (:curriculum)');
+            }
+
+            // Set parameters
+            $parameters = new ArrayCollection([
+                new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                new Parameter('active', true),
+                new Parameter('status', 'approved')
+            ]);
+
+            if (!empty($masteredQuestionIds)) {
+                $parameters->add(new Parameter('masteredIds', $masteredQuestionIds));
+            }
+
+            if (!empty($learnerTerms)) {
+                $parameters->add(new Parameter('terms', $learnerTerms));
+            }
+
+            if (!empty($learnerCurriculum)) {
+                $parameters->add(new Parameter('curriculum', $learnerCurriculum));
+            }
+
+            $qb->setParameters($parameters);
+
+            $query = $qb->getQuery();
             $questions = $query->getResult();
             if (!empty($questions)) {
                 shuffle($questions);
@@ -482,12 +496,17 @@ class LearnMzansiApi extends AbstractController
 
             //shuffle the options
             $options = $randomQuestion->getOptions();
-            shuffle($options);
-            $randomQuestion->setOptions($options);
+            if ($options) {
+                shuffle($options);
+                $randomQuestion->setOptions($options);
+            }
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
-            return null;
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error getting random question'
+            );
         }
     }
 
@@ -823,7 +842,30 @@ class LearnMzansiApi extends AbstractController
 
             //update learner score, add one if correct, minus one if incorrect. should not go below 0
             if ($isCorrect) {
-                $learner->setScore($learner->getScore() + 1);
+                // Get the last 3 results for this learner
+                $lastResults = $this->em->getRepository(Result::class)
+                    ->createQueryBuilder('r')
+                    ->where('r.learner = :learner')
+                    ->orderBy('r.created', 'DESC')
+                    ->setMaxResults(3)
+                    ->setParameter('learner', $learner)
+                    ->getQuery()
+                    ->getResult();
+
+                // Check if last 2 results were also correct (making it 3 in a row with current)
+                $this->logger->info("lastResults: " . count($lastResults));
+                if (
+                    count($lastResults) === 3 &&
+                    $lastResults[0]->getOutcome() === 'correct' &&
+                    $lastResults[1]->getOutcome() === 'correct' &&
+                    $lastResults[2]->getOutcome() === 'correct'
+                ) {
+                    // Add bonus points for 3 in a row
+                    $learner->setScore($learner->getScore() + 3); // 1 for current + 3 bonus
+                } else {
+                    // Normal point for correct answer
+                    $learner->setScore($learner->getScore() + 1);
+                }
             } else {
                 $learner->setScore($learner->getScore() - 1);
             }
