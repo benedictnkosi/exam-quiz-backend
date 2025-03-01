@@ -510,45 +510,62 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    private function cleanCommaString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        // Remove quotes and trim each item
+        $items = explode(',', $value);
+        $cleanedItems = array_map(function ($item) {
+            return trim(trim($item, '"\''));
+        }, $items);
+        return implode(',', $cleanedItems);
+    }
+
     public function updateLearner(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $name = $requestBody['name'] ?? null;
-            $gradeName = $requestBody['grade'] ?? null;
-            $schoolName = $requestBody['school_name'] ?? null;
-            $schoolAddress = $requestBody['school_address'] ?? null;
-            $schoolLatitude = $requestBody['school_latitude'] ?? null;
-            $schoolLongitude = $requestBody['school_longitude'] ?? null;
-            $notificationHour = $requestBody['notification_hour'] ?? null;
-            $terms = $requestBody['terms'] ?? null;
-            $curriculum = $requestBody['curriculum'] ?? null;
-            $this->logger->info("UID: $uid, Name: $name, Grade: $gradeName");
-            $this->logger->info("Terms: " . json_encode($terms));
-            $this->logger->info("Curriculum: " . json_encode($curriculum));
-            $this->logger->info("School Name: $schoolName");
-            $this->logger->info("School Address: $schoolAddress");
-            $this->logger->info("School Latitude: $schoolLatitude");
-            $this->logger->info("School Longitude: $schoolLongitude");
-            $this->logger->info("Notification Hour: $notificationHour");
+            $data = json_decode($request->getContent(), true);
+            $uid = $data['uid'] ?? null;
 
-            if (empty($uid) || empty($name) || empty($gradeName)) {
+            if (!$uid) {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
+                    'message' => 'UID is required'
                 );
             }
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
-                $learner = new Learner();
-                $learner->setUid($uid);
-                $learner->setNotificationHour(18);
-                $learner->setCreated(new \DateTime());
-                $this->em->persist($learner);
-                $this->em->flush();
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                );
+            }
+
+            if (isset($data['terms'])) {
+                $learner->setTerms($this->cleanCommaString($data['terms']));
+            }
+
+            if (isset($data['curriculum'])) {
+                $learner->setCurriculum($this->cleanCommaString($data['curriculum']));
+            }
+
+            $name = $data['name'] ?? null;
+            $gradeName = $data['grade'] ?? null;
+            $schoolName = $data['school_name'] ?? null;
+            $schoolAddress = $data['school_address'] ?? null;
+            $schoolLatitude = $data['school_latitude'] ?? null;
+            $schoolLongitude = $data['school_longitude'] ?? null;
+            $notificationHour = $data['notification_hour'] ?? null;
+
+            if (empty($name) || empty($gradeName)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Mandatory values missing'
+                );
             }
 
             $gradeName = str_replace('Grade ', '', $gradeName);
@@ -584,12 +601,6 @@ class LearnMzansiApi extends AbstractController
             }
             if (!empty($notificationHour)) {
                 $learner->setNotificationHour($notificationHour);
-            }
-            if (!empty($terms)) {
-                $learner->setTerms(json_encode($terms));
-            }
-            if (!empty($curriculum)) {
-                $learner->setCurriculum(json_encode($curriculum));
             }
             $this->em->persist($learner);
             $this->em->flush();
