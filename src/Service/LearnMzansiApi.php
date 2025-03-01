@@ -491,7 +491,7 @@ class LearnMzansiApi extends AbstractController
             $schoolAddress = $data['school_address'] ?? null;
             $schoolLatitude = $data['school_latitude'] ?? null;
             $schoolLongitude = $data['school_longitude'] ?? null;
-            $notificationHour = $data['notification_hour'] ?? null;
+            $notificationHour = $data['notification_hour'] ?? 18;
             $terms = $data['terms'] ?? null;
             $curriculum = $data['curriculum'] ?? null;
 
