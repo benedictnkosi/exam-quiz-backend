@@ -473,10 +473,8 @@ class LearnMzansiApi extends AbstractController
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
+                $learner = new Learner();
+                $learner->setUid($uid);
             }
 
             if (isset($data['terms'])) {
