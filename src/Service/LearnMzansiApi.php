@@ -43,8 +43,14 @@ class LearnMzansiApi extends AbstractController
             $uid = $requestBody['uid'];
             $name = $requestBody['name'];
             $grade = $requestBody['grade'];
+            $terms = $requestBody['terms'];
+            $curriculum = $requestBody['curriculum'];
+            $schoolName = $requestBody['school_name'];
+            $schoolAddress = $requestBody['school_address'];
+            $schoolLatitude = $requestBody['school_latitude'];
+            $schoolLongitude = $requestBody['school_longitude'];
 
-            if (empty($uid)) {
+            if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress) || empty($schoolLatitude) || empty($schoolLongitude)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Mandatory values missing'
@@ -61,6 +67,12 @@ class LearnMzansiApi extends AbstractController
                 $learner->setScore(0);
                 $learner->setCreated(new \DateTime());
                 $learner->setNotificationHour(18);
+                $learner->setTerms(json_encode($requestBody['terms']));
+                $learner->setCurriculum(json_encode($requestBody['curriculum']));
+                $learner->setSchoolName($requestBody['school_name']);
+                $learner->setSchoolAddress($requestBody['school_address']);
+                $learner->setSchoolLatitude($requestBody['school_latitude']);
+                $learner->setSchoolLongitude($requestBody['school_longitude']);
 
                 $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
                 $learner->setGrade($grade);
@@ -178,7 +190,7 @@ class LearnMzansiApi extends AbstractController
             $questionId = $data['question_id'] ?? null;
 
             // Validate required fields
-            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term']) || empty($data['answer'])) {
+            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term']) || empty($data['answer']) || empty($data['curriculum'])) {
                 return array(
                     'status' => 'NOK',
                     'message' => "Missing required fields."
@@ -325,6 +337,7 @@ class LearnMzansiApi extends AbstractController
             $question->setActive(true);
             $question->setStatus('approved');
             $question->setComment("new");
+            $question->setCurriculum($data['curriculum'] ?? "CAPS");
 
             //reset images
             $question->setImagePath('');
@@ -491,6 +504,8 @@ class LearnMzansiApi extends AbstractController
             $schoolLatitude = $requestBody['school_latitude'] ?? null;
             $schoolLongitude = $requestBody['school_longitude'] ?? null;
             $notificationHour = $requestBody['notification_hour'] ?? null;
+            $terms = $requestBody['terms'] ?? null;
+            $curriculum = $requestBody['curriculum'] ?? null;
             $this->logger->info("UID: $uid, Name: $name, Grade: $gradeName");
 
             if (empty($uid) || empty($name) || empty($gradeName)) {
@@ -543,6 +558,12 @@ class LearnMzansiApi extends AbstractController
             }
             if (!empty($notificationHour)) {
                 $learner->setNotificationHour($notificationHour);
+            }
+            if (!empty($terms)) {
+                $learner->setTerms(json_encode($terms));
+            }
+            if (!empty($curriculum)) {
+                $learner->setCurriculum(json_encode($curriculum));
             }
             $this->em->persist($learner);
             $this->em->flush();

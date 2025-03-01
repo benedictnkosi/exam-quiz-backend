@@ -79,6 +79,9 @@ class Question
     #[ORM\JoinColumn(name: 'subject', referencedColumnName: 'id')]
     private ?Subject $subject = null;
 
+    #[ORM\Column(type: Types::STRING, length: 10, nullable: false, options: ['default' => 'CAPS'])]
+    private string $curriculum = 'CAPS';
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -337,6 +340,17 @@ class Question
     public function setAiExplanation(?string $aiExplanation): static
     {
         $this->aiExplanation = $aiExplanation;
+        return $this;
+    }
+
+    public function getCurriculum(): string
+    {
+        return $this->curriculum;
+    }
+
+    public function setCurriculum(string $curriculum): static
+    {
+        $this->curriculum = $curriculum;
         return $this;
     }
 }

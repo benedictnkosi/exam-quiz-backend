@@ -55,6 +55,12 @@ class Learner
     private ?float $schoolLongitude = null;
 
 
+    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    private ?string $terms = null;
+
+    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    private ?string $curriculum = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -207,6 +213,30 @@ class Learner
     public function setSchoolLongitude(?float $schoolLongitude): static
     {
         $this->schoolLongitude = $schoolLongitude;
+
+        return $this;
+    }
+
+    public function getTerms(): ?string
+    {
+        return $this->terms;
+    }
+
+    public function setTerms(?string $terms): static
+    {
+        $this->terms = $terms;
+
+        return $this;
+    }
+
+    public function getCurriculum(): ?string
+    {
+        return $this->curriculum;
+    }
+
+    public function setCurriculum(?string $curriculum): static
+    {
+        $this->curriculum = $curriculum;
 
         return $this;
     }
