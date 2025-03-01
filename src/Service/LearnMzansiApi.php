@@ -35,83 +35,6 @@ class LearnMzansiApi extends AbstractController
         $this->openAiKey = $openAiKey;
     }
 
-    public function createLearner(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $name = $requestBody['name'];
-            $grade = $requestBody['grade'];
-            $terms = $requestBody['terms'];
-            $curriculum = $requestBody['curriculum'];
-            $schoolName = $requestBody['school_name'];
-            $schoolAddress = $requestBody['school_address'];
-            $schoolLatitude = $requestBody['school_latitude'];
-            $schoolLongitude = $requestBody['school_longitude'];
-
-            if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress) || empty($schoolLatitude) || empty($schoolLongitude)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                $learner = new Learner();
-                $learner->setUid($uid);
-                if ($name) {
-                    $learner->setName($name);
-                }
-                $learner->setScore(0);
-                $learner->setCreated(new \DateTime());
-                $learner->setNotificationHour(18);
-                $learner->setTerms(json_encode($requestBody['terms']));
-                $learner->setCurriculum(json_encode($requestBody['curriculum']));
-                $learner->setSchoolName($requestBody['school_name']);
-                $learner->setSchoolAddress($requestBody['school_address']);
-                $learner->setSchoolLatitude($requestBody['school_latitude']);
-                $learner->setSchoolLongitude($requestBody['school_longitude']);
-
-                $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
-                $learner->setGrade($grade);
-
-                $learner->setLastSeen(new \DateTime());
-                $this->em->persist($learner);
-                $this->em->flush();
-
-                return array(
-                    'status' => 'OK',
-                    'message' => 'Successfully created learner'
-                );
-            } else {
-                $learner->setLastSeen(new \DateTime());
-                $this->em->persist($learner);
-                $this->em->flush();
-                if ($learner->getGrade()) {
-                    return array(
-                        'status' => 'NOK',
-
-                        'message' => "Learner already exists $uid",
-                        'grade' => $learner->getGrade()->getNumber()
-                    );
-                } else {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => "Learner already exists $uid",
-                        'grade' => "Not assigned"
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error creating learner'
-            );
-        }
-    }
 
     public function getLearner(Request $request)
     {
@@ -571,6 +494,8 @@ class LearnMzansiApi extends AbstractController
             $schoolLatitude = $data['school_latitude'] ?? null;
             $schoolLongitude = $data['school_longitude'] ?? null;
             $notificationHour = $data['notification_hour'] ?? null;
+            $terms = $data['terms'] ?? null;
+            $curriculum = $data['curriculum'] ?? null;
 
             if (empty($name) || empty($gradeName)) {
                 return array(
@@ -613,6 +538,19 @@ class LearnMzansiApi extends AbstractController
             if (!empty($notificationHour)) {
                 $learner->setNotificationHour($notificationHour);
             }
+            if (!empty($terms)) {
+                $learner->setTerms($this->cleanCommaString($terms));
+            }
+            if (!empty($curriculum)) {
+                $learner->setCurriculum($this->cleanCommaString($curriculum));
+            }
+            //if curriculum is CAPS, set private school to false
+            if ($curriculum === 'CAPS') {
+                $learner->setPrivateSchool(false);
+            } else {
+                $learner->setPrivateSchool(true);
+            }
+
             $this->em->persist($learner);
             $this->em->flush();
 

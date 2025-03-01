@@ -61,6 +61,9 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $curriculum = null;
 
+    #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => false])]
+    private ?bool $privateSchool = false;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -237,6 +240,18 @@ class Learner
     public function setCurriculum(?string $curriculum): static
     {
         $this->curriculum = $curriculum;
+
+        return $this;
+    }
+
+    public function getPrivateSchool(): ?bool
+    {
+        return $this->privateSchool;
+    }
+
+    public function setPrivateSchool(?bool $privateSchool): static
+    {
+        $this->privateSchool = $privateSchool;
 
         return $this;
     }
