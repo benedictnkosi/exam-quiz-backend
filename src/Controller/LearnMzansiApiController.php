@@ -38,6 +38,17 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
+    #[Route('/learn/learner/create', name: 'create_learner', methods: ['POST'])]
+    public function createLearner(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->createLearner($request);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+    }
+
+
     #[Route('/learn/grades', name: 'grades', methods: ['GET'])]
     public function getGrades(): JsonResponse
     {
