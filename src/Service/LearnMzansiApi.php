@@ -1326,7 +1326,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             $question->setStatus($status);
-            $question->setReviewer($reviewerEmail);
+            $question->setReviewer($learner);
             if (!empty($comment)) {
                 $question->setComment($comment);
             }
