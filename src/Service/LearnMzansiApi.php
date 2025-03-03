@@ -110,7 +110,7 @@ class LearnMzansiApi extends AbstractController
             //     return $adminCheck;
             // }
 
-            $userId = $data['capturer'] ?? null;
+            $userId = $data['uid'] ?? null;
 
             $user = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $userId]);
             if (!$user) {
