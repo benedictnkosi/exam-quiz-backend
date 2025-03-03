@@ -64,6 +64,9 @@ class Learner
     #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => false])]
     private ?bool $privateSchool = false;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $email = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -253,6 +256,17 @@ class Learner
     {
         $this->privateSchool = $privateSchool;
 
+        return $this;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(?string $email): static
+    {
+        $this->email = $email;
         return $this;
     }
 }

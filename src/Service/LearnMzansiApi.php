@@ -110,6 +110,16 @@ class LearnMzansiApi extends AbstractController
             //     return $adminCheck;
             // }
 
+            $userId = $data['capturer'] ?? null;
+
+            $user = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $userId]);
+            if (!$user) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'User not found'
+                );
+            }
+
             $questionId = $data['question_id'] ?? null;
 
             // Validate required fields
@@ -254,11 +264,11 @@ class LearnMzansiApi extends AbstractController
             $question->setTerm($data['term'] ?? null);
             $question->setExplanation($data['explanation'] ?? null);
             $question->setYear($data['year'] ?? null);
-            $question->setCapturer($data['capturer'] ?? null);
-            $question->setReviewer($data['capturer'] ?? null);
+            $question->setCapturer($user);
+            $question->setReviewer($user);
             $question->setCreated(new \DateTime());
             $question->setActive(true);
-            $question->setStatus('approved');
+            $question->setStatus('new');
             $question->setComment("new");
             $question->setCurriculum($data['curriculum'] ?? "CAPS");
 
@@ -323,6 +333,51 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            // Check if learner is admin
+            if ($learner->getRole() === 'admin') {
+                // For admin, get their captured questions with 'new' status
+                $qb = $this->em->createQueryBuilder();
+                $qb->select('q')
+                    ->from('App\Entity\Question', 'q')
+                    ->join('q.subject', 's')
+                    ->where('s.name = :subjectName')
+                    ->andWhere('q.active = :active')
+                    ->andWhere('q.status = :status')
+                    ->andWhere('q.capturer = :capturer');
+
+                $parameters = new ArrayCollection([
+                    new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                    new Parameter('active', true),
+                    new Parameter('status', 'new'),
+                    new Parameter('capturer', $learner)
+                ]);
+
+                $qb->setParameters($parameters);
+
+                $query = $qb->getQuery();
+                $questions = $query->getResult();
+                if (!empty($questions)) {
+                    shuffle($questions);
+                    $randomQuestion = $questions[0];
+
+                    //shuffle the options
+                    $options = $randomQuestion->getOptions();
+                    if ($options) {
+                        shuffle($options);
+                        $randomQuestion->setOptions($options);
+                    }
+                    return $randomQuestion;
+                } else {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'No new questions found for review',
+                        'context' => '',
+                        'image_path' => ''
+                    );
+                }
+            }
+
+            // For non-admin learners, continue with existing logic
             // Get learner's grade
             $grade = $learner->getGrade();
             if (!$grade) {
@@ -373,7 +428,7 @@ class LearnMzansiApi extends AbstractController
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
                 ->where('s.name = :subjectName')
-                ->andWhere('s.grade = :grade')  // Add grade condition
+                ->andWhere('s.grade = :grade')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
@@ -395,7 +450,7 @@ class LearnMzansiApi extends AbstractController
             // Set parameters
             $parameters = new ArrayCollection([
                 new Parameter('subjectName', $subjectName . ' ' . $paperName),
-                new Parameter('grade', $grade),  // Add grade parameter
+                new Parameter('grade', $grade),
                 new Parameter('active', true),
                 new Parameter('status', 'approved')
             ]);

@@ -54,14 +54,16 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $answerImage = null;
 
-    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
-    private ?string $capturer = null;
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'capturer', referencedColumnName: 'id')]
+    private ?Learner $capturer = null;
 
     #[ORM\Column(type: Types::STRING, length: 10, nullable: false, options: ['default' => 'new'])]
     private string $status = 'new';
 
-    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
-    private ?string $reviewer = null;
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'reviewer', referencedColumnName: 'id')]
+    private ?Learner $reviewer = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTime $created = null;
@@ -236,12 +238,12 @@ class Question
         return $this;
     }
 
-    public function getCapturer(): ?string
+    public function getCapturer(): ?Learner
     {
         return $this->capturer;
     }
 
-    public function setCapturer(?string $capturer): static
+    public function setCapturer(?Learner $capturer): static
     {
         $this->capturer = $capturer;
 
@@ -260,12 +262,12 @@ class Question
         return $this;
     }
 
-    public function getReviewer(): ?string
+    public function getReviewer(): ?Learner
     {
         return $this->reviewer;
     }
 
-    public function setReviewer(?string $reviewer): static
+    public function setReviewer(?Learner $reviewer): static
     {
         $this->reviewer = $reviewer;
 
