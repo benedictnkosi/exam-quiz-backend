@@ -315,11 +315,11 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/learn/questions/captured-per-week', name: 'get_questions_per_week', methods: ['GET'])]
-    public function getQuestionsCapturedPerWeek(Request $request): JsonResponse
+    #[Route('/learn/questions/captured', name: 'get_questions_captured', methods: ['GET'])]
+    public function getQuestionsCaptured(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->getQuestionsCapturedPerWeek($request);
+        $response = $this->api->getQuestionsCaptured($request);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
@@ -556,5 +556,13 @@ class LearnMzansiApiController extends AbstractController
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
+
+    #[Route('/learn/school/fact', name: 'get_school_fact', methods: ['GET'])]
+    public function getSchoolFact(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->getSchoolFact($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 }

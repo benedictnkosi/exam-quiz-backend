@@ -647,15 +647,12 @@ class LearnMzansiApi extends AbstractController
 
     public function getLearnerSubjects(Request $request): array
     {
-        $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $uid = $request->query->get('uid');
-
-            //test
             if (empty($uid)) {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'UID values are required'
+                    'message' => 'UID is required'
                 );
             }
 
@@ -667,59 +664,115 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $subjects = $this->em->getRepository(Subject::class)->findBy(['grade' => $learner->getGrade()], ['name' => 'ASC']);
-
-            if (empty($subjects)) {
+            $grade = $learner->getGrade();
+            if (!$grade) {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'No subjects found for learner'
+                    'message' => 'Grade not found'
                 );
             }
-            $answeredQuestions = 0;
 
-            $returnArray = array();
-            foreach ($subjects as $subject) {
-                $query = $this->em->createQueryBuilder()
-                    ->select('r, q')
+            // Get learner's terms and curriculum as arrays
+            $learnerTerms = $learner->getTerms() ? array_map('trim', explode(',', $learner->getTerms())) : [];
+            $learnerCurriculum = $learner->getCurriculum() ? array_map('trim', explode(',', $learner->getCurriculum())) : [];
+
+            // Build query to get subjects with question counts
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('s.id, s.name, s.active, COUNT(DISTINCT q.id) as totalSubjectQuestions')
+                ->from('App\Entity\Subject', 's')
+                ->leftJoin(
+                    'App\Entity\Question',
+                    'q',
+                    'WITH',
+                    $qb->expr()->andX(
+                        $qb->expr()->eq('q.subject', 's.id'),
+                        $qb->expr()->eq('q.active', ':active'),
+                        $qb->expr()->eq('q.status', ':status')
+                    )
+                )
+                ->where('s.grade = :grade')
+                ->andWhere('s.active = :subjectActive');
+
+            // Add term condition if learner has terms specified
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)');
+            }
+
+            // Add curriculum condition if learner has curriculum specified
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere('q.curriculum IN (:curriculum)');
+            }
+
+            $qb->groupBy('s.id')
+                ->orderBy('s.name', 'ASC');
+
+            // Set parameters
+            $parameters = new ArrayCollection([
+                new Parameter('grade', $grade),
+                new Parameter('active', true),
+                new Parameter('status', 'approved'),
+                new Parameter('subjectActive', true)
+            ]);
+
+            if (!empty($learnerTerms)) {
+                $parameters->add(new Parameter('terms', $learnerTerms));
+            }
+
+            if (!empty($learnerCurriculum)) {
+                $parameters->add(new Parameter('curriculum', $learnerCurriculum));
+            }
+
+            $qb->setParameters($parameters);
+
+            $subjects = $qb->getQuery()->getResult();
+
+            // Get total results for each subject
+            foreach ($subjects as &$subject) {
+                $resultsQb = $this->em->createQueryBuilder();
+                $resultsQb->select('COUNT(r.id) as totalResults')
                     ->from('App\Entity\Result', 'r')
                     ->join('r.question', 'q')
                     ->where('r.learner = :learner')
                     ->andWhere('q.subject = :subject')
-                    ->setParameter('learner', $learner)
-                    ->setParameter('subject', $subject)
-                    ->getQuery();
+                    ->andWhere('q.active = :active')
+                    ->andWhere('q.status = :status');
 
-
-                $results = $query->getResult();
-                $answeredQuestions = 0;
-
-                //number of correct answers
-                $correctAnswers = 0;
-                foreach ($results as $result) {
-                    $answeredQuestions++;
-                    if ($result->getOutcome() === 'correct') {
-                        $correctAnswers++;
-                    }
+                // Add term condition if learner has terms specified
+                if (!empty($learnerTerms)) {
+                    $resultsQb->andWhere('q.term IN (:terms)');
                 }
 
-                $totalSubjectQuestion = $this->em->getRepository(Question::class)->createQueryBuilder('q')
-                    ->select('count(q.id)')
-                    ->where('q.subject = :subject')
-                    ->andWhere('q.status = \'approved\'')
-                    ->andWhere('q.active = 1')
-                    ->setParameter('subject', $subject)
-                    ->getQuery()
-                    ->getSingleScalarResult();
+                // Add curriculum condition if learner has curriculum specified
+                if (!empty($learnerCurriculum)) {
+                    $resultsQb->andWhere('q.curriculum IN (:curriculum)');
+                }
 
-                $returnArray[] = array(
-                    'subject' => $subject,
-                    'total_questions' => $totalSubjectQuestion,
-                    'answered_questions' => $answeredQuestions,
-                    'correct_answers' => $correctAnswers
-                );
+                $resultParameters = new ArrayCollection([
+                    new Parameter('learner', $learner),
+                    new Parameter('subject', $subject['id']),
+                    new Parameter('active', true),
+                    new Parameter('status', 'approved')
+                ]);
+
+                if (!empty($learnerTerms)) {
+                    $resultParameters->add(new Parameter('terms', $learnerTerms));
+                }
+
+                if (!empty($learnerCurriculum)) {
+                    $resultParameters->add(new Parameter('curriculum', $learnerCurriculum));
+                }
+
+                $resultsQb->setParameters($resultParameters);
+
+                $totalResults = $resultsQb->getQuery()->getSingleScalarResult();
+                $subject['totalResults'] = $totalResults;
             }
 
-            return $returnArray;
+            return array(
+                'status' => 'OK',
+                'subjects' => $subjects
+            );
+
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
@@ -1559,49 +1612,57 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getQuestionsCapturedPerWeek(Request $request): array
+    public function getQuestionsCaptured(Request $request): array
     {
-        $this->logger->info("Starting Method: " . __METHOD__);
         try {
-            // Get start and end dates for the current week
-            $startDate = new \DateTime('monday this week');
-            $endDate = new \DateTime('sunday this week');
-            $startDate->setTime(0, 0, 0);
-            $endDate->setTime(23, 59, 59);
+            $fromDate = $request->query->get('from_date');
+            if (!$fromDate) {
+                $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
+            }
 
-            // Create query builder
-            $queryBuilder = $this->em->createQueryBuilder();
-            $queryBuilder->select('q.capturer, COUNT(q.id) as questionCount')
-                ->from('App\Entity\Question', 'q')
-                ->where('q.created BETWEEN :startDate AND :endDate')
-                ->groupBy('q.capturer')
-                ->orderBy('questionCount', 'DESC')
-                ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate);
+            $conn = $this->em->getConnection();
+            $sql = '
+                SELECT 
+                    l.name as capturer_name,
+                    q.status,
+                    COUNT(q.id) as question_count
+                FROM question q
+                JOIN learner l ON q.capturer = l.id
+                WHERE q.created >= :fromDate
+                GROUP BY l.id, q.status
+                ORDER BY l.name ASC, q.status ASC
+            ';
 
-            $results = $queryBuilder->getQuery()->getResult();
+            $stmt = $conn->prepare($sql);
+            $stmt->bindValue('fromDate', $fromDate);
+            $results = $stmt->executeQuery()->fetchAllAssociative();
 
-            // Format the results
+            // Format the results by capturer
             $formattedResults = [];
             foreach ($results as $result) {
+                $displayName = sprintf(
+                    '%s (%s)',
+                    $result['capturer_name'],
+                    ucfirst($result['status'])
+                );
+
                 $formattedResults[] = [
-                    'capturer' => $result['capturer'],
-                    'count' => $result['questionCount'],
-                    'week' => $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d')
+                    'name' => $displayName,
+                    'count' => (int) $result['question_count']
                 ];
             }
 
-            return array(
+            return [
                 'status' => 'OK',
-                'data' => $formattedResults,
-                'total_questions' => array_sum(array_column($formattedResults, 'count'))
-            );
+                'data' => $formattedResults
+            ];
+
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
-            return array(
+            return [
                 'status' => 'NOK',
-                'message' => 'Error getting questions captured per week'
-            );
+                'message' => 'Error getting questions captured'
+            ];
         }
     }
 
@@ -2377,6 +2438,88 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error creating learner'
             );
+        }
+    }
+
+    public function getSchoolFact(Request $request): array
+    {
+        try {
+            $schoolName = $request->query->get('school_name');
+
+            if (!$schoolName) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'School name is required'
+                ];
+            }
+
+            $prompt = "Search for and provide an interesting fact about {$schoolName}, including historical milestones, notable alumni, unique traditions, or academic achievements. keep the response small, less than 20 words";
+
+            $curl = curl_init();
+            $headers = [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->openAiKey
+            ];
+
+            $postData = [
+                'model' => 'gpt-3.5-turbo',
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $prompt
+                    ]
+                ],
+                'temperature' => 0.7,
+                'max_tokens' => 50
+            ];
+
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.openai.com/v1/chat/completions',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode($postData),
+                CURLOPT_HTTPHEADER => $headers,
+            ]);
+
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            curl_close($curl);
+
+            if ($err) {
+                $this->logger->error('cURL Error: ' . $err);
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Error getting school fact'
+                ];
+            }
+
+            $responseData = json_decode($response, true);
+            if (!isset($responseData['choices'][0]['message']['content'])) {
+                $this->logger->error('Invalid response from OpenAI: ' . $response);
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Invalid response from AI'
+                ];
+            }
+
+            $fact = $responseData['choices'][0]['message']['content'];
+
+            return [
+                'status' => 'OK',
+                'fact' => trim($fact)
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting school fact'
+            ];
         }
     }
 }
