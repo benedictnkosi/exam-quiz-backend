@@ -334,7 +334,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Check if learner is admin
-            if ($learner->getRole() === 'admin') {
+            if ($learner->getRole() === 'admin' && $learner->getName() != 'Lethabo Mathabatha' && $learner->getName() != 'Exam Quiz' && $learner->getName() != 'Benedict Nkosi') {
                 // For admin, get their captured questions with 'new' status
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
