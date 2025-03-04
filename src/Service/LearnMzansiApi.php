@@ -705,15 +705,6 @@ class LearnMzansiApi extends AbstractController
                 ->where('s.grade = :grade')
                 ->andWhere('s.active = :subjectActive');
 
-            // Add term condition if learner has terms specified
-            if (!empty($learnerTerms)) {
-                $qb->andWhere('q.term IN (:terms)');
-            }
-
-            // Add curriculum condition if learner has curriculum specified
-            if (!empty($learnerCurriculum)) {
-                $qb->andWhere('q.curriculum IN (:curriculum)');
-            }
 
             $qb->groupBy('s.id')
                 ->orderBy('s.name', 'ASC');
@@ -726,13 +717,6 @@ class LearnMzansiApi extends AbstractController
                 new Parameter('subjectActive', true)
             ]);
 
-            if (!empty($learnerTerms)) {
-                $parameters->add(new Parameter('terms', $learnerTerms));
-            }
-
-            if (!empty($learnerCurriculum)) {
-                $parameters->add(new Parameter('curriculum', $learnerCurriculum));
-            }
 
             $qb->setParameters($parameters);
 
