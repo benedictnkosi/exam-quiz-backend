@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Grade;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use SebastianBergmann\Environment\Console;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use App\Entity\Learner;
@@ -518,6 +519,7 @@ class LearnMzansiApi extends AbstractController
         try {
             $data = json_decode($request->getContent(), true);
             $uid = $data['uid'] ?? null;
+            $isRegistration = false;
 
             if (!$uid) {
                 return array(
@@ -530,6 +532,7 @@ class LearnMzansiApi extends AbstractController
             if (!$learner) {
                 $learner = new Learner();
                 $learner->setUid($uid);
+                $isRegistration = true;
             }
 
             if (isset($data['terms'])) {
@@ -549,6 +552,7 @@ class LearnMzansiApi extends AbstractController
             $notificationHour = $data['notification_hour'] ?? 18;
             $terms = $data['terms'] ?? null;
             $curriculum = $data['curriculum'] ?? null;
+            $email = $data['email'] ?? null;
 
             if (empty($name) || empty($gradeName)) {
                 return array(
@@ -595,13 +599,21 @@ class LearnMzansiApi extends AbstractController
                 $learner->setTerms($this->cleanCommaString($terms));
             }
             if (!empty($curriculum)) {
-                $learner->setCurriculum($this->cleanCommaString($curriculum));
+                $this->logger->info("registration: " . $isRegistration);
+                if ($isRegistration) {
+                    $learner->setCurriculum('CAPS,IEB');
+                } else {
+                    $learner->setCurriculum($this->cleanCommaString($curriculum));
+                }
             }
             //if curriculum is CAPS, set private school to false
             if ($curriculum === 'CAPS') {
                 $learner->setPrivateSchool(false);
             } else {
                 $learner->setPrivateSchool(true);
+            }
+            if (!empty($email)) {
+                $learner->setEmail($email);
             }
 
             $this->em->persist($learner);
@@ -2377,6 +2389,7 @@ class LearnMzansiApi extends AbstractController
             $schoolAddress = $requestBody['school_address'];
             $schoolLatitude = $requestBody['school_latitude'];
             $schoolLongitude = $requestBody['school_longitude'];
+            $email = $requestBody['email'];
 
             if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress) || empty($schoolLatitude) || empty($schoolLongitude)) {
                 return array(
@@ -2401,6 +2414,9 @@ class LearnMzansiApi extends AbstractController
                 $learner->setSchoolAddress($requestBody['school_address']);
                 $learner->setSchoolLatitude($requestBody['school_latitude']);
                 $learner->setSchoolLongitude($requestBody['school_longitude']);
+                if (!empty($email)) {
+                    $learner->setEmail($email);
+                }
 
                 $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
                 $learner->setGrade($grade);
@@ -2519,6 +2535,95 @@ class LearnMzansiApi extends AbstractController
             return [
                 'status' => 'NOK',
                 'message' => 'Error getting school fact'
+            ];
+        }
+    }
+
+    public function updateLearnerRating(Request $request): array
+    {
+        try {
+            $uid = $request->request->get('uid');
+            $rating = $request->request->get('rating');
+
+            if (!$uid || !$rating) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Missing required parameters'
+                ];
+            }
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            $rating = floatval($rating);
+            if ($rating < 0 || $rating > 5) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Rating must be between 0 and 5'
+                ];
+            }
+
+            $learner->setRating($rating);
+            $learner->setRatingCancelled(null); // Clear any previous cancellation
+
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Rating updated successfully'
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error updating rating'
+            ];
+        }
+    }
+
+    public function cancelLearnerRating(Request $request): array
+    {
+        try {
+            $uid = $request->request->get('uid');
+
+            if (!$uid) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Missing required parameters'
+                ];
+            }
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            $learner->setRatingCancelled(new \DateTime());
+            $learner->setRating(0); // Reset rating to 0
+
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Rating cancelled successfully'
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error cancelling rating'
             ];
         }
     }

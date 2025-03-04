@@ -67,6 +67,12 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $email = null;
 
+    #[ORM\Column(type: Types::FLOAT, nullable: true, options: ['default' => 0])]
+    private ?float $rating = 0;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTime $ratingCancelled = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -267,6 +273,28 @@ class Learner
     public function setEmail(?string $email): static
     {
         $this->email = $email;
+        return $this;
+    }
+
+    public function getRating(): ?float
+    {
+        return $this->rating;
+    }
+
+    public function setRating(?float $rating): static
+    {
+        $this->rating = $rating;
+        return $this;
+    }
+
+    public function getRatingCancelled(): ?\DateTime
+    {
+        return $this->ratingCancelled;
+    }
+
+    public function setRatingCancelled(?\DateTime $ratingCancelled): static
+    {
+        $this->ratingCancelled = $ratingCancelled;
         return $this;
     }
 }
