@@ -2615,7 +2615,7 @@ class LearnMzansiApi extends AbstractController
     public function deleteLearner(Request $request): array
     {
         try {
-            $uid = $request->request->get('uid');
+            $uid = $request->query->get('uid');
 
             if (!$uid) {
                 return [
