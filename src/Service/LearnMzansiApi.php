@@ -2821,6 +2821,7 @@ class LearnMzansiApi extends AbstractController
                         'reviewer' => $reviewerName,
                         'approved' => 0,
                         'rejected' => 0,
+                        'new' => 0,
                         'total' => 0
                     ];
                 }
@@ -2829,11 +2830,14 @@ class LearnMzansiApi extends AbstractController
                     $formattedResults[$reviewerName]['approved'] = (int) $result['count'];
                 } else if ($result['status'] === 'rejected') {
                     $formattedResults[$reviewerName]['rejected'] = (int) $result['count'];
+                } else if ($result['status'] === 'new') {
+                    $formattedResults[$reviewerName]['new'] = (int) $result['count'];
                 }
 
                 $formattedResults[$reviewerName]['total'] =
                     $formattedResults[$reviewerName]['approved'] +
-                    $formattedResults[$reviewerName]['rejected'];
+                    $formattedResults[$reviewerName]['rejected'] +
+                    $formattedResults[$reviewerName]['new'];
             }
 
             // Convert to indexed array
