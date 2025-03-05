@@ -13,7 +13,7 @@ Or, to update a specific entity:
 php bin/console make:entity --regenerate
 
 
-remove tracked file from git
+### remove tracked file from git
 git rm --cached .env
 git add .gitignore
 git commit -m "Remove .env from git tracking"
