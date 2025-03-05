@@ -2670,4 +2670,186 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function getQuestionStatusCountsByCapturers(Request $request): array
+    {
+        try {
+            $fromDate = $request->query->get('from_date');
+            if (!$fromDate) {
+                $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
+            }
+
+            $qb = $this->em->createQueryBuilder();
+
+            // Get new questions count
+            $qbNew = $this->em->createQueryBuilder();
+            $qbNew->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusNew')
+                ->andWhere('q.created >= :fromDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Get approved questions count
+            $qbApproved = $this->em->createQueryBuilder();
+            $qbApproved->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusApproved')
+                ->andWhere('q.created >= :fromDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Get rejected questions count
+            $qbRejected = $this->em->createQueryBuilder();
+            $qbRejected->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusRejected')
+                ->andWhere('q.created >= :fromDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Execute queries
+            $newResults = $qbNew->getQuery()
+                ->setParameter('statusNew', 'new')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->getResult();
+
+            $approvedResults = $qbApproved->getQuery()
+                ->setParameter('statusApproved', 'approved')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->getResult();
+
+            $rejectedResults = $qbRejected->getQuery()
+                ->setParameter('statusRejected', 'rejected')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->getResult();
+
+            // Combine results
+            $combinedResults = [];
+            foreach ($newResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['new'] = (int) $result['count'];
+            }
+
+            foreach ($approvedResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['approved'] = (int) $result['count'];
+            }
+
+            foreach ($rejectedResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['rejected'] = (int) $result['count'];
+            }
+
+            // Add total and convert to array
+            $finalResults = [];
+            foreach ($combinedResults as $result) {
+                $result['total'] = $result['new'] + $result['approved'] + $result['rejected'];
+                $finalResults[] = $result;
+            }
+
+            return [
+                'status' => 'OK',
+                'data' => $finalResults
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting question status counts'
+            ];
+        }
+    }
+
+    public function getQuestionsReviewedByLearner(Request $request): array
+    {
+        try {
+            $fromDate = $request->query->get('from_date');
+            if (!$fromDate) {
+                $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
+            }
+
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('l.name as reviewer_name, q.status, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.reviewer', 'l')
+                ->where('q.created >= :fromDate')
+                ->andWhere('q.status IN (:statuses)')
+                ->groupBy('l.id, l.name, q.status')
+                ->orderBy('l.name', 'ASC')
+                ->addOrderBy('q.status', 'ASC');
+
+            $results = $qb->getQuery()
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('statuses', ['approved', 'rejected'])
+                ->getResult();
+
+            // Format the results
+            $formattedResults = [];
+            foreach ($results as $result) {
+                $reviewerName = $result['reviewer_name'];
+                if (!isset($formattedResults[$reviewerName])) {
+                    $formattedResults[$reviewerName] = [
+                        'reviewer' => $reviewerName,
+                        'approved' => 0,
+                        'rejected' => 0,
+                        'total' => 0
+                    ];
+                }
+
+                if ($result['status'] === 'approved') {
+                    $formattedResults[$reviewerName]['approved'] = (int) $result['count'];
+                } else if ($result['status'] === 'rejected') {
+                    $formattedResults[$reviewerName]['rejected'] = (int) $result['count'];
+                }
+
+                $formattedResults[$reviewerName]['total'] =
+                    $formattedResults[$reviewerName]['approved'] +
+                    $formattedResults[$reviewerName]['rejected'];
+            }
+
+            // Convert to indexed array
+            $finalResults = array_values($formattedResults);
+
+            return [
+                'status' => 'OK',
+                'data' => $finalResults
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting reviewed questions count'
+            ];
+        }
+    }
 }
