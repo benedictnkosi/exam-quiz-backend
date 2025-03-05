@@ -2611,4 +2611,63 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function deleteLearner(Request $request): array
+    {
+        try {
+            $uid = $request->request->get('uid');
+
+            if (!$uid) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Missing required parameter: uid'
+                ];
+            }
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Begin transaction
+            $this->em->beginTransaction();
+            try {
+                // Delete associated results first
+                $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner->getId()]);
+                foreach ($results as $result) {
+                    $this->em->remove($result);
+                }
+
+                //delete learner results
+                $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner->getId()]);
+                foreach ($results as $result) {
+                    $this->em->remove($result);
+                }
+
+                //delete learner
+                $this->em->remove($learner);
+                $this->em->flush();
+                $this->em->commit();
+
+                return [
+                    'status' => 'OK',
+                    'message' => 'Learner and associated data deleted successfully'
+                ];
+
+            } catch (\Exception $e) {
+                $this->em->rollback();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('Error deleting learner: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error deleting learner'
+            ];
+        }
+    }
 }

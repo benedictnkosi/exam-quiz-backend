@@ -565,4 +565,12 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->getSchoolFact($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/learner/delete', name: 'delete_learner', methods: ['POST'])]
+    public function deleteLearner(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->deleteLearner($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }
