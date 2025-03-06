@@ -698,13 +698,16 @@ class LearnMzansiApi extends AbstractController
                     'WITH',
                     $qb->expr()->andX(
                         $qb->expr()->eq('q.subject', 's.id'),
-                        $qb->expr()->eq('q.active', ':active'),
-                        $qb->expr()->eq('q.status', ':status')
+                        $qb->expr()->eq('q.active', ':active')
                     )
                 )
                 ->where('s.grade = :grade')
                 ->andWhere('s.active = :subjectActive');
 
+            // Add status filter only for non-admin users
+            if ($learner->getRole() !== 'admin') {
+                $qb->andWhere('q.status = :status');
+            }
 
             $qb->groupBy('s.id')
                 ->orderBy('s.name', 'ASC');
@@ -713,13 +716,15 @@ class LearnMzansiApi extends AbstractController
             $parameters = new ArrayCollection([
                 new Parameter('grade', $grade),
                 new Parameter('active', true),
-                new Parameter('status', 'approved'),
                 new Parameter('subjectActive', true)
             ]);
 
+            // Add status parameter only for non-admin users
+            if ($learner->getRole() !== 'admin') {
+                $parameters->add(new Parameter('status', 'approved'));
+            }
 
             $qb->setParameters($parameters);
-
             $subjects = $qb->getQuery()->getResult();
 
             // Get total results for each subject
@@ -730,8 +735,12 @@ class LearnMzansiApi extends AbstractController
                     ->join('r.question', 'q')
                     ->where('r.learner = :learner')
                     ->andWhere('q.subject = :subject')
-                    ->andWhere('q.active = :active')
-                    ->andWhere('q.status = :status');
+                    ->andWhere('q.active = :active');
+
+                // Add status filter only for non-admin users
+                if ($learner->getRole() !== 'admin') {
+                    $resultsQb->andWhere('q.status = :status');
+                }
 
                 // Add term condition if learner has terms specified
                 if (!empty($learnerTerms)) {
@@ -746,9 +755,13 @@ class LearnMzansiApi extends AbstractController
                 $resultParameters = new ArrayCollection([
                     new Parameter('learner', $learner),
                     new Parameter('subject', $subject['id']),
-                    new Parameter('active', true),
-                    new Parameter('status', 'approved')
+                    new Parameter('active', true)
                 ]);
+
+                // Add status parameter only for non-admin users
+                if ($learner->getRole() !== 'admin') {
+                    $resultParameters->add(new Parameter('status', 'approved'));
+                }
 
                 if (!empty($learnerTerms)) {
                     $resultParameters->add(new Parameter('terms', $learnerTerms));
@@ -759,7 +772,6 @@ class LearnMzansiApi extends AbstractController
                 }
 
                 $resultsQb->setParameters($resultParameters);
-
                 $totalResults = $resultsQb->getQuery()->getSingleScalarResult();
                 $subject['totalResults'] = $totalResults;
             }
@@ -2678,6 +2690,8 @@ class LearnMzansiApi extends AbstractController
             if (!$fromDate) {
                 $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
             }
+
+            $this->logger->info('fromDate: ' . $fromDate);
 
             $qb = $this->em->createQueryBuilder();
 
