@@ -266,7 +266,9 @@ class LearnMzansiApi extends AbstractController
             $question->setExplanation($data['explanation'] ?? null);
             $question->setYear($data['year'] ?? null);
             $question->setCapturer($user);
-            $question->setReviewer($user);
+            if ($questionId == 0) {
+                $question->setReviewer($user);
+            }
             $question->setCreated(new \DateTime());
             $question->setActive(true);
             $question->setStatus('new');
