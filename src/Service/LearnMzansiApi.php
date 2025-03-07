@@ -747,8 +747,9 @@ class LearnMzansiApi extends AbstractController
             $qb->setParameters($parameters);
             $subjects = $qb->getQuery()->getResult();
 
-            // Get total results for each subject
+            // Get total results and correct answers for each subject
             foreach ($subjects as &$subject) {
+                // Query for total results
                 $resultsQb = $this->em->createQueryBuilder();
                 $resultsQb->select('COUNT(r.id) as totalResults')
                     ->from('App\Entity\Result', 'r')
@@ -794,6 +795,36 @@ class LearnMzansiApi extends AbstractController
                 $resultsQb->setParameters($resultParameters);
                 $totalResults = $resultsQb->getQuery()->getSingleScalarResult();
                 $subject['totalResults'] = $totalResults;
+
+                // Query for correct answers count
+                $correctAnswersQb = $this->em->createQueryBuilder();
+                $correctAnswersQb->select('COUNT(r.id) as correctCount')
+                    ->from('App\Entity\Result', 'r')
+                    ->join('r.question', 'q')
+                    ->where('r.learner = :learner')
+                    ->andWhere('q.subject = :subject')
+                    ->andWhere('q.active = :active')
+                    ->andWhere('r.outcome = :outcome');
+
+                // Add status filter only for non-admin users
+                if ($learner->getRole() !== 'admin') {
+                    $correctAnswersQb->andWhere('q.status = :status');
+                }
+
+                // Add term and curriculum conditions
+                if (!empty($learnerTerms)) {
+                    $correctAnswersQb->andWhere('q.term IN (:terms)');
+                }
+                if (!empty($learnerCurriculum)) {
+                    $correctAnswersQb->andWhere('q.curriculum IN (:curriculum)');
+                }
+
+                $correctParameters = clone $resultParameters;
+                $correctParameters->add(new Parameter('outcome', 'correct'));
+
+                $correctAnswersQb->setParameters($correctParameters);
+                $correctAnswers = $correctAnswersQb->getQuery()->getSingleScalarResult();
+                $subject['correctAnswers'] = $correctAnswers;
             }
 
             return array(
@@ -2293,7 +2324,7 @@ class LearnMzansiApi extends AbstractController
             $messages = [
                 [
                     "role" => "system",
-                    "content" => "You are an AI tutor that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
+                    "content" => "You are an AI grade 9 tutor that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
                 ],
                 [
                     "role" => "user",
