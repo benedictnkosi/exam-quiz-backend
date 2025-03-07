@@ -2324,7 +2324,7 @@ class LearnMzansiApi extends AbstractController
             $messages = [
                 [
                     "role" => "system",
-                    "content" => "You are an AI grade 9 tutor that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
+                    "content" => "You are an AI tutor for students aged 13, that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
                 ],
                 [
                     "role" => "user",
