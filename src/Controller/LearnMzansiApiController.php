@@ -588,4 +588,11 @@ class LearnMzansiApiController extends AbstractController
         $result = $this->api->getQuestionsReviewedByLearner($request);
         return new JsonResponse($result);
     }
+
+    #[Route('/learn/questions-per-learner-subject', name: 'questions_per_learner_subject', methods: ['GET'])]
+    public function getQuestionsPerLearnerSubject(Request $request): JsonResponse
+    {
+        $result = $this->api->getQuestionsPerLearnerPerSubject($request);
+        return new JsonResponse($result);
+    }
 }
