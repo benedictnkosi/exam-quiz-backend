@@ -589,5 +589,4 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($result);
     }
 
-
 }
