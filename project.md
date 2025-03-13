@@ -12,6 +12,11 @@ php bin/console doctrine:migrations:diff
 php bin/console doctrine:migrations:migrate --no-interaction
 
 
+## on server
+php bin/console doctrine:migrations:migrate
+
+
+
 2. Then you can use the make:entity command to update your entity:
 
 composer require --dev symfony/maker-bundle
