@@ -16,19 +16,22 @@ class Result
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'learner', referencedColumnName: 'id')]
+    private ?Learner $learner = null;
+
+    #[ORM\ManyToOne(targetEntity: Question::class)]
+    #[ORM\JoinColumn(name: 'question', referencedColumnName: 'id')]
+    private ?Question $question = null;
+
     #[ORM\Column(type: Types::STRING, length: 10, nullable: true)]
     private ?string $outcome = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private \DateTime $created;
 
-    #[ORM\ManyToOne(targetEntity: Question::class)]
-    #[ORM\JoinColumn(name: 'question', referencedColumnName: 'id')]
-    private ?Question $question = null;
-
-    #[ORM\ManyToOne(targetEntity: Learner::class)]
-    #[ORM\JoinColumn(name: 'learner', referencedColumnName: 'id')]
-    private ?Learner $learner = null;
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $duration = null;
 
     public function __construct()
     {
@@ -40,27 +43,14 @@ class Result
         return $this->id;
     }
 
-    public function getOutcome(): ?string
+    public function getLearner(): ?Learner
     {
-        return $this->outcome;
+        return $this->learner;
     }
 
-    public function setOutcome(?string $outcome): static
+    public function setLearner(?Learner $learner): self
     {
-        $this->outcome = $outcome;
-
-        return $this;
-    }
-
-    public function getCreated(): ?\DateTimeInterface
-    {
-        return $this->created;
-    }
-
-    public function setCreated(\DateTimeInterface $created): static
-    {
-        $this->created = $created;
-
+        $this->learner = $learner;
         return $this;
     }
 
@@ -69,22 +59,42 @@ class Result
         return $this->question;
     }
 
-    public function setQuestion(?Question $question): static
+    public function setQuestion(?Question $question): self
     {
         $this->question = $question;
-
         return $this;
     }
 
-    public function getLearner(): ?Learner
+    public function getOutcome(): ?string
     {
-        return $this->learner;
+        return $this->outcome;
     }
 
-    public function setLearner(?Learner $learner): static
+    public function setOutcome(?string $outcome): self
     {
-        $this->learner = $learner;
+        $this->outcome = $outcome;
+        return $this;
+    }
 
+    public function getCreated(): \DateTime
+    {
+        return $this->created;
+    }
+
+    public function setCreated(\DateTime $created): self
+    {
+        $this->created = $created;
+        return $this;
+    }
+
+    public function getDuration(): ?int
+    {
+        return $this->duration;
+    }
+
+    public function setDuration(?int $duration): self
+    {
+        $this->duration = $duration;
         return $this;
     }
 }

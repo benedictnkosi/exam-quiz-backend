@@ -6,6 +6,7 @@ use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpFoundation\Response;
 
 class CorsListener implements EventSubscriberInterface
 {
@@ -16,14 +17,15 @@ class CorsListener implements EventSubscriberInterface
         }
 
         $request = $event->getRequest();
-        $method = $request->getRealMethod();
 
-        if ('OPTIONS' === $method) {
+        // Handle preflight OPTIONS requests
+        if ($request->getMethod() === 'OPTIONS') {
             $response = new Response();
             $response->headers->set('Access-Control-Allow-Origin', '*');
-            $response->headers->set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', '*');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
             $response->headers->set('Access-Control-Max-Age', '3600');
+
             $event->setResponse($response);
         }
     }
@@ -47,4 +49,4 @@ class CorsListener implements EventSubscriberInterface
             KernelEvents::RESPONSE => ['onKernelResponse', 9999],
         ];
     }
-} 
+}

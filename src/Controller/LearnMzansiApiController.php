@@ -14,6 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use App\Service\LearnerGradeStatsService;
 use App\Service\LearnerSubjectStatsService;
+use App\Service\EarlyAccessService;
+use App\Service\ReviewedQuestionsService;
+use App\Service\FavoriteQuestionService;
+use App\Service\CheckAnswerService;
+use App\Service\SchoolFactService;
+use App\Service\QuestionStatsService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -147,13 +153,29 @@ class LearnMzansiApiController extends AbstractController
     }
 
     #[Route('/learn/learner/check-answer', name: 'check_answer', methods: ['POST'])]
-    public function checkLearnerAnswer(Request $request): JsonResponse
-    {
+    public function checkLearnerAnswer(
+        Request $request,
+        CheckAnswerService $checkAnswerService
+    ): JsonResponse {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->checkLearnerAnswer($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+
+        $data = json_decode($request->getContent(), true);
+        $uid = $data['uid'] ?? null;
+        $questionId = $data['question_id'] ?? null;
+        $answer = $data['answer'] ?? null;
+        $duration = $data['duration'] ?? null;
+
+        if (!$uid || !$questionId || $answer === null) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Missing required fields: uid, question_id, and answer are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $checkAnswerService->checkAnswer($uid, (int) $questionId, $answer, $duration);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 
     #[Route('/learn/learner/remove-results', name: 'remove_results', methods: ['POST'])]
@@ -211,8 +233,38 @@ class LearnMzansiApiController extends AbstractController
     #[Route('/learn/learner/get-image', name: 'get_image', methods: ['GET'])]
     public function getImage(Request $request): Response
     {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $imageName = $request->query->get('image');
+        if (!$imageName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Image parameter is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
         $uploadDir = __DIR__ . '/../../public/assets/images/learnMzansi/';
-        return new BinaryFileResponse($uploadDir . $request->query->get('image'));
+        $imagePath = $uploadDir . $imageName;
+
+        if (!file_exists($imagePath)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Image not found'
+            ], Response::HTTP_NOT_FOUND, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        try {
+            return new BinaryFileResponse($imagePath, Response::HTTP_OK, [
+                'Access-Control-Allow-Origin' => '*',
+                'Content-Type' => mime_content_type($imagePath)
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error in getImage: ' . $e->getMessage());
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error retrieving image'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR, ['Access-Control-Allow-Origin' => '*']);
+        }
     }
 
     #[Route('/learn/question/set-image-path', name: 'set_image_path', methods: ['POST'])]
@@ -559,14 +611,27 @@ class LearnMzansiApiController extends AbstractController
     }
 
     #[Route('/learn/school/fact', name: 'get_school_fact', methods: ['GET'])]
-    public function getSchoolFact(Request $request): JsonResponse
-    {
+    public function getSchoolFact(
+        Request $request,
+        SchoolFactService $schoolFactService
+    ): JsonResponse {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->getSchoolFact($request);
-        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+
+        $schoolName = $request->query->get('school_name');
+        if (!$schoolName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'School name is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $schoolFactService->getSchoolFact($schoolName);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 
-    #[Route('/learn/learner/delete', name: 'delete_learner', methods: ['POST'])]
+    #[Route('/learn/learner/delete', name: 'delete_learner', methods: ['POST', 'DELETE'])]
     public function deleteLearner(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -583,10 +648,152 @@ class LearnMzansiApiController extends AbstractController
     }
 
     #[Route('/learn/questions-reviewed', name: 'questions_reviewed', methods: ['GET'])]
-    public function getQuestionsReviewed(Request $request): JsonResponse
-    {
-        $result = $this->api->getQuestionsReviewedByLearner($request);
-        return new JsonResponse($result);
+    public function getQuestionsReviewed(
+        Request $request,
+        ReviewedQuestionsService $reviewedQuestionsService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $fromDate = $request->query->get('from_date');
+        $response = $reviewedQuestionsService->getReviewerStats($fromDate);
+
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 
+    #[Route('/learn/early-access', name: 'early_access_register', methods: ['GET', 'OPTIONS'])]
+    public function registerEarlyAccess(
+        Request $request,
+        EarlyAccessService $earlyAccessService
+    ): JsonResponse {
+        // Handle OPTIONS request for CORS
+        if ($request->getMethod() === 'OPTIONS') {
+            return new JsonResponse(null, Response::HTTP_NO_CONTENT, [
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Content-Type'
+            ]);
+        }
+
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $email = $request->query->get('email');
+
+        if (!$email) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Email is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $earlyAccessService->registerEmail($email);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse(
+            $response,
+            $statusCode,
+            ['Access-Control-Allow-Origin' => '*']
+        );
+    }
+
+    #[Route('/learn/question/favorite', name: 'get_favorites', methods: ['GET'])]
+    public function getFavorites(
+        Request $request,
+        FavoriteQuestionService $favoriteService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $uid = $request->query->get('uid');
+        $subjectName = $request->query->get('subject_name');
+
+        if (!$uid || !$subjectName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner ID and Subject Name are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $favoriteService->getFavorites($uid, $subjectName);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/question/favorite', name: 'remove_favorite', methods: ['DELETE'])]
+    public function removeFavorite(
+        Request $request,
+        FavoriteQuestionService $favoriteService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $data = json_decode($request->getContent(), true);
+        $questionId = $data['question_id'] ?? null;
+        $uid = $data['uid'] ?? null;
+
+        if (!$questionId || !$uid) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID and Learner ID are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $favoriteService->removeFavorite((int) $questionId, $uid);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/question/favorite', name: 'add_favorite', methods: ['POST'])]
+    public function addFavorite(
+        Request $request,
+        FavoriteQuestionService $favoriteService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $data = json_decode($request->getContent(), true);
+        $questionId = $data['question_id'] ?? null;
+        $uid = $data['uid'] ?? null;
+
+        if (!$questionId || !$uid) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID and Learner ID are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $favoriteService->addFavorite((int) $questionId, $uid);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/stats/questions', name: 'get_question_stats', methods: ['GET'])]
+    public function getQuestionStats(
+        Request $request,
+        QuestionStatsService $questionStatsService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $fromDate = $request->query->get('fromDate');
+        if (!$fromDate) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'fromDate parameter is required (YYYY-MM-DD format)'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $questionStatsService->getQuestionStats($fromDate);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+
+    #[Route('/learn/question/delete', name: 'delete_question', methods: ['DELETE'])]
+    public function deleteQuestion(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->deleteQuestion($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }

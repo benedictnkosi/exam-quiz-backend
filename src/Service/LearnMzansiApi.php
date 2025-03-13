@@ -309,21 +309,6 @@ class LearnMzansiApi extends AbstractController
     }
 
 
-    function cleanOptions($options)
-    {
-        $cleanedOptions = [];
-        foreach ($options as $key => $value) {
-            // Remove the unwanted string
-            $value = str_replace(['{\"answers\":\"', '\"}'], '', $value);
-            $value = str_replace(['\"}'], '', $value);
-
-            // Trim any leading or trailing whitespace
-            $value = trim($value);
-            $cleanedOptions[$key] = $value;
-        }
-        return $cleanedOptions;
-    }
-
     public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId)
     {
         try {
@@ -993,17 +978,17 @@ class LearnMzansiApi extends AbstractController
                     $lastResults[2]->getOutcome() === 'correct'
                 ) {
                     // Add bonus points for 3 in a row
-                    $learner->setScore($learner->getScore() + 3); // 1 for current + 3 bonus
+                    $learner->setPoints($learner->getPoints() + 3); // 1 for current + 3 bonus
                 } else {
                     // Normal point for correct answer
-                    $learner->setScore($learner->getScore() + 1);
+                    $learner->setPoints($learner->getPoints() + 1);
                 }
             } else {
-                $learner->setScore($learner->getScore() - 1);
+                $learner->setPoints($learner->getPoints() - 1);
             }
 
-            if ($learner->getScore() < 0) {
-                $learner->setScore(0);
+            if ($learner->getPoints() < 0) {
+                $learner->setPoints(0);
             }
 
             $this->em->persist($learner);
@@ -1037,20 +1022,20 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-
-
     public function removeLearnerResultsBySubject(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
-            $requestBody = json_decode($request->getContent(), true);
-            $uid = $requestBody['uid'];
-            $subjectName = $requestBody['subject_name'];
+            $requestBody = json_decode($request->getContent(), true) ?? [];
+
+            // Try to get values from both JSON body and query parameters
+            $uid = $requestBody['uid'] ?? $request->query->get('uid');
+            $subjectName = $requestBody['subject_name'] ?? $request->query->get('subject_name');
 
             if (empty($uid) || empty($subjectName)) {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
+                    'message' => 'Mandatory values missing: uid and subject_name are required'
                 );
             }
 
@@ -1096,8 +1081,6 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
-
-
     public function getAllActiveSubjects($request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -1286,13 +1269,13 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $gradeNumber = $request->query->get('grade');
-            $subjectName = $request->query->get('subject');
+            $subjectId = $request->query->get('subject');
             $status = $request->query->get('status');
 
-            if (empty($gradeNumber) || empty($subjectName)) {
+            if (empty($gradeNumber) || empty($subjectId)) {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'Grade and Subject and Status are required'
+                    'message' => 'Grade and Subject are required'
                 );
             }
 
@@ -1304,7 +1287,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $grade]);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['id' => $subjectId, 'grade' => $grade]);
             if (!$subject) {
                 return array(
                     'status' => 'NOK',
@@ -1330,7 +1313,6 @@ class LearnMzansiApi extends AbstractController
             );
         }
     }
-
 
     public function setQuestionInactive(Request $request): array
     {
@@ -1953,14 +1935,22 @@ class LearnMzansiApi extends AbstractController
      * @param string $capturer The capturer's email/id
      * @return array List of rejected questions or status message
      */
-    public function getRejectedQuestionsByCapturer(string $capturer): array
+    public function getRejectedQuestionsByCapturer(string $uid): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
-            if (empty($capturer)) {
+            if (empty($uid)) {
                 return [
                     'status' => 'NOK',
                     'message' => 'Capturer is required'
+                ];
+            }
+
+            $capturer = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$capturer) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Capturer not found'
                 ];
             }
 
@@ -2059,7 +2049,7 @@ class LearnMzansiApi extends AbstractController
     public function updateQuestionPostedStatus(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $questionId = $request->query->get('questionId');
+        $questionId = $request->query->get('id');
         $posted = $request->query->get('posted');
 
         try {
@@ -2324,7 +2314,7 @@ class LearnMzansiApi extends AbstractController
             $messages = [
                 [
                     "role" => "system",
-                    "content" => "You are an AI tutor for students aged 13, that explains answers to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Provide an explanation **only**—do not include the correct answer itself in the response.\n4. Format the explanation as **bullet points**.\n5. Avoid any introduction like 'The correct answer is...' or 'This is because...'.\n6. If needed, reference the context and images in your explanation."
+                    "content" => "You are an AI tutor for students aged 13, that creates lessons to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Format the explanation as **bullet points**.\n4. reference the context and images in your explanation.\n5 have headings in your explanation. make it long as detailed. \n6 at the end, add a small bite size key lesson, prefixed with ***. less than 20 words. \n7 make the lesson fun and add emojis where suitable"
                 ],
                 [
                     "role" => "user",
@@ -2452,7 +2442,7 @@ class LearnMzansiApi extends AbstractController
                 if ($name) {
                     $learner->setName($name);
                 }
-                $learner->setScore(0);
+                $learner->setPoints(0);
                 $learner->setCreated(new \DateTime());
                 $learner->setNotificationHour(18);
                 $learner->setTerms(json_encode($requestBody['terms']));
@@ -2922,5 +2912,66 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-   
+    /**
+     * Delete a question by ID (admin only)
+     */
+    public function deleteQuestion(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $adminCheck = $this->validateAdminAccess($request);
+            if ($adminCheck['status'] === 'NOK') {
+                return $adminCheck;
+            }
+
+            $requestBody = json_decode($request->getContent(), true);
+            $questionId = $requestBody['question_id'] ?? null;
+
+            if (!$questionId) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question ID is required'
+                ];
+            }
+
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
+            // Begin transaction
+            $this->em->beginTransaction();
+            try {
+                // Delete associated results first
+                $results = $this->em->getRepository(Result::class)->findBy(['question' => $question]);
+                foreach ($results as $result) {
+                    $this->em->remove($result);
+                }
+
+                // Delete the question
+                $this->em->remove($question);
+                $this->em->flush();
+                $this->em->commit();
+
+                return [
+                    'status' => 'OK',
+                    'message' => 'Question and associated data deleted successfully'
+                ];
+
+            } catch (\Exception $e) {
+                $this->em->rollback();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error deleting question: ' . $e->getMessage()
+            ];
+        }
+    }
 }

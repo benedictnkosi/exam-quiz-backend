@@ -68,6 +68,12 @@ class Question
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTime $created = null;
 
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    private ?\DateTime $updated = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTime $reviewedAt = null;
+
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $questionImagePath = null;
 
@@ -86,7 +92,9 @@ class Question
 
     public function __construct()
     {
-        $this->created = new \DateTime();
+        $now = new \DateTime();
+        $this->created = $now;
+        $this->updated = $now;
     }
 
     public function getId(): ?int
@@ -283,6 +291,29 @@ class Question
     {
         $this->created = $created;
 
+        return $this;
+    }
+
+    public function getUpdated(): ?\DateTime
+    {
+        return $this->updated;
+    }
+
+    public function setUpdated(?\DateTime $updated): static
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    public function getReviewedAt(): ?\DateTime
+    {
+        return $this->reviewedAt;
+    }
+
+    public function setReviewedAt(?\DateTime $reviewedAt): static
+    {
+        $this->reviewedAt = $reviewedAt;
         return $this;
     }
 

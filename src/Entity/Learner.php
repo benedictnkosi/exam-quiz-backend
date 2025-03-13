@@ -18,15 +18,18 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 45, nullable: true)]
     private ?string $uid = null;
 
-    #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    private ?int $score = null;
+    #[ORM\ManyToOne(targetEntity: Grade::class)]
+    #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
+    private ?Grade $grade = null;
+
+    #[ORM\Column(name: 'points', type: Types::INTEGER, options: ['default' => 0])]
+    private int $points = 0;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $name = null;
 
-    #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    private ?int $notificationHour = null;
-
+    #[ORM\Column(name: 'notification_hour', type: Types::SMALLINT, options: ['default' => 0])]
+    private int $notificationHour = 0;
 
     #[ORM\Column(type: Types::STRING, length: 10, options: ['default' => 'learner'])]
     private string $role = 'learner';
@@ -35,25 +38,19 @@ class Learner
     private \DateTime $created;
 
     #[ORM\Column(name: 'lastSeen', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
-    private \DateTime $lastseen;
+    private \DateTime $lastSeen;
 
-    #[ORM\ManyToOne(targetEntity: Grade::class)]
-    #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
-    private ?Grade $grade = null;
-
-    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
-    private ?string $schoolName = null;
-
-    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[ORM\Column(name: 'school_address', type: Types::STRING, length: 100, nullable: true)]
     private ?string $schoolAddress = null;
 
-    //school latitude and longitude
-    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[ORM\Column(name: 'school_name', type: Types::STRING, length: 50, nullable: true)]
+    private ?string $schoolName = null;
+
+    #[ORM\Column(name: 'school_latitude', type: Types::FLOAT, nullable: true)]
     private ?float $schoolLatitude = null;
 
-    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[ORM\Column(name: 'school_longitude', type: Types::FLOAT, nullable: true)]
     private ?float $schoolLongitude = null;
-
 
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $terms = null;
@@ -61,22 +58,32 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $curriculum = null;
 
-    #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => false])]
-    private ?bool $privateSchool = false;
+    #[ORM\Column(name: 'private_school', type: Types::BOOLEAN, nullable: true)]
+    private ?bool $privateSchool = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     private ?string $email = null;
 
-    #[ORM\Column(type: Types::FLOAT, nullable: true, options: ['default' => 0])]
-    private ?float $rating = 0;
+    #[ORM\Column(type: Types::FLOAT, options: ['default' => 0])]
+    private float $rating = 0;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'rating_cancelled', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTime $ratingCancelled = null;
+
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
+    private int $streak = 0;
+
+    #[ORM\Column(name: 'streak_last_updated', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    private \DateTime $streakLastUpdated;
+
+    #[ORM\Column(type: Types::STRING, options: ['default' => '8.png'])]
+    private string $avatar = '8.png';
 
     public function __construct()
     {
         $this->created = new \DateTime();
-        $this->lastseen = new \DateTime();
+        $this->lastSeen = new \DateTime();
+        $this->streakLastUpdated = new \DateTime();
     }
 
     public function getId(): ?int
@@ -89,71 +96,9 @@ class Learner
         return $this->uid;
     }
 
-    public function setUid(?string $uid): static
+    public function setUid(?string $uid): self
     {
         $this->uid = $uid;
-
-        return $this;
-    }
-
-    public function getScore(): ?int
-    {
-        return $this->score;
-    }
-
-    public function setScore(?int $score): static
-    {
-        $this->score = $score;
-
-        return $this;
-    }
-
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function setName(?string $name): static
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
-
-    public function getRole(): ?string
-    {
-        return $this->role;
-    }
-
-    public function setRole(string $role): static
-    {
-        $this->role = $role;
-
-        return $this;
-    }
-
-    public function getCreated(): ?\DateTimeInterface
-    {
-        return $this->created;
-    }
-
-    public function setCreated(\DateTimeInterface $created): static
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    public function getLastseen(): ?\DateTimeInterface
-    {
-        return $this->lastseen;
-    }
-
-    public function setLastseen(\DateTimeInterface $lastseen): static
-    {
-        $this->lastseen = $lastseen;
-
         return $this;
     }
 
@@ -162,34 +107,75 @@ class Learner
         return $this->grade;
     }
 
-    public function setGrade(?Grade $grade): static
+    public function setGrade(?Grade $grade): self
     {
         $this->grade = $grade;
-
         return $this;
     }
 
-    public function getNotificationHour(): ?int
+    public function getPoints(): int
+    {
+        return $this->points;
+    }
+
+    public function setPoints(int $points): self
+    {
+        $this->points = $points;
+        return $this;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): self
+    {
+        $this->name = $name;
+        return $this;
+    }
+
+    public function getNotificationHour(): int
     {
         return $this->notificationHour;
     }
 
-    public function setNotificationHour(?int $notificationHour): static
+    public function setNotificationHour(int $notificationHour): self
     {
         $this->notificationHour = $notificationHour;
-
         return $this;
     }
 
-    public function getSchoolName(): ?string
+    public function getRole(): string
     {
-        return $this->schoolName;
+        return $this->role;
     }
 
-    public function setSchoolName(?string $schoolName): static
+    public function setRole(string $role): self
     {
-        $this->schoolName = $schoolName;
+        $this->role = $role;
+        return $this;
+    }
 
+    public function getCreated(): \DateTime
+    {
+        return $this->created;
+    }
+
+    public function setCreated(\DateTime $created): self
+    {
+        $this->created = $created;
+        return $this;
+    }
+
+    public function getLastSeen(): \DateTime
+    {
+        return $this->lastSeen;
+    }
+
+    public function setLastSeen(\DateTime $lastSeen): self
+    {
+        $this->lastSeen = $lastSeen;
         return $this;
     }
 
@@ -198,10 +184,20 @@ class Learner
         return $this->schoolAddress;
     }
 
-    public function setSchoolAddress(?string $schoolAddress): static
+    public function setSchoolAddress(?string $schoolAddress): self
     {
         $this->schoolAddress = $schoolAddress;
+        return $this;
+    }
 
+    public function getSchoolName(): ?string
+    {
+        return $this->schoolName;
+    }
+
+    public function setSchoolName(?string $schoolName): self
+    {
+        $this->schoolName = $schoolName;
         return $this;
     }
 
@@ -210,10 +206,9 @@ class Learner
         return $this->schoolLatitude;
     }
 
-    public function setSchoolLatitude(?float $schoolLatitude): static
+    public function setSchoolLatitude(?float $schoolLatitude): self
     {
         $this->schoolLatitude = $schoolLatitude;
-
         return $this;
     }
 
@@ -222,10 +217,9 @@ class Learner
         return $this->schoolLongitude;
     }
 
-    public function setSchoolLongitude(?float $schoolLongitude): static
+    public function setSchoolLongitude(?float $schoolLongitude): self
     {
         $this->schoolLongitude = $schoolLongitude;
-
         return $this;
     }
 
@@ -234,10 +228,9 @@ class Learner
         return $this->terms;
     }
 
-    public function setTerms(?string $terms): static
+    public function setTerms(?string $terms): self
     {
         $this->terms = $terms;
-
         return $this;
     }
 
@@ -246,10 +239,9 @@ class Learner
         return $this->curriculum;
     }
 
-    public function setCurriculum(?string $curriculum): static
+    public function setCurriculum(?string $curriculum): self
     {
         $this->curriculum = $curriculum;
-
         return $this;
     }
 
@@ -258,10 +250,9 @@ class Learner
         return $this->privateSchool;
     }
 
-    public function setPrivateSchool(?bool $privateSchool): static
+    public function setPrivateSchool(?bool $privateSchool): self
     {
         $this->privateSchool = $privateSchool;
-
         return $this;
     }
 
@@ -270,18 +261,18 @@ class Learner
         return $this->email;
     }
 
-    public function setEmail(?string $email): static
+    public function setEmail(?string $email): self
     {
         $this->email = $email;
         return $this;
     }
 
-    public function getRating(): ?float
+    public function getRating(): float
     {
         return $this->rating;
     }
 
-    public function setRating(?float $rating): static
+    public function setRating(float $rating): self
     {
         $this->rating = $rating;
         return $this;
@@ -292,9 +283,42 @@ class Learner
         return $this->ratingCancelled;
     }
 
-    public function setRatingCancelled(?\DateTime $ratingCancelled): static
+    public function setRatingCancelled(?\DateTime $ratingCancelled): self
     {
         $this->ratingCancelled = $ratingCancelled;
+        return $this;
+    }
+
+    public function getStreak(): int
+    {
+        return $this->streak;
+    }
+
+    public function setStreak(int $streak): self
+    {
+        $this->streak = $streak;
+        return $this;
+    }
+
+    public function getStreakLastUpdated(): \DateTime
+    {
+        return $this->streakLastUpdated;
+    }
+
+    public function setStreakLastUpdated(\DateTime $streakLastUpdated): self
+    {
+        $this->streakLastUpdated = $streakLastUpdated;
+        return $this;
+    }
+
+    public function getAvatar(): string
+    {
+        return $this->avatar;
+    }
+
+    public function setAvatar(string $avatar): self
+    {
+        $this->avatar = $avatar;
         return $this;
     }
 }
