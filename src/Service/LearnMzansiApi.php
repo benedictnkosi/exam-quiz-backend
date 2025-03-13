@@ -2451,15 +2451,32 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            $cleanCurriculum = '';
+            if (!empty($requestBody['curriculum'])) {
+                // Remove quotes and clean the string
+                $curriculum = str_replace(['"', "'"], '', $requestBody['curriculum']);
+                $curriculumArray = array_map('trim', explode(',', $curriculum));
+                $cleanCurriculum = implode(',', $curriculumArray);
+            }
+
+
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 $learner = new Learner();
                 $learner->setUid($uid);
                 $learner->setPoints(0);
                 $learner->setCreated(created: new \DateTime());
+                $learner->setCurriculum(curriculum: "IEB,CAPS");
+                if ($curriculum == "IEB") {
+                    $learner->setPrivateSchool(true);
+                } else {
+                    $learner->setPrivateSchool(false);
+                }
                 if (!empty($email)) {
                     $learner->setEmail($email);
                 }
+            } else {
+                $learner->setCurriculum($cleanCurriculum);
             }
 
             if ($name) {
@@ -2478,18 +2495,12 @@ class LearnMzansiApi extends AbstractController
                 $cleanTerms = implode(',', $termsArray);
             }
 
-            $cleanCurriculum = '';
-            if (!empty($requestBody['curriculum'])) {
-                // Remove quotes and clean the string
-                $curriculum = str_replace(['"', "'"], '', $requestBody['curriculum']);
-                $curriculumArray = array_map('trim', explode(',', $curriculum));
-                $cleanCurriculum = implode(',', $curriculumArray);
-            }
+
 
             $learner->setGrade($grade);
             $learner->setNotificationHour(18);
             $learner->setTerms($cleanTerms);
-            $learner->setCurriculum($cleanCurriculum);
+
             $learner->setSchoolName($requestBody['school_name'] ? substr($requestBody['school_name'], 0, 255) : '');
 
             // Truncate school address to 255 characters to prevent "Data too long" error
