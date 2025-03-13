@@ -117,40 +117,6 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/learn/learner/update', name: 'update_learner', methods: ['POST'])]
-    public function updateLearner(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->updateLearner($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
-
-    #[Route('/learn/learner/assign-subject', name: 'assign_subject', methods: ['POST'])]
-    public function assignSubjectToLearner(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->assignSubjectToLearner($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
-
-    #[Route('/learn/learner/subjects-not-enrolled', name: 'get_subjects_not_enrolled', methods: ['GET'])]
-    public function getSubjectsNotEnrolledByLearner(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->getSubjectsNotEnrolledByLearner($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-
-        if (isset($response['status']) && $response['status'] === 'NOK') {
-            return new JsonResponse($jsonContent, 404, array('Access-Control-Allow-Origin' => '*'), true);
-        }
-
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
 
     #[Route('/learn/learner/check-answer', name: 'check_answer', methods: ['POST'])]
     public function checkLearnerAnswer(
@@ -178,7 +144,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 
-    #[Route('/learn/learner/remove-results', name: 'remove_results', methods: ['POST'])]
+    #[Route('/learn/learner/remove-results', name: 'remove_results', methods: ['DELETE'])]
     public function removeLearnerResultsBySubject(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);

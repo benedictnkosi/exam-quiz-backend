@@ -393,9 +393,14 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            // Get learner's terms and curriculum as arrays from comma-delimited strings
-            $learnerTerms = $learner->getTerms() ? array_map('trim', explode(',', $learner->getTerms())) : [];
-            $learnerCurriculum = $learner->getCurriculum() ? array_map('trim', explode(',', $learner->getCurriculum())) : [];
+            // Get learner's terms and curriculum as arrays
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
 
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
             $masteredQuestionsQb = $this->em->createQueryBuilder();
@@ -445,12 +450,12 @@ class LearnMzansiApi extends AbstractController
 
             // Add term condition if learner has terms specified
             if (!empty($learnerTerms)) {
-                $qb->andWhere('q.term IN (:terms)');
+                $qb->andWhere($qb->expr()->in('q.term', ':terms'));
             }
 
             // Add curriculum condition if learner has curriculum specified
             if (!empty($learnerCurriculum)) {
-                $qb->andWhere('q.curriculum IN (:curriculum)');
+                $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
             }
 
             // Set parameters
@@ -690,8 +695,13 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Get learner's terms and curriculum as arrays
-            $learnerTerms = $learner->getTerms() ? array_map('trim', explode(',', $learner->getTerms())) : [];
-            $learnerCurriculum = $learner->getCurriculum() ? array_map('trim', explode(',', $learner->getCurriculum())) : [];
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
 
             // Build query to get subjects with question counts
             $qb = $this->em->createQueryBuilder();
@@ -703,7 +713,9 @@ class LearnMzansiApi extends AbstractController
                     'WITH',
                     $qb->expr()->andX(
                         $qb->expr()->eq('q.subject', 's.id'),
-                        $qb->expr()->eq('q.active', ':active')
+                        $qb->expr()->eq('q.active', ':active'),
+                        $qb->expr()->in('q.curriculum', ':curriculum'),
+                        $qb->expr()->in('q.term', ':terms')
                     )
                 )
                 ->where('s.grade = :grade')
@@ -721,7 +733,9 @@ class LearnMzansiApi extends AbstractController
             $parameters = new ArrayCollection([
                 new Parameter('grade', $grade),
                 new Parameter('active', true),
-                new Parameter('subjectActive', true)
+                new Parameter('subjectActive', true),
+                new Parameter('curriculum', $learnerCurriculum),
+                new Parameter('terms', $learnerTerms)
             ]);
 
             // Add status parameter only for non-admin users
@@ -732,9 +746,11 @@ class LearnMzansiApi extends AbstractController
             $qb->setParameters($parameters);
             $subjects = $qb->getQuery()->getResult();
 
+            $this->logger->info("subjects: " . count($subjects));
             // Get total results and correct answers for each subject
             foreach ($subjects as &$subject) {
                 // Query for total results
+                $this->logger->info("subject: " . $subject['name']);
                 $resultsQb = $this->em->createQueryBuilder();
                 $resultsQb->select('COUNT(r.id) as totalResults')
                     ->from('App\Entity\Result', 'r')
@@ -2439,52 +2455,60 @@ class LearnMzansiApi extends AbstractController
             if (!$learner) {
                 $learner = new Learner();
                 $learner->setUid($uid);
-                if ($name) {
-                    $learner->setName($name);
-                }
                 $learner->setPoints(0);
-                $learner->setCreated(new \DateTime());
-                $learner->setNotificationHour(18);
-                $learner->setTerms(json_encode($requestBody['terms']));
-                $learner->setCurriculum(json_encode($requestBody['curriculum']));
-                $learner->setSchoolName($requestBody['school_name']);
-                $learner->setSchoolAddress($requestBody['school_address']);
-                $learner->setSchoolLatitude($requestBody['school_latitude']);
-                $learner->setSchoolLongitude($requestBody['school_longitude']);
+                $learner->setCreated(created: new \DateTime());
                 if (!empty($email)) {
                     $learner->setEmail($email);
                 }
-
-                $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
-                $learner->setGrade($grade);
-
-                $learner->setLastSeen(new \DateTime());
-                $this->em->persist($learner);
-                $this->em->flush();
-
-                return array(
-                    'status' => 'OK',
-                    'message' => 'Successfully created learner'
-                );
-            } else {
-                $learner->setLastSeen(new \DateTime());
-                $this->em->persist($learner);
-                $this->em->flush();
-                if ($learner->getGrade()) {
-                    return array(
-                        'status' => 'NOK',
-
-                        'message' => "Learner already exists $uid",
-                        'grade' => $learner->getGrade()->getNumber()
-                    );
-                } else {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => "Learner already exists $uid",
-                        'grade' => "Not assigned"
-                    );
-                }
             }
+
+            if ($name) {
+                $learner->setName($name);
+            }
+
+            $learner->setLastSeen(new \DateTime());
+            $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
+
+            // Clean and format terms and curriculum
+            $cleanTerms = '';
+            if (!empty($requestBody['terms'])) {
+                // Remove quotes and clean the string
+                $terms = str_replace(['"', "'"], '', $requestBody['terms']);
+                $termsArray = array_map('trim', explode(',', $terms));
+                $cleanTerms = implode(',', $termsArray);
+            }
+
+            $cleanCurriculum = '';
+            if (!empty($requestBody['curriculum'])) {
+                // Remove quotes and clean the string
+                $curriculum = str_replace(['"', "'"], '', $requestBody['curriculum']);
+                $curriculumArray = array_map('trim', explode(',', $curriculum));
+                $cleanCurriculum = implode(',', $curriculumArray);
+            }
+
+            $learner->setGrade($grade);
+            $learner->setNotificationHour(18);
+            $learner->setTerms($cleanTerms);
+            $learner->setCurriculum($cleanCurriculum);
+            $learner->setSchoolName($requestBody['school_name'] ? substr($requestBody['school_name'], 0, 255) : '');
+
+            // Truncate school address to 255 characters to prevent "Data too long" error
+            $schoolAddress = $requestBody['school_address'] ?? '';
+            $learner->setSchoolAddress(substr($schoolAddress, 0, 255));
+
+            $learner->setSchoolLatitude($requestBody['school_latitude']);
+            $learner->setSchoolLongitude($requestBody['school_longitude']);
+
+
+
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'Successfully created learner'
+            );
+
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(

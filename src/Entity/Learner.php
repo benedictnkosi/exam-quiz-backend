@@ -40,10 +40,10 @@ class Learner
     #[ORM\Column(name: 'lastSeen', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private \DateTime $lastSeen;
 
-    #[ORM\Column(name: 'school_address', type: Types::STRING, length: 100, nullable: true)]
+    #[ORM\Column(name: 'school_address', type: Types::STRING, length: 500, nullable: true)]
     private ?string $schoolAddress = null;
 
-    #[ORM\Column(name: 'school_name', type: Types::STRING, length: 50, nullable: true)]
+    #[ORM\Column(name: 'school_name', type: Types::STRING, length: 100, nullable: true)]
     private ?string $schoolName = null;
 
     #[ORM\Column(name: 'school_latitude', type: Types::FLOAT, nullable: true)]
