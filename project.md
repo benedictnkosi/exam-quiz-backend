@@ -30,3 +30,17 @@ php bin/console make:entity --regenerate
 git rm --cached .env
 git add .gitignore
 git commit -m "Remove .env from git tracking"
+
+
+### Working with the server
+
+/var/www/exam-quiz-backend
+
+copy files over
+scp ./test.sql root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/public/assets/images/learnMzansi/
+
+run sql in file
+mysql -u root -p exam_quiz < app_question.sql
+
+restart fpm
+sudo systemctl restart php8.3-fpm.service

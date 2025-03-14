@@ -1099,10 +1099,10 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $gradeNumber = $request->query->get('grade');
-            $subjectId = $request->query->get('subject');
+            $subjectName = $request->query->get('subject');
             $status = $request->query->get('status');
 
-            if (empty($gradeNumber) || empty($subjectId)) {
+            if (empty($gradeNumber) || empty($subjectName)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Grade and Subject are required'
@@ -1117,7 +1117,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['id' => $subjectId, 'grade' => $grade]);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $grade]);
             if (!$subject) {
                 return array(
                     'status' => 'NOK',
