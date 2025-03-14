@@ -127,6 +127,7 @@ class CheckAnswerService
                 $lastUpdated = $learner->getStreakLastUpdated();
                 $wasUpdatedToday = $lastUpdated && $lastUpdated >= $today;
 
+                $this->logger->info("wasUpdatedToday: " . $wasUpdatedToday);
                 if (!$wasUpdatedToday) {
                     $todayResults = $this->entityManager->getRepository(Result::class)
                         ->createQueryBuilder('r')
@@ -139,6 +140,7 @@ class CheckAnswerService
                         ->getQuery()
                         ->getResult();
 
+                    $this->logger->info("todayResults: " . count($todayResults));
                     if (count($todayResults) >= 3) {
                         $currentStreak++;
                         $streakUpdated = true;
