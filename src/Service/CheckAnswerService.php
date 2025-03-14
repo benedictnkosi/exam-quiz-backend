@@ -42,8 +42,33 @@ class CheckAnswerService
                 ];
             }
 
+            // Check if the question is favorited by the learner
+            $isFavorited = $this->entityManager->getRepository('App\Entity\Favorites')
+                ->findOneBy([
+                    'learner' => $learner,
+                    'question' => $question
+                ]);
+
             // Check the answer
             $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
+
+            // If the question is favorited, return the result without recording or awarding points
+            if ($isFavorited) {
+                $this->logger->info("Question {$questionId} is favorited by learner {$uid}. Skipping points and results.");
+                return [
+                    'status' => 'OK',
+                    'correct' => $isCorrect,
+                    'explanation' => $question->getExplanation(),
+                    'correctAnswer' => $question->getAnswer(),
+                    'points' => $learner->getPoints(), // Return current points without change
+                    'message' => $isCorrect ? 'Correct answer! (No points awarded for favorited question)' : 'Incorrect answer',
+                    'lastThreeCorrect' => false,
+                    'streak' => $learner->getStreak(),
+                    'streakUpdated' => false,
+                    'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
+                    'is_favorited' => true
+                ];
+            }
 
             // Record the result
             $result = new Result();
@@ -135,7 +160,8 @@ class CheckAnswerService
                 'lastThreeCorrect' => $lastThreeCorrect,
                 'streak' => $currentStreak,
                 'streakUpdated' => $streakUpdated,
-                'subject' => $question->getSubject() ? $question->getSubject()->getName() : null
+                'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
+                'is_favorited' => false
             ];
 
         } catch (\Exception $e) {

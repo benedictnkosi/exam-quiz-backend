@@ -321,6 +321,16 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            if ($questionId !== 0) {
+                $question = $this->em->getRepository(Question::class)->find($questionId);
+                if (!$question) {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'Question not found'
+                    );
+                }
+                return $question;
+            }
             // Check if learner is admin
             if ($learner->getRole() === 'admin' && $learner->getName() != 'Lethabo Mathabatha' && $learner->getName() != 'dee61004' && $learner->getName() != 'Benedict Nkosi') {
                 // For admin, get their captured questions with 'new' status
@@ -838,202 +848,6 @@ class LearnMzansiApi extends AbstractController
             return array(
                 'status' => 'NOK',
                 'message' => 'Error getting learner subjects'
-            );
-        }
-    }
-
-
-    function normalizeString($string)
-    {
-        // Replace different types of hyphens and minus signs with a standard hyphen
-        $string = str_replace(['−', '–', '—', '―', '−'], '-', $string);
-        // Remove any leading or trailing whitespace
-        return trim($string);
-    }
-
-    /**
-     * Normalize numeric answer by removing formatting
-     * 
-     * @param string $answer Answer to normalize
-     * @return string Normalized answer
-     */
-    private function normalizeNumericAnswer(string $answer): string
-    {
-        // Remove spaces and convert commas to dots
-        $normalized = str_replace([' ', ','], ['', '.'], trim($answer));
-
-        // Remove currency symbols and spaces
-        $hasCurrency = preg_match('/^[R$€£]/', $normalized);
-        $normalized = preg_replace('/^[R$€£]/', '', $normalized);
-
-        // Remove percentage sign if present
-        $hasPercentage = str_contains($normalized, '%');
-        $normalized = str_replace('%', '', $normalized);
-
-        // If it's a numeric value, format it consistently
-        if (is_numeric($normalized)) {
-            // Convert to float and back to string to handle both integer and decimal formats
-            $value = (string) floatval($normalized);
-            // Add back the appropriate symbol
-            if ($hasCurrency) {
-                return 'R' . $value;
-            }
-            return $hasPercentage ? $value . '%' : $value;
-        }
-
-        return $normalized;
-    }
-
-    public function checkLearnerAnswer(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $requestBody = json_decode($request->getContent(), true);
-            $questionId = $requestBody['question_id'];
-            $learnerAnswers = trim($requestBody['answer']);
-            $RequestType = $requestBody['requesting_type'];
-
-            $learnerAnswers = str_replace(' ', '', $learnerAnswers);
-            $uid = $requestBody['uid'];
-
-            if (empty($questionId) || empty($uid)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
-            }
-
-            $question = $this->em->getRepository(Question::class)->find($questionId);
-            if (!$question) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Question not found'
-                );
-            }
-
-            if (empty($learnerAnswers)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing - ' . $question->getType()
-                );
-            }
-
-            if (!is_array($learnerAnswers)) {
-                $learnerAnswers = [$learnerAnswers];
-            }
-
-            $correctAnswers = json_decode($question->getAnswer(), true);
-            $learnerAnswer = $requestBody['answer'];
-
-            // Normalize both correct and learner answers
-            $normalizedLearnerAnswer = $this->normalizeNumericAnswer($learnerAnswer);
-            $isCorrect = false;
-
-            foreach ($correctAnswers as $correctAnswer) {
-
-
-                $normalizedCorrectAnswer = $this->normalizeNumericAnswer($correctAnswer);
-
-                //replace spaces from both answers
-                $normalizedCorrectAnswer = str_replace(' ', '', $normalizedCorrectAnswer);
-                $normalizedLearnerAnswer = str_replace(' ', '', $normalizedLearnerAnswer);
-
-                // If either answer has a currency symbol or percentage, normalize both to numeric
-                if (
-                    preg_match('/^[R$€£]/', $normalizedCorrectAnswer) ||
-                    preg_match('/^[R$€£]/', $normalizedLearnerAnswer) ||
-                    str_contains($normalizedCorrectAnswer, '%') ||
-                    str_contains($normalizedLearnerAnswer, '%')
-                ) {
-
-                    $correctValue = preg_replace('/^[R$€£$]/', '', $normalizedCorrectAnswer);
-                    $correctValue = str_replace('%', '', $correctValue);
-
-                    $learnerValue = preg_replace('/^[R$€£$]/', '', $normalizedLearnerAnswer);
-                    $learnerValue = str_replace('%', '', $learnerValue);
-
-                    if (floatval($correctValue) === floatval($learnerValue)) {
-                        $isCorrect = true;
-                        break;
-                    }
-                } else if ($normalizedCorrectAnswer === $normalizedLearnerAnswer) {
-                    $isCorrect = true;
-                    break;
-                }
-
-                $this->logger->info("correctAnswer: " . $normalizedCorrectAnswer);
-                $this->logger->info("normalizedLearnerAnswer: " . $normalizedLearnerAnswer);
-            }
-
-            //update learner score, add one if correct, minus one if incorrect. should not go below 0
-            if ($isCorrect) {
-                // Get the last 3 results for this learner
-                $lastResults = $this->em->getRepository(Result::class)
-                    ->createQueryBuilder('r')
-                    ->where('r.learner = :learner')
-                    ->orderBy('r.created', 'DESC')
-                    ->setMaxResults(3)
-                    ->setParameter('learner', $learner)
-                    ->getQuery()
-                    ->getResult();
-
-                // Check if last 2 results were also correct (making it 3 in a row with current)
-                $this->logger->info("lastResults: " . count($lastResults));
-                if (
-                    count($lastResults) === 3 &&
-                    $lastResults[0]->getOutcome() === 'correct' &&
-                    $lastResults[1]->getOutcome() === 'correct' &&
-                    $lastResults[2]->getOutcome() === 'correct'
-                ) {
-                    // Add bonus points for 3 in a row
-                    $learner->setPoints($learner->getPoints() + 3); // 1 for current + 3 bonus
-                } else {
-                    // Normal point for correct answer
-                    $learner->setPoints($learner->getPoints() + 1);
-                }
-            } else {
-                $learner->setPoints($learner->getPoints() - 1);
-            }
-
-            if ($learner->getPoints() < 0) {
-                $learner->setPoints(0);
-            }
-
-            $this->em->persist($learner);
-            $this->em->flush();
-
-            // Create result record
-            if ($RequestType !== 'mock') {
-                $result = new Result();
-                $result->setLearner($learner);
-                $result->setQuestion($question);
-                $result->setOutcome($isCorrect ? 'correct' : 'incorrect');
-                $result->setCreated(new \DateTime());
-
-                $this->em->persist($result);
-                $this->em->flush();
-            }
-            ;
-
-            return array(
-                'status' => 'OK',
-                'result' => $isCorrect ? 'correct' : 'incorrect',
-                'is_correct' => $isCorrect
-            );
-
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error checking answer'
             );
         }
     }
