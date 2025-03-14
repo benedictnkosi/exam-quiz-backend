@@ -260,7 +260,7 @@ class LearnMzansiApi extends AbstractController
             $question->setType($data['type']);
             $question->setSubject($subject);
             $question->setContext($data['context'] ?? null);
-            $question->setAnswer(is_array($data['answer']) ? json_encode($data['answer']) : json_encode([$data['answer']]));
+            $question->setAnswer($data['answer']);
             $question->setOptions($data['options'] ?? null); // Pass the array directly
             $question->setTerm($data['term'] ?? null);
             $question->setExplanation($data['explanation'] ?? null);
@@ -2341,8 +2341,7 @@ class LearnMzansiApi extends AbstractController
 
             $learner->setSchoolLatitude($requestBody['school_latitude']);
             $learner->setSchoolLongitude($requestBody['school_longitude']);
-
-
+            $learner->setAvatar($requestBody['avatar']);
 
             $this->em->persist($learner);
             $this->em->flush();
