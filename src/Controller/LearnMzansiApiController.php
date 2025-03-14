@@ -578,20 +578,11 @@ class LearnMzansiApiController extends AbstractController
 
     #[Route('/learn/school/fact', name: 'get_school_fact', methods: ['GET'])]
     public function getSchoolFact(
-        Request $request,
-        SchoolFactService $schoolFactService
+        Request $request
     ): JsonResponse {
         $this->logger->info("Starting Method: " . __METHOD__);
 
-        $schoolName = $request->query->get('school_name');
-        if (!$schoolName) {
-            return new JsonResponse([
-                'status' => 'NOK',
-                'message' => 'School name is required'
-            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
-        }
-
-        $response = $schoolFactService->getSchoolFact($schoolName);
+        $response = $this->api->getSchoolFact($request);
         $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
 
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
