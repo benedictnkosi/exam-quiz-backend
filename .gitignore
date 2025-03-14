@@ -18,4 +18,4 @@
 /phpunit.xml
 .phpunit.result.cache
 ###< phpunit/phpunit ###
-/config/packages/monolog.yaml
+/config/packages/monolog.yamllearnMzansi .zip
