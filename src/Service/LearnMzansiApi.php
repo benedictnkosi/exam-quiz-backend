@@ -2249,6 +2249,17 @@ class LearnMzansiApi extends AbstractController
             $requestBody = json_decode($request->getContent(), true);
             $uid = $requestBody['uid'];
             $name = $requestBody['name'];
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if ($learner) {
+                if ($learner->getRole() == 'admin') {
+                    return array(
+                        'status' => 'OK',
+                        'message' => 'Successfully created learner'
+                    );
+                }
+            }
+
             $grade = $requestBody['grade'];
             $terms = $requestBody['terms'];
             $curriculum = $requestBody['curriculum'];
@@ -2290,6 +2301,13 @@ class LearnMzansiApi extends AbstractController
                     $learner->setEmail($email);
                 }
             } else {
+                //if learner is admin
+                if ($learner->getRole() == 'admin') {
+                    return array(
+                        'status' => 'OK',
+                        'message' => 'Successfully created learner'
+                    );
+                }
                 $learner->setCurriculum($cleanCurriculum);
             }
 
@@ -2338,10 +2356,12 @@ class LearnMzansiApi extends AbstractController
             $this->logger->error($e->getMessage());
             return array(
                 'status' => 'NOK',
-                'message' => 'Error creating learner'
+                'message' => 'Error creating learner ' . $e->getMessage()
             );
         }
     }
+
+
 
     public function getSchoolFact(Request $request): array
     {
