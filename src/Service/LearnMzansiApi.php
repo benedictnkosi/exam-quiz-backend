@@ -328,7 +328,7 @@ class LearnMzansiApi extends AbstractController
                 return $question;
             }
             // Check if learner is admin
-            if ($learner->getRole() === 'admin' && $learner->getName() != 'Lethabo Mathabatha' && $learner->getName() != 'dee61004' && $learner->getName() != 'Benedict Nkosi') {
+            if ($learner->getRole() === 'admin' || $learner->getRole() === 'reviewer') {
                 // For admin, get their captured questions with 'new' status
 
                 //get learner capturing ID by email and uid not learner id
@@ -357,12 +357,24 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.status = :status')
                     ->andWhere('q.capturer = :capturer');
 
-                $parameters = new ArrayCollection([
-                    new Parameter('subjectName', $subjectName . ' ' . $paperName),
-                    new Parameter('active', true),
-                    new Parameter('status', 'new'),
-                    new Parameter('capturer', $capturer)
-                ]);
+                //if admin status must be new, if reviewer status must be approved and comment new
+                if ($learner->getRole() === 'admin') {
+                    $parameters = new ArrayCollection([
+                        new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                        new Parameter('active', true),
+                        new Parameter('status', 'new'),
+                        new Parameter('capturer', $capturer),
+                        new Parameter('comment', 'new')
+                    ]);
+                } else {
+                    $parameters = new ArrayCollection([
+                        new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                        new Parameter('active', true),
+                        new Parameter('status', 'approved'),
+                        new Parameter('capturer', $capturer),
+                        new Parameter('comment', 'new')
+                    ]);
+                }
 
                 $qb->setParameters($parameters);
 
@@ -388,6 +400,8 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             }
+
+
 
             // For non-admin learners, continue with existing logic
             // Get learner's grade
@@ -1213,11 +1227,11 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            //only learner with role admin can approve a question
-            if ($learner->getRole() !== 'admin' && $status === 'approved') {
+            //only learner with role or reviewer can approve a question
+            if ($learner->getRole() !== 'admin' && $learner->getRole() !== 'reviewer' && $status === 'approved') {
                 return array(
                     'status' => 'NOK',
-                    'message' => 'Only admin can approve a question'
+                    'message' => 'Only admin or reviewer can approve a question'
                 );
             }
 

@@ -134,7 +134,7 @@ class LearnMzansiApiControllerTest extends ApiTestCase
     {
         // First create a learner and assign subject
         $learner = $this->createTestLearnerWithSubject();
-        
+
         $this->client->request(
             'GET',
             '/public/learn/question/random',
@@ -164,7 +164,7 @@ class LearnMzansiApiControllerTest extends ApiTestCase
             ->setName('Test Learner')
             ->setCreated(new \DateTime())
             ->setLastSeen(new \DateTime());
-        
+
         $learnerSubject = new Learnersubjects();
         $learnerSubject->setLearner($learner)
             ->setSubject($this->subject)
@@ -180,7 +180,7 @@ class LearnMzansiApiControllerTest extends ApiTestCase
     protected function tearDown(): void
     {
         parent::tearDown();
-        
+
         // Clean up test database
         $this->entityManager->createQuery('DELETE FROM App\Entity\Result')->execute();
         $this->entityManager->createQuery('DELETE FROM App\Entity\Learnersubjects')->execute();
@@ -188,8 +188,8 @@ class LearnMzansiApiControllerTest extends ApiTestCase
         $this->entityManager->createQuery('DELETE FROM App\Entity\Learner')->execute();
         $this->entityManager->createQuery('DELETE FROM App\Entity\Subject')->execute();
         $this->entityManager->createQuery('DELETE FROM App\Entity\Grade')->execute();
-        
+
         $this->entityManager->close();
         $this->entityManager = null;
     }
-} 
+}
