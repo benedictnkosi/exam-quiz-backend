@@ -140,6 +140,15 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            //return an error if the capturer has more than 50 new questions
+            $newQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'status' => 'new']);
+            if (count($newQuestions) >= 50 && $questionId == 0) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'You have more than 50 new questions - Please approve your new questions'
+                );
+            }
+
             //return error if the capturer has question with type "single" or "true_false"
             $singleQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'type' => 'single']);
             if (count($singleQuestions) >= 1 && $questionId == 0) {
@@ -176,19 +185,6 @@ class LearnMzansiApi extends AbstractController
                     return array(
                         'status' => 'NOK',
                         'message' => "Options cannot be empty for multiple_choice or multi_select types."
-                    );
-                }
-            }
-
-            //check that the expected answer is not too long
-            //spit answer by |
-            $answers = explode('|', $data['answer']);
-            foreach ($answers as $answer) {
-                $numberOfWords = str_word_count($answer);
-                if ($numberOfWords > 4 && $data['type'] == 'single') {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => "Too many words in the expected answer, use multiple choice instead."
                     );
                 }
             }
