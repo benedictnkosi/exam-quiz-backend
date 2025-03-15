@@ -328,7 +328,7 @@ class LearnMzansiApi extends AbstractController
                 return $question;
             }
             // Check if learner is admin
-            if ($learner->getRole() === 'admin' || $learner->getRole() === 'reviewer') {
+            if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
 
                 //get learner capturing ID by email and uid not learner id
@@ -357,24 +357,59 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.status = :status')
                     ->andWhere('q.capturer = :capturer');
 
-                //if admin status must be new, if reviewer status must be approved and comment new
-                if ($learner->getRole() === 'admin') {
-                    $parameters = new ArrayCollection([
-                        new Parameter('subjectName', $subjectName . ' ' . $paperName),
-                        new Parameter('active', true),
-                        new Parameter('status', 'new'),
-                        new Parameter('capturer', $capturer),
-                        new Parameter('comment', 'new')
-                    ]);
+                $parameters = new ArrayCollection([
+                    new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                    new Parameter('active', true),
+                    new Parameter('status', 'new'),
+                    new Parameter('capturer', $capturer)
+                ]);
+
+                $qb->setParameters($parameters);
+
+                $query = $qb->getQuery();
+                $questions = $query->getResult();
+                if (!empty($questions)) {
+                    shuffle($questions);
+                    $randomQuestion = $questions[0];
+
+                    //shuffle the options
+                    $options = $randomQuestion->getOptions();
+                    if ($options) {
+                        shuffle($options);
+                        $randomQuestion->setOptions($options);
+                    }
+                    return $randomQuestion;
                 } else {
-                    $parameters = new ArrayCollection([
-                        new Parameter('subjectName', $subjectName . ' ' . $paperName),
-                        new Parameter('active', true),
-                        new Parameter('status', 'approved'),
-                        new Parameter('capturer', $capturer),
-                        new Parameter('comment', 'new')
-                    ]);
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'No new questions found for review',
+                        'context' => '',
+                        'image_path' => ''
+                    );
                 }
+            }
+
+
+
+
+
+            if ($learner->getRole() === 'reviewer') {
+                $qb = $this->em->createQueryBuilder();
+                $qb->select('q')
+                    ->from('App\Entity\Question', 'q')
+                    ->join('q.subject', 's')
+                    ->where('s.name = :subjectName')
+                    ->andWhere('q.active = :active')
+                    ->andWhere('q.status = :status')
+                    ->andWhere('q.comment = :comment');
+
+
+                $parameters = new ArrayCollection([
+                    new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                    new Parameter('active', true),
+                    new Parameter('status', 'approved'),
+                    new Parameter('comment', 'new')
+                ]);
 
                 $qb->setParameters($parameters);
 
