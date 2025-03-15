@@ -543,125 +543,7 @@ class LearnMzansiApi extends AbstractController
         return implode(',', $cleanedItems);
     }
 
-    public function updateLearner(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $data = json_decode($request->getContent(), true);
-            $uid = $data['uid'] ?? null;
-            $isRegistration = false;
 
-            if (!$uid) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'UID is required'
-                );
-            }
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                $learner = new Learner();
-                $learner->setUid($uid);
-                $isRegistration = true;
-            }
-
-            if (isset($data['terms'])) {
-                $learner->setTerms($this->cleanCommaString($data['terms']));
-            }
-
-            if (isset($data['curriculum'])) {
-                $learner->setCurriculum($this->cleanCommaString($data['curriculum']));
-            }
-
-            $name = $data['name'] ?? null;
-            $gradeName = $data['grade'] ?? null;
-            $schoolName = $data['school_name'] ?? null;
-            $schoolAddress = $data['school_address'] ?? null;
-            $schoolLatitude = $data['school_latitude'] ?? null;
-            $schoolLongitude = $data['school_longitude'] ?? null;
-            $notificationHour = $data['notification_hour'] ?? 18;
-            $terms = $data['terms'] ?? null;
-            $curriculum = $data['curriculum'] ?? null;
-            $email = $data['email'] ?? null;
-
-            if (empty($name) || empty($gradeName)) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
-            }
-
-            $gradeName = str_replace('Grade ', '', $gradeName);
-            $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $gradeName]);
-            if ($grade) {
-                if ($grade !== $learner->getGrade()) {
-                    $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
-                    foreach ($results as $result) {
-                        $this->em->remove($result);
-                    }
-                    $this->em->flush();
-                }
-            } else {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Grade not found'
-                );
-            }
-
-            $learner->setName($name);
-            $learner->setGrade($grade);
-            if (!empty($schoolName)) {
-                $learner->setSchoolName($schoolName);
-            }
-            if (!empty($schoolAddress)) {
-                $learner->setSchoolAddress($schoolAddress);
-            }
-            if (!empty($schoolLatitude)) {
-                $learner->setSchoolLatitude($schoolLatitude);
-            }
-            if (!empty($schoolLongitude)) {
-                $learner->setSchoolLongitude($schoolLongitude);
-            }
-            if (!empty($notificationHour)) {
-                $learner->setNotificationHour($notificationHour);
-            }
-            if (!empty($terms)) {
-                $learner->setTerms($this->cleanCommaString($terms));
-            }
-            if (!empty($curriculum)) {
-                $this->logger->info("registration: " . $isRegistration);
-                if ($isRegistration) {
-                    $learner->setCurriculum('CAPS,IEB');
-                } else {
-                    $learner->setCurriculum($this->cleanCommaString($curriculum));
-                }
-            }
-            //if curriculum is CAPS, set private school to false
-            if ($curriculum === 'CAPS') {
-                $learner->setPrivateSchool(false);
-            } else {
-                $learner->setPrivateSchool(true);
-            }
-            if (!empty($email)) {
-                $learner->setEmail($email);
-            }
-
-            $this->em->persist($learner);
-            $this->em->flush();
-
-
-            return array(
-                'status' => 'OK',
-                'message' => 'Successfully updated learner'
-            );
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return array(
-                'status' => 'NOK',
-                'message' => 'Error updating learner'
-            );
-        }
-    }
 
     public function getGrades(): array
     {
@@ -2327,6 +2209,22 @@ class LearnMzansiApi extends AbstractController
 
             $learner->setLastSeen(new \DateTime());
             $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
+            if ($grade) {
+                if ($grade !== $learner->getGrade()) {
+                    $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
+                    foreach ($results as $result) {
+                        $this->em->remove($result);
+                    }
+                    //reset points
+                    $learner->setPoints(0);
+                    $this->em->flush();
+                }
+            } else {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Grade not found'
+                );
+            }
 
             // Clean and format terms and curriculum
             $cleanTerms = '';
@@ -2336,8 +2234,6 @@ class LearnMzansiApi extends AbstractController
                 $termsArray = array_map('trim', explode(',', $terms));
                 $cleanTerms = implode(',', $termsArray);
             }
-
-
 
             $learner->setGrade($grade);
             $learner->setNotificationHour(18);
