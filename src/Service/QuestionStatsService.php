@@ -14,7 +14,7 @@ class QuestionStatsService
     ) {
     }
 
-    public function getQuestionStats(string $fromDate): array
+    public function getQuestionStats(string $fromDate, string $endDate): array
     {
         try {
             $this->logger->info("Getting question stats from date: " . $fromDate);
@@ -33,7 +33,9 @@ class QuestionStatsService
                 ->from('App\Entity\Question', 'q')
                 ->leftJoin('q.subject', 's')  // Add join to ensure we get questions even without subjects
                 ->where('q.created >= :fromDate')
-                ->setParameter('fromDate', new \DateTime($fromDate));
+                ->andWhere('q.created <= :endDate')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('endDate', new \DateTime($endDate));
 
             $questions = $qb->getQuery()->getResult();
 

@@ -2787,9 +2787,8 @@ class LearnMzansiApi extends AbstractController
     public function getQuestionStats(Request $request): array
     {
         try {
-            $fromDate = $request->query->get('from_date');
-            $endDate = $request->query->get('end_date');
-
+            $fromDate = $request->query->get('fromDate');
+            $endDate = $request->query->get('endDate');
             if (!$fromDate) {
                 $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
             }
@@ -2921,8 +2920,8 @@ class LearnMzansiApi extends AbstractController
     public function getReviewerStats(Request $request): array
     {
         try {
-            $fromDate = $request->query->get('from_date');
-            $endDate = $request->query->get('end_date');
+            $fromDate = $request->query->get('fromDate');
+            $endDate = $request->query->get('endDate');
 
             if (!$fromDate) {
                 $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');

@@ -732,14 +732,15 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
 
         $fromDate = $request->query->get('fromDate');
-        if (!$fromDate) {
+        $endDate = $request->query->get('endDate');
+        if (!$fromDate || !$endDate) {
             return new JsonResponse([
                 'status' => 'NOK',
-                'message' => 'fromDate parameter is required (YYYY-MM-DD format)'
+                'message' => 'fromDate and endDate parameters are required (YYYY-MM-DD format)'
             ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
         }
 
-        $response = $questionStatsService->getQuestionStats($fromDate);
+        $response = $questionStatsService->getQuestionStats($fromDate, $endDate);
         $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
 
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
