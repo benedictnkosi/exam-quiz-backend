@@ -2784,5 +2784,230 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    public function getQuestionStats(Request $request): array
+    {
+        try {
+            $fromDate = $request->query->get('from_date');
+            $endDate = $request->query->get('end_date');
+
+            if (!$fromDate) {
+                $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
+            }
+
+            if (!$endDate) {
+                $endDate = (new \DateTime())->format('Y-m-d');
+            }
+
+            $this->logger->info('Date range: ' . $fromDate . ' to ' . $endDate);
+
+            // Get new questions count
+            $qbNew = $this->em->createQueryBuilder();
+            $qbNew->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusNew')
+                ->andWhere('q.created >= :fromDate')
+                ->andWhere('q.created <= :endDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Get approved questions count
+            $qbApproved = $this->em->createQueryBuilder();
+            $qbApproved->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusApproved')
+                ->andWhere('q.created >= :fromDate')
+                ->andWhere('q.created <= :endDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Get rejected questions count
+            $qbRejected = $this->em->createQueryBuilder();
+            $qbRejected->select('l.name as capturer_name, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.capturer', 'l')
+                ->where('q.status = :statusRejected')
+                ->andWhere('q.created >= :fromDate')
+                ->andWhere('q.created <= :endDate')
+                ->groupBy('l.id, l.name')
+                ->orderBy('l.name', 'ASC');
+
+            // Execute queries with both date parameters
+            $newResults = $qbNew->getQuery()
+                ->setParameter('statusNew', 'new')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('endDate', new \DateTime($endDate . ' 23:59:59'))
+                ->getResult();
+
+            $approvedResults = $qbApproved->getQuery()
+                ->setParameter('statusApproved', 'approved')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('endDate', new \DateTime($endDate . ' 23:59:59'))
+                ->getResult();
+
+            $rejectedResults = $qbRejected->getQuery()
+                ->setParameter('statusRejected', 'rejected')
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('endDate', new \DateTime($endDate . ' 23:59:59'))
+                ->getResult();
+
+            // Combine results
+            $combinedResults = [];
+            foreach ($newResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['new'] = (int) $result['count'];
+            }
+
+            foreach ($approvedResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['approved'] = (int) $result['count'];
+            }
+
+            foreach ($rejectedResults as $result) {
+                $name = $result['capturer_name'];
+                if (!isset($combinedResults[$name])) {
+                    $combinedResults[$name] = [
+                        'capturer' => $name,
+                        'new' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                }
+                $combinedResults[$name]['rejected'] = (int) $result['count'];
+            }
+
+            // Add total and convert to array
+            $finalResults = [];
+            foreach ($combinedResults as $result) {
+                $result['total'] = $result['new'] + $result['approved'] + $result['rejected'];
+                $finalResults[] = $result;
+            }
+
+            return [
+                'status' => 'OK',
+                'data' => $finalResults,
+                'date_range' => [
+                    'from' => $fromDate,
+                    'to' => $endDate
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting question statistics'
+            ];
+        }
+    }
+
+    public function getReviewerStats(Request $request): array
+    {
+        try {
+            $fromDate = $request->query->get('from_date');
+            $endDate = $request->query->get('end_date');
+
+            if (!$fromDate) {
+                $fromDate = (new \DateTime())->modify('-4 weeks')->format('Y-m-d');
+            }
+
+            if (!$endDate) {
+                $endDate = (new \DateTime())->format('Y-m-d');
+            }
+
+            $this->logger->info('Date range: ' . $fromDate . ' to ' . $endDate);
+
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('l.name as reviewer_name, q.status, COUNT(q.id) as count')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.reviewer', 'l')
+                ->where('q.created >= :fromDate')
+                ->andWhere('q.created <= :endDate')
+                ->andWhere('q.status IN (:statuses)')
+                ->groupBy('l.id, l.name, q.status')
+                ->orderBy('l.name', 'ASC')
+                ->addOrderBy('q.status', 'ASC');
+
+            $results = $qb->getQuery()
+                ->setParameter('fromDate', new \DateTime($fromDate))
+                ->setParameter('endDate', new \DateTime($endDate . ' 23:59:59'))
+                ->setParameter('statuses', ['approved', 'rejected'])
+                ->getResult();
+
+            // Format the results
+            $formattedResults = [];
+            foreach ($results as $result) {
+                $reviewerName = $result['reviewer_name'];
+                if (!isset($formattedResults[$reviewerName])) {
+                    $formattedResults[$reviewerName] = [
+                        'reviewer' => $reviewerName,
+                        'approved' => 0,
+                        'rejected' => 0,
+                        'total' => 0,
+                        'approval_rate' => 0
+                    ];
+                }
+
+                if ($result['status'] === 'approved') {
+                    $formattedResults[$reviewerName]['approved'] = (int) $result['count'];
+                } else if ($result['status'] === 'rejected') {
+                    $formattedResults[$reviewerName]['rejected'] = (int) $result['count'];
+                }
+            }
+
+            // Calculate totals and approval rates
+            foreach ($formattedResults as &$reviewer) {
+                $reviewer['total'] = $reviewer['approved'] + $reviewer['rejected'];
+                $reviewer['approval_rate'] = $reviewer['total'] > 0
+                    ? round(($reviewer['approved'] / $reviewer['total']) * 100, 2)
+                    : 0;
+            }
+
+            // Convert to indexed array and sort by total reviews
+            $finalResults = array_values($formattedResults);
+            usort($finalResults, function ($a, $b) {
+                return $b['total'] - $a['total'];
+            });
+
+            return [
+                'status' => 'OK',
+                'data' => $finalResults,
+                'date_range' => [
+                    'from' => $fromDate,
+                    'to' => $endDate
+                ],
+                'summary' => [
+                    'total_reviewers' => count($finalResults),
+                    'total_reviews' => array_sum(array_column($finalResults, 'total')),
+                    'total_approved' => array_sum(array_column($finalResults, 'approved')),
+                    'total_rejected' => array_sum(array_column($finalResults, 'rejected'))
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting reviewer statistics'
+            ];
+        }
+    }
 
 }
