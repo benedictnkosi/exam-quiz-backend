@@ -52,6 +52,22 @@ class CheckAnswerService
             // Check the answer
             $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
 
+            //if is learner is admin return the results without recording or awarding points
+            if ($learner->getRole() === 'admin') {
+                return [
+                    'status' => 'OK',
+                    'correct' => $isCorrect,
+                    'explanation' => $question->getExplanation(),
+                    'correctAnswer' => $question->getAnswer(),
+                    'points' => $learner->getPoints(), // Return current points without change
+                    'message' => $isCorrect ? 'Correct answer! (No points awarded for favorited question)' : 'Incorrect answer',
+                    'lastThreeCorrect' => false,
+                    'streak' => $learner->getStreak(),
+                    'streakUpdated' => false,
+                    'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
+                    'is_favorited' => false
+                ];
+            }
             // If the question is favorited, return the result without recording or awarding points
             if ($isFavorited) {
                 $this->logger->info("Question {$questionId} is favorited by learner {$uid}. Skipping points and results.");
