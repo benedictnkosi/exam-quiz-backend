@@ -20,6 +20,7 @@ use App\Service\FavoriteQuestionService;
 use App\Service\CheckAnswerService;
 use App\Service\SchoolFactService;
 use App\Service\QuestionStatsService;
+use App\Service\TestDataCleanupService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -746,6 +747,17 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 
+    #[Route('/learn/cleanup/test-data', name: 'cleanup_test_data', methods: ['DELETE'])]
+    public function cleanupTestData(
+        TestDataCleanupService $cleanupService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $response = $cleanupService->cleanupTestData();
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
 
     #[Route('/learn/question/delete', name: 'delete_question', methods: ['DELETE'])]
     public function deleteQuestion(Request $request): JsonResponse

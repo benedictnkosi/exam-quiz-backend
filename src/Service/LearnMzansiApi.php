@@ -2505,12 +2505,6 @@ class LearnMzansiApi extends AbstractController
                     $this->em->remove($result);
                 }
 
-                //delete learner results
-                $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner->getId()]);
-                foreach ($results as $result) {
-                    $this->em->remove($result);
-                }
-
                 //delete learner
                 $this->em->remove($learner);
                 $this->em->flush();
@@ -2534,6 +2528,8 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    
 
     public function getQuestionStatusCountsByCapturers(Request $request): array
     {
