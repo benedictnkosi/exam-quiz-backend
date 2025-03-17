@@ -155,6 +155,25 @@ class FavoriteQuestionService
                 ];
             }
 
+            // Count favorites for this subject
+            $subjectFavoritesCount = $this->entityManager->getRepository(Favorites::class)
+                ->createQueryBuilder('f')
+                ->select('COUNT(f.id)')
+                ->innerJoin('f.question', 'q')
+                ->where('f.learner = :learner')
+                ->andWhere('q.subject = :subject')
+                ->setParameter('learner', $learner)
+                ->setParameter('subject', $question->getSubject())
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            if ($subjectFavoritesCount >= 20) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'You can only favorite up to 20 questions per subject'
+                ];
+            }
+
             // Create new favorite
             $favorite = new Favorites();
             $favorite->setLearner($learner);

@@ -264,12 +264,14 @@ class LearnMzansiApi extends AbstractController
             $question->setCapturer($user);
             if ($questionId == 0) {
                 $question->setReviewer($user);
+                $question->setCreated(new \DateTime());
             }
-            $question->setCreated(new \DateTime());
+
             $question->setActive(true);
             $question->setStatus('new');
             $question->setComment("new");
             $question->setCurriculum($data['curriculum'] ?? "CAPS");
+            $question->setUpdated(new \DateTime());
 
             //reset images
             $question->setImagePath('');
