@@ -403,14 +403,15 @@ class LearnMzansiApi extends AbstractController
                     ->where('s.name = :subjectName')
                     ->andWhere('q.active = :active')
                     ->andWhere('q.status = :status')
-                    ->andWhere('q.comment = :comment');
-
+                    ->andWhere('q.comment = :comment')
+                    ->andWhere('s.grade = :grade');
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
                     new Parameter('active', true),
                     new Parameter('status', 'approved'),
-                    new Parameter('comment', 'new')
+                    new Parameter('comment', 'new'),
+                    new Parameter('grade', $learner->getGrade())
                 ]);
 
                 $qb->setParameters($parameters);
@@ -2529,7 +2530,7 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    
+
 
     public function getQuestionStatusCountsByCapturers(Request $request): array
     {
