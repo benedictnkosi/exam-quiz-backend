@@ -167,7 +167,7 @@ class FavoriteQuestionService
                 ->getQuery()
                 ->getSingleScalarResult();
 
-            if ($subjectFavoritesCount >= 10) {
+            if ($subjectFavoritesCount >= 20) {
                 return [
                     'status' => 'NOK',
                     'message' => 'You can only favorite up to 20 questions per subject'
