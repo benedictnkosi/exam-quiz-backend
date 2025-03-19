@@ -19,5 +19,5 @@ monolog:
             type: stream
             path: "%kernel.logs_dir%/api.log"
             level: debug
-            channels: ["public"]s
+            channels: ["public"]
             formatter: monolog.formatter.json
