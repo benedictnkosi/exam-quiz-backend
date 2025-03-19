@@ -3045,7 +3045,9 @@ class LearnMzansiApi extends AbstractController
             // Check both imagePath and questionImagePath
             $question = $this->em->getRepository(Question::class)->createQueryBuilder('q')
                 ->where('q.imagePath = :imageName OR q.questionImagePath = :imageName')
+                ->andWhere('q.status = :status')
                 ->setParameter('imageName', $imageName)
+                ->setParameter('status', 'approved')
                 ->getQuery()
                 ->getOneOrNullResult();
 
