@@ -53,7 +53,7 @@ class CheckAnswerService
             $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
 
             //if is learner is admin return the results without recording or awarding points
-            if ($learner->getRole() === 'admin') {
+            if ($learner->getRole() === 'admin' || $learner->getRole() === 'reviewer') {
                 return [
                     'status' => 'OK',
                     'correct' => $isCorrect,
