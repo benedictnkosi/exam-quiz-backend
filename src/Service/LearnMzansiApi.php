@@ -1911,117 +1911,67 @@ class LearnMzansiApi extends AbstractController
      * 
      * @return array Status and count of processed questions
      */
-    public function processQuestionImages($count): array
+    public function convertImagesToText($request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
+        $imageName = $request->query->get('image_name');
         try {
-            // Get all questions with images that haven't been processed
-            $queryBuilder = $this->em->createQueryBuilder();
-            $queryBuilder->select('q')
-                ->from('App\Entity\Question', 'q')
-                ->where('q.imagePath IS NOT NULL')
-                ->andWhere('q.imagePath != :empty')
-                ->andWhere('q.active = :active')
-                ->andWhere('q.status = :status')
-                ->andWhere('q.comment = :comment')
-                ->setParameter('empty', '')
-                ->setParameter('active', true)
-                ->setParameter('status', 'approved')
-                ->setParameter('comment', 'new');
+            $imageUrl = "https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $imageName;
 
-            $questions = $queryBuilder->getQuery()->getResult();
-
-            $rejectedCount = 0;
-            $processedCount = 0;
-
-            $this->logger->info("Questions: " . count($questions));
-            foreach ($questions as $question) {
-                $imagePath = $question->getImagePath();
-                if (!$imagePath) {
-                    $this->logger->info("No image path found for question: " . $question->getImagePath());
-                    continue;
-                }
-
-                // Check file size
-                $this->logger->info("Image path: " . $imagePath);
-                $fullPath = $this->projectDir . '/public/assets/images/learnMzansi/' . $imagePath;
-                if (!file_exists($fullPath)) { // 200KB
-                    $this->logger->info("Image file does not exist . " . $fullPath);
-                    continue;
-                }
-
-                $this->logger->info("File size: " . filesize($fullPath));
-                if (filesize($fullPath) > 200 * 1024) { // 200KB
-                    $this->logger->info("Image file is too large. " . $fullPath);
-                    continue;
-                }
-
-                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $imagePath;
-
-                $this->logger->info("Image URL: " . $imageUrl);
-                $data = [
-                    "model" => "gpt-4o-mini",
-                    "messages" => [
-                        [
-                            "role" => "system",
-                            "content" => "You are an AI that checks if an image contains only text. Return true if the image contains only text, return false if the image contains any objects, diagrams, or mixed content."
-                        ],
-                        [
-                            "role" => "user",
-                            "content" => [
-                                [
-                                    "type" => "image_url",
-                                    "image_url" => ["url" => $imageUrl]
-                                ]
+            $this->logger->info("Image URL: " . $imageUrl);
+            $data = [
+                "model" => "gpt-4o-mini",
+                "messages" => [
+                    [
+                        "role" => "system",
+                        "content" => "You are an AI that converts images to text. Return the text only. Do not include any other text or comments"
+                    ],
+                    [
+                        "role" => "user",
+                        "content" => [
+                            [
+                                "type" => "image_url",
+                                "image_url" => ["url" => $imageUrl]
                             ]
                         ]
                     ]
-                ];
+                ]
+            ];
 
+            $ch = curl_init('https://api.openai.com/v1/chat/completions');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->openAiKey
+            ]);
 
-                $processedCount++;
-                $ch = curl_init('https://api.openai.com/v1/chat/completions');
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $this->openAiKey
-                ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
-
-                if ($httpCode === 200) {
-                    $result = json_decode($response, true);
-                    if (isset($result['choices'][0]['message']['content'])) {
-                        $isTextOnly = strtolower(trim($result['choices'][0]['message']['content'])) === 'true';
-
-                        if ($isTextOnly) {
-                            $question->setStatus('rejected');
-                            $question->setComment('Rejected by AI: Image is text only');
-                            $this->em->persist($question);
-                            $rejectedCount++;
-                        } else {
-                            $question->setComment('Image checked by AI: Image is not text only');
-                            $this->em->persist($question);
-                        }
-                    }
+            if ($httpCode === 200) {
+                $result = json_decode($response, true);
+                if (isset($result['choices'][0]['message']['content'])) {
+                    $text = $result['choices'][0]['message']['content'];
+                    return array(
+                        'status' => 'OK',
+                        'message' => $text
+                    );
+                } else {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'Error processing question images 1'
+                    );
                 }
-
-                if ($processedCount >= $count) {
-                    break;
-                }
+            } else {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Error processing question images 2',
+                    'response' => $response
+                );
             }
-
-            $this->em->flush();
-
-            return array(
-                'status' => 'OK',
-                'message' => "Rejected $rejectedCount questions with text-only images",
-                'rejected_count' => $rejectedCount
-            );
 
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());

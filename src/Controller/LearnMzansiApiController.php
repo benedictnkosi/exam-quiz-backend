@@ -553,8 +553,7 @@ class LearnMzansiApiController extends AbstractController
     public function processQuestionImages(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $count = $request->query->get('count');
-        $response = $this->api->processQuestionImages($count);
+        $response = $this->api->convertImagesToText($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
