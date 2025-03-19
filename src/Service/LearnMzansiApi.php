@@ -150,27 +150,6 @@ class LearnMzansiApi extends AbstractController
             }
 
 
-            // Check number of questions in new status not captured by this user
-            $queryBuilder = $this->em->createQueryBuilder();
-            $parameters = new ArrayCollection([
-                new Parameter('status', 'new'),
-                new Parameter('capturer', $data['capturer'])
-            ]);
-            $queryBuilder->select('COUNT(q.id)')
-                ->from('App\Entity\Question', 'q')
-                ->where('q.status = :status')
-                ->andWhere('q.capturer != :capturer');
-
-            $queryBuilder->setParameters($parameters);
-
-            $newQuestionsCount = $queryBuilder->getQuery()->getSingleScalarResult();
-
-            // if ($newQuestionsCount > 50) {
-            //     return array(
-            //         'status' => 'NOK',
-            //         'message' => 'Cannot create new question - Please help review questions in the new status'
-            //     );
-            // }
             // Validate that options are not empty for multiple_choice or multi_select types - fixed
             if (($data['type'] == 'multiple_choice' || $data['type'] == 'multi_select')) {
                 if (empty($data['options']['option1']) || empty($data['options']['option2']) || empty($data['options']['option3']) || empty($data['options']['option4'])) {
