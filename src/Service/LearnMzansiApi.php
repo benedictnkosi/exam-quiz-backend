@@ -385,9 +385,11 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.active = :active')
                     ->andWhere('q.status = :status')
                     ->andWhere('q.comment = :comment')
-                    ->andWhere('s.grade = :grade')
-                    ->andWhere($qb->expr()->in('q.term', ':terms'))
-                    ->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
+                    ->andWhere('s.grade = :grade');
+
+                $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
+                $qb->andWhere($qb->expr()->in('q.term', ':terms'));
+
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
