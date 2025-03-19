@@ -28,14 +28,17 @@ class QuestionStatsService
                 ];
             }
 
+            $fromDateTime = new \DateTime($fromDate . ' 00:01:00');
+            $endDateTime = new \DateTime($endDate . ' 23:59:59');
+
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
-                ->from('App\Entity\Question', 'q')
+                ->from('App\\Entity\\Question', 'q')
                 ->leftJoin('q.subject', 's')  // Add join to ensure we get questions even without subjects
                 ->where('q.created >= :fromDate')
                 ->andWhere('q.created <= :endDate')
-                ->setParameter('fromDate', new \DateTime($fromDate))
-                ->setParameter('endDate', new \DateTime($endDate));
+                ->setParameter('fromDate', $fromDateTime)
+                ->setParameter('endDate', $endDateTime);
 
             $questions = $qb->getQuery()->getResult();
 

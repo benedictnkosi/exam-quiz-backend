@@ -39,6 +39,10 @@ git commit -m "Remove .env from git tracking"
 copy files over
 scp ./test.sql root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/public/assets/images/learnMzansi/
 
+copy logs
+scp root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/var/log/dev.log ./dev.log
+
+
 run sql in file
 mysql -u root -p exam_quiz < app_question.sql
 
