@@ -3051,10 +3051,12 @@ class LearnMzansiApi extends AbstractController
                 ->getQuery()
                 ->getOneOrNullResult();
 
-            $result[] = [
-                'image' => $imageName,
-                'question' => $question ? $question->getId() : 'No question linked'
-            ];
+            if ($question) {
+                $result[] = [
+                    'image' => $imageName,
+                    'question' => $question->getId()
+                ];
+            }
         }
 
         return [
