@@ -549,8 +549,8 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
-    #[Route('/learn/question/process-images', name: 'process_question_images', methods: ['POST'])]
-    public function processQuestionImages(Request $request): JsonResponse
+    #[Route('/learn/question/convert-image-to-text', name: 'convert_image_to_text', methods: ['GET'])]
+    public function convertImageToText(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->convertImagesToText($request);
