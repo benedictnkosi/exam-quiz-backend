@@ -300,6 +300,16 @@ class LearnMzansiApi extends AbstractController
                 }
                 return $question;
             }
+
+            // Get learner's terms and curriculum as arrays
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
+
             // Check if learner is admin
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
@@ -375,14 +385,18 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.active = :active')
                     ->andWhere('q.status = :status')
                     ->andWhere('q.comment = :comment')
-                    ->andWhere('s.grade = :grade');
+                    ->andWhere('s.grade = :grade')
+                    ->andWhere($qb->expr()->in('q.term', ':terms'))
+                    ->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
                     new Parameter('active', true),
                     new Parameter('status', 'approved'),
                     new Parameter('comment', 'new'),
-                    new Parameter('grade', $learner->getGrade())
+                    new Parameter('grade', $learner->getGrade()),
+                    new Parameter('terms', $learnerTerms),
+                    new Parameter('curriculum', $learnerCurriculum)
                 ]);
 
                 $qb->setParameters($parameters);
@@ -422,14 +436,7 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            // Get learner's terms and curriculum as arrays
-            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
-                return trim(str_replace('"', '', $term));
-            }, explode(',', $learner->getTerms())) : [];
 
-            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
-                return trim(str_replace('"', '', $curr));
-            }, explode(',', $learner->getCurriculum())) : [];
 
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
             $masteredQuestionsQb = $this->em->createQueryBuilder();
