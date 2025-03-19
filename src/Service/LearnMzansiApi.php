@@ -1164,8 +1164,11 @@ class LearnMzansiApi extends AbstractController
             if (!empty($comment)) {
                 $question->setComment($comment);
             }
-            if ($status == 'approved') {
+
+            if ($status == 'approved' && $learner->getRole() == 'reviewer') {
                 $question->setComment(comment: "approved");
+            } else {
+                $question->setComment(comment: "new");
             }
             $this->em->persist($question);
             $this->em->flush();
