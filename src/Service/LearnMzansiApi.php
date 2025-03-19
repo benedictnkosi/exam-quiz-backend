@@ -2991,15 +2991,15 @@ class LearnMzansiApi extends AbstractController
             $imageName = basename($image['path']);
 
             // Check both imagePath and questionImagePath
-            $question = $this->em->getRepository(Question::class)->createQueryBuilder('q')
+            $questions = $this->em->getRepository(Question::class)->createQueryBuilder('q')
                 ->where('q.imagePath = :imageName OR q.questionImagePath = :imageName')
                 ->andWhere('q.status = :status')
                 ->setParameter('imageName', $imageName)
                 ->setParameter('status', 'approved')
                 ->getQuery()
-                ->getOneOrNullResult();
+                ->getResult();
 
-            if ($question) {
+            foreach ($questions as $question) {
                 $result[] = [
                     'image' => $imageName,
                     'question' => $question->getId()
