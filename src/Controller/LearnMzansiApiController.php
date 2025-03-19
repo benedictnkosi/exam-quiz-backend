@@ -21,6 +21,7 @@ use App\Service\CheckAnswerService;
 use App\Service\SchoolFactService;
 use App\Service\QuestionStatsService;
 use App\Service\TestDataCleanupService;
+use App\Service\SmallestImageService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -765,5 +766,17 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->deleteQuestion($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+
+
+    #[Route('/learn/smallest-images', name: 'get_smallest_images', methods: ['GET'])]
+    public function getSmallestImages(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $response = $this->api->getSmallestImages($request);
+
+        return new JsonResponse($response, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*']);
     }
 }

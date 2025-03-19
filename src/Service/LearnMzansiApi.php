@@ -28,7 +28,7 @@ class LearnMzansiApi extends AbstractController
         EntityManagerInterface $em,
         LoggerInterface $logger,
         string $projectDir,
-        string $openAiKey
+        string $openAiKey,
     ) {
         $this->em = $em;
         $this->logger = $logger;
@@ -2991,4 +2991,73 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+
+    public function getSmallestImage(): ?string
+    {
+        $smallestImage = null;
+        $smallestSize = PHP_INT_MAX;
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $projectDir = '../public/assets/images/learnMzansi'; // Initialize here
+
+        $files = glob($projectDir . '/*.{jpg,jpeg,png,gif}', GLOB_BRACE);
+
+        foreach ($files as $file) {
+            $this->logger->info('File: ' . $file);
+            $fileSize = filesize($file);
+            if ($fileSize < $smallestSize) {
+                $smallestSize = $fileSize;
+                $smallestImage = $file;
+            }
+        }
+
+        return $smallestImage ? basename($smallestImage) : null;
+    }
+
+    public function getSmallestImages($request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $limit = $request->query->get('limit', 10);
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $projectDir = '../public/assets/images/learnMzansi'; // Initialize here
+
+        $files = glob($projectDir . '/*.{jpg,jpeg,png,gif}', GLOB_BRACE);
+        $images = [];
+
+        foreach ($files as $file) {
+            $fileSize = filesize($file);
+            $images[] = ['path' => $file, 'size' => $fileSize];
+        }
+
+        // Sort images by size
+        usort($images, function ($a, $b) {
+            return $a['size'] <=> $b['size'];
+        });
+
+        // Get the 10 smallest images
+        $smallestImages = array_slice($images, 0, $limit);
+
+        $result = [];
+        foreach ($smallestImages as $image) {
+            $imageName = basename($image['path']);
+
+            // Check both imagePath and questionImagePath
+            $question = $this->em->getRepository(Question::class)->createQueryBuilder('q')
+                ->where('q.imagePath = :imageName OR q.questionImagePath = :imageName')
+                ->setParameter('imageName', $imageName)
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            $result[] = [
+                'image' => $imageName,
+                'question' => $question ? $question->getQuestion() : 'No question linked'
+            ];
+        }
+
+        return [
+            'status' => 'OK',
+            'images' => $result
+        ];
+    }
 }
