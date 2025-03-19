@@ -132,7 +132,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             //return an error if the capturer has more than 10 rejected questions
-            $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'status' => 'rejected']);
+            $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $user->getId(), 'status' => 'rejected']);
             if (count($rejectedQuestions) >= 10 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
@@ -141,7 +141,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             //return an error if the capturer has more than 50 new questions
-            $newQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'status' => 'new']);
+            $newQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $user->getId(), 'status' => 'new']);
             if (count($newQuestions) >= 50 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
@@ -149,14 +149,6 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            //return error if the capturer has question with type "single" or "true_false"
-            $singleQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $data['capturer'], 'type' => 'single']);
-            if (count($singleQuestions) >= 1 && $questionId == 0) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'You have single questions to convert to multiple choice'
-                );
-            }
 
             // Check number of questions in new status not captured by this user
             $queryBuilder = $this->em->createQueryBuilder();
