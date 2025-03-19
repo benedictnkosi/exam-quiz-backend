@@ -3051,7 +3051,7 @@ class LearnMzansiApi extends AbstractController
 
             $result[] = [
                 'image' => $imageName,
-                'question' => $question ? $question->getQuestion() : 'No question linked'
+                'question' => $question ? $question->getId() : 'No question linked'
             ];
         }
 
