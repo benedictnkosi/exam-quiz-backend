@@ -79,6 +79,9 @@ class Learner
     #[ORM\Column(type: Types::STRING, options: ['default' => '8.png'])]
     private string $avatar = '8.png';
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $expoPushToken = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -319,6 +322,17 @@ class Learner
     public function setAvatar(string $avatar): self
     {
         $this->avatar = $avatar;
+        return $this;
+    }
+
+    public function getExpoPushToken(): ?string
+    {
+        return $this->expoPushToken;
+    }
+
+    public function setExpoPushToken(?string $expoPushToken): self
+    {
+        $this->expoPushToken = $expoPushToken;
         return $this;
     }
 }

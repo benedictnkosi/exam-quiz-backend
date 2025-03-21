@@ -7,9 +7,9 @@ symfony server:start
 symfony server:start --no-tls --allow-http --port=8000 --allow-all-ip
 
 ### migrate changes to database
-php bin/console doctrine:migrations:diff
+php bin/console doctrine:migrations:generate
 
-php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console doctrine:migrations:migrate --no-interactions
 
 
 ## on server
