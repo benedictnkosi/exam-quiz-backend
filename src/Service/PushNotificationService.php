@@ -12,24 +12,32 @@ class PushNotificationService
 
     private const NOTIFICATION_MESSAGES = [
         [
-            'title' => 'Keep your streak alive!',
-            'body' => 'You\'re on a roll! Answer a few questions today and keep that momentum going.'
+            'title' => '⏰ Quick reminder!',
+            'body' => 'Take a few minutes to practice today — future you will thank you!'
         ],
         [
-            'title' => 'Small practice, big results!',
-            'body' => 'Just 5 questions today can make a huge difference. Let\'s do this!'
+            'title' => '📚 Hey, don\'t forget!',
+            'body' => 'A little practice goes a long way. Open the app and try 5 quick questions!'
         ],
         [
-            'title' => 'Your goals are waiting!',
-            'body' => 'Stay consistent — open the app and practice now to stay on track.'
+            'title' => '💪 We believe in you!',
+            'body' => 'Stay on track with your goals. Your streak is waiting for you!'
         ],
         [
-            'title' => 'Almost there!',
-            'body' => 'Every question you answer brings you closer to success. Don\'t break your streak!'
+            'title' => '😢 You are slipping away…',
+            'body' => 'Come back and practice! Even 2 minutes can make a difference.'
         ],
         [
-            'title' => 'You\'ve got this!',
-            'body' => 'A few minutes of practice today keeps exam stress away. Start now!'
+            'title' => '😟 We\'re getting worried...',
+            'body' => 'Don\'t let all your hard work fade! Open the app and pick up where you left off.'
+        ],
+        [
+            'title' => '🔥 Your streak misses you!',
+            'body' => 'It\'s not too late to get back on track. Come practice now!'
+        ],
+        [
+            'title' => '😬 Okay... this is the last reminder!',
+            'body' => 'We won\'t bother you again (for now). But your goals are still waiting — come back today!'
         ]
     ];
 
@@ -39,9 +47,11 @@ class PushNotificationService
     ) {
     }
 
-    private function getRandomMessage(): array
+    private function getMessageForInactiveDays(int $daysInactive): array
     {
-        return self::NOTIFICATION_MESSAGES[array_rand(self::NOTIFICATION_MESSAGES)];
+        // If days inactive is more than the number of messages, use the last message
+        $messageIndex = min($daysInactive - 1, count(self::NOTIFICATION_MESSAGES) - 1);
+        return self::NOTIFICATION_MESSAGES[$messageIndex];
     }
 
     public function updatePushToken(string $uid, string $pushToken): array
@@ -76,18 +86,20 @@ class PushNotificationService
     public function sendNotificationsToInactiveUsers(): array
     {
         try {
-            // Get users who were last seen yesterday and have a valid push token
-            $yesterday = new \DateTime('yesterday');
+            // Get users who were last seen less than 7 days ago and have a valid push token
+            $sevenDaysAgo = new \DateTime('9 days ago');
             $today = new \DateTime('today');
 
             $qb = $this->entityManager->createQueryBuilder();
             $qb->select('l')
                 ->from(Learner::class, 'l')
                 ->andWhere('l.lastSeen < :today')
+                ->andWhere('l.lastSeen > :sevenDaysAgo')
                 ->andWhere('l.expoPushToken IS NOT NULL')
-                ->andWhere('l.email = :email')
+                ->andWhere('l.role = :role')
                 ->setParameter('today', $today)
-                ->setParameter('email', 'nkosi@gmail.com');
+                ->setParameter('sevenDaysAgo', $sevenDaysAgo)
+                ->setParameter('role', 'learner');
 
             $inactiveUsers = $qb->getQuery()->getResult();
 
@@ -101,22 +113,29 @@ class PushNotificationService
                     continue;
                 }
 
-                $randomMessage = $this->getRandomMessage();
-                $message = [
+                // Calculate days inactive
+                $lastSeen = $user->getLastSeen();
+                $daysInactive = $lastSeen->diff($today)->days;
+
+                // Get appropriate message based on days inactive
+                $message = $this->getMessageForInactiveDays($daysInactive);
+
+                $notification = [
                     'to' => $pushToken,
-                    'title' => $randomMessage['title'],
-                    'body' => $randomMessage['body'],
+                    'title' => $message['title'],
+                    'body' => $message['body'],
                     'sound' => 'default',
                     'data' => [
                         'type' => 'inactive_user_notification',
-                        'userId' => $user->getUid()
+                        'userId' => $user->getUid(),
+                        'daysInactive' => $daysInactive
                     ]
                 ];
 
                 $ch = curl_init();
                 curl_setopt($ch, CURLOPT_URL, self::EXPO_API_URL);
                 curl_setopt($ch, CURLOPT_POST, 1);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, [
                     'Content-Type: application/json',
@@ -133,7 +152,8 @@ class PushNotificationService
                     $errors[] = [
                         'userId' => $user->getUid(),
                         'error' => $response,
-                        'statusCode' => $httpCode
+                        'statusCode' => $httpCode,
+                        'daysInactive' => $daysInactive
                     ];
                     $this->logger->error('Failed to send notification to user ' . $user->getUid() . ': ' . $response);
                 }
