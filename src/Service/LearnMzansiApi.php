@@ -107,9 +107,11 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $adminCheck = $this->validateAdminAccess($request);
-            // if ($adminCheck['status'] === 'NOK') {
-            //     return $adminCheck;
-            // }
+            if ($adminCheck['status'] === 'NOK') {
+                return $adminCheck;
+            }
+
+            $this->logger->info("Admin check passed");
 
             $userId = $data['uid'] ?? null;
 
