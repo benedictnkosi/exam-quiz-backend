@@ -298,6 +298,8 @@ class LearnMzansiApi extends AbstractController
                         'message' => 'Question not found'
                     );
                 }
+                // Remove answer before returning
+                //$question->setAnswer(null);
                 return $question;
             }
 
@@ -361,6 +363,8 @@ class LearnMzansiApi extends AbstractController
                         shuffle($options);
                         $randomQuestion->setOptions($options);
                     }
+                    // Remove answer before returning
+                    $randomQuestion->setAnswer(null);
                     return $randomQuestion;
                 } else {
                     return array(
@@ -371,10 +375,6 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             }
-
-
-
-
 
             if ($learner->getRole() === 'reviewer') {
                 $qb = $this->em->createQueryBuilder();
@@ -389,7 +389,6 @@ class LearnMzansiApi extends AbstractController
 
                 $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
                 $qb->andWhere($qb->expr()->in('q.term', ':terms'));
-
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
@@ -415,6 +414,8 @@ class LearnMzansiApi extends AbstractController
                         shuffle($options);
                         $randomQuestion->setOptions($options);
                     }
+                    // Remove answer before returning
+                    $randomQuestion->setAnswer(null);
                     return $randomQuestion;
                 } else {
                     return array(
@@ -426,8 +427,6 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
-
-
             // For non-admin learners, continue with existing logic
             // Get learner's grade
             $grade = $learner->getGrade();
@@ -437,8 +436,6 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Learner grade not found'
                 );
             }
-
-
 
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
             $masteredQuestionsQb = $this->em->createQueryBuilder();
@@ -538,6 +535,8 @@ class LearnMzansiApi extends AbstractController
                 shuffle($options);
                 $randomQuestion->setOptions($options);
             }
+            // Remove answer before returning
+            //$randomQuestion->setAnswer(null);
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
@@ -2032,8 +2031,8 @@ class LearnMzansiApi extends AbstractController
             ];
 
             // Add image if exists
-            if ($question->getImagePath()) {
-                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $question->getImagePath();
+            if ($question->getImagePath() && $question->getImagePath() != "" && $question->getImagePath() != null && $question->getImagePath() != "NULL") {
+                $imageUrl = "https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $question->getImagePath();
                 $messages[1]['content'][] = [
                     "type" => "image_url",
                     "image_url" => ["url" => $imageUrl]
@@ -2041,8 +2040,8 @@ class LearnMzansiApi extends AbstractController
             }
 
             //add image for questionImagePath
-            if ($question->getQuestionImagePath()) {
-                $imageUrl = "https://api.examquiz.co.za/public/learn/learner/get-image?image=" . $question->getQuestionImagePath();
+            if ($question->getQuestionImagePath() && $question->getQuestionImagePath() != "" && $question->getQuestionImagePath() != null && $question->getQuestionImagePath() != "NULL") {
+                $imageUrl = "https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $question->getQuestionImagePath();
                 $messages[1]['content'][] = [
                     "type" => "image_url",
                     "image_url" => ["url" => $imageUrl]
@@ -2130,7 +2129,7 @@ class LearnMzansiApi extends AbstractController
             $schoolLongitude = $requestBody['school_longitude'];
             $email = $requestBody['email'];
 
-            if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress) || empty($schoolLatitude) || empty($schoolLongitude)) {
+            if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Mandatory values missing'
