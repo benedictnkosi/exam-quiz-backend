@@ -24,14 +24,18 @@ class LearnerRegistrationStatsService
             $startDate = (new \DateTime())->modify('-30 days');
 
             $qb = $this->em->createQueryBuilder();
+            //where email does not contain test 
+
             $qb->select('SUBSTRING(l.created, 1, 10) as date, COUNT(l.id) as count')
                 ->from('App\\Entity\\Learner', 'l')
                 ->where('l.created >= :startDate')
                 ->andWhere('l.created <= :endDate')
+                ->andWhere('l.email NOT LIKE :testEmail')
                 ->groupBy('date')
                 ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate);
+                ->setParameter('endDate', $endDate)
+                ->setParameter('testEmail', '%test%');
 
             $results = $qb->getQuery()->getResult();
 
