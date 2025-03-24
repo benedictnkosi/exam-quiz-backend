@@ -29,7 +29,7 @@ class LearnerRegistrationStatsService
                 ->where('l.created >= :startDate')
                 ->andWhere('l.created <= :endDate')
                 ->groupBy('date')
-                ->orderBy('date', 'DESC')
+                ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
                 ->setParameter('endDate', $endDate);
 
