@@ -3089,4 +3089,106 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function getRandomQuestionWithAIExplanation(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $uid = $request->query->get('uid');
+
+            if (empty($uid)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'User ID is required'
+                ];
+            }
+
+            // Get the learner
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // First, try to get questions from subjects the learner has answered
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('DISTINCT s.id as subjectId')
+                ->from('App\Entity\Result', 'r')
+                ->join('r.question', 'q')
+                ->join('q.subject', 's')
+                ->where('r.learner = :learner')
+                ->setParameter('learner', $learner);
+
+            $subjectIds = $qb->getQuery()->getResult();
+            $subjectIds = array_column($subjectIds, 'subjectId');
+
+            // Build query for questions with valid AI explanations
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.active = :active')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.aiExplanation IS NOT NULL')
+                ->andWhere("q.aiExplanation != ''")
+                ->andWhere("q.aiExplanation != 'NULL'")
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved');
+
+            // If we found subjects the learner has answered, prioritize those
+            if (!empty($subjectIds)) {
+                $qb->andWhere('q.subject IN (:subjects)')
+                    ->setParameter('subjects', $subjectIds);
+            }
+
+            // Get random question
+            $questions = $qb->getQuery()->getResult();
+            if (empty($questions)) {
+                // If no questions found with AI explanations from learner's subjects,
+                // try to get any question with AI explanation
+                $qb = $this->em->createQueryBuilder();
+                $qb->select('q')
+                    ->from('App\Entity\Question', 'q')
+                    ->where('q.active = :active')
+                    ->andWhere('q.status = :status')
+                    ->andWhere('q.aiExplanation IS NOT NULL')
+                    ->andWhere("q.aiExplanation != ''")
+                    ->andWhere("q.aiExplanation != 'NULL'")
+                    ->setParameter('active', true)
+                    ->setParameter('status', 'approved');
+
+                $questions = $qb->getQuery()->getResult();
+            }
+
+            if (empty($questions)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No questions with AI explanations available'
+                ];
+            }
+
+            // Get random question
+            $randomQuestion = $questions[array_rand($questions)];
+
+            // Shuffle options if they exist
+            $options = $randomQuestion->getOptions();
+            if ($options) {
+                shuffle($options);
+                $randomQuestion->setOptions($options);
+            }
+
+            return [
+                'status' => 'OK',
+                'question' => $randomQuestion
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting random question with AI explanation: ' . $e->getMessage()
+            ];
+        }
+    }
 }
