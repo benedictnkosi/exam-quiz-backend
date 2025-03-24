@@ -204,4 +204,31 @@ class QuestionStatsService
             ];
         }
     }
+
+    public function getTotalQuestions(): array
+    {
+        try {
+            $this->logger->info("Getting total number of questions");
+
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('COUNT(q.id) as total')
+                ->from('App\\Entity\\Question', 'q');
+
+            $result = $qb->getQuery()->getSingleResult();
+
+            return [
+                'status' => 'OK',
+                'data' => [
+                    'total' => (int) $result['total']
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting total questions: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving total number of questions: ' . $e->getMessage()
+            ];
+        }
+    }
 }
