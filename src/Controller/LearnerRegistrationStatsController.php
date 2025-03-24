@@ -28,4 +28,18 @@ class LearnerRegistrationStatsController extends AbstractController
         $result = $this->learnerRegistrationStatsService->getTotalLearners();
         return $this->json($result);
     }
+
+    #[Route('/stats/learners-answered-today', name: 'learners_answered_today', methods: ['GET'])]
+    public function getUniqueLearnersAnsweredToday(): JsonResponse
+    {
+        $result = $this->learnerRegistrationStatsService->getUniqueLearnersAnsweredToday();
+        return $this->json($result);
+    }
+
+    #[Route('/stats/average-learners-per-day', name: 'average_learners_per_day', methods: ['GET'])]
+    public function getAverageLearnersPerDay(): JsonResponse
+    {
+        $result = $this->learnerRegistrationStatsService->getAverageLearnersPerDay();
+        return $this->json($result);
+    }
 }
