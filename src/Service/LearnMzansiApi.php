@@ -1976,7 +1976,7 @@ class LearnMzansiApi extends AbstractController
             $messages = [
                 [
                     "role" => "system",
-                    "content" => "You are an AI tutor for students aged 13, that creates lessons to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Format the explanation as **bullet points**.\n4. reference the context and images in your explanation.\n5 have headings in your explanation. make it long as detailed. \n6 at the end, add a small bite size key lesson, prefixed with ***. less than 20 words. \n7 make the lesson fun and add emojis where suitable."
+                    "content" => "You are an AI tutor for students aged 13, that creates lessons to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Format the explanation as **bullet points**.\n4. reference the context and images in your explanation.\n5 have headings in your explanation. make it long as detailed. \n6 at the end, add a small bite size key lesson, prefixed with ***Key Lesson:***. less than 20 words. \n7 make the lesson fun and add emojis where suitable."
                 ],
                 [
                     "role" => "user",
@@ -3112,51 +3112,60 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // First, try to get questions from subjects the learner has answered
+            // Get the learner's grade
+            $grade = $learner->getGrade();
+            if (!$grade) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner grade not found'
+                ];
+            }
+
+            // Get subjects the learner has answered
             $qb = $this->em->createQueryBuilder();
-            $qb->select('DISTINCT s.id as subjectId')
-                ->from('App\Entity\Result', 'r')
+            $qb->select('DISTINCT s.id')
+                ->from(Result::class, 'r')
                 ->join('r.question', 'q')
                 ->join('q.subject', 's')
                 ->where('r.learner = :learner')
                 ->setParameter('learner', $learner);
 
-            $subjectIds = $qb->getQuery()->getResult();
-            $subjectIds = array_column($subjectIds, 'subjectId');
+            $subjectIds = $qb->getQuery()->getSingleColumnResult();
 
             // Build query for questions with valid AI explanations
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
-                ->from('App\Entity\Question', 'q')
-                ->where('q.active = :active')
-                ->andWhere('q.status = :status')
-                ->andWhere('q.aiExplanation IS NOT NULL')
-                ->andWhere("q.aiExplanation != ''")
-                ->andWhere("q.aiExplanation != 'NULL'")
-                ->setParameter('active', true)
-                ->setParameter('status', 'approved');
+                ->from(Question::class, 'q')
+                ->join('q.subject', 's')
+                ->where('q.aiExplanation IS NOT NULL')
+                ->andWhere('q.aiExplanation != :emptyString')
+                ->andWhere('q.aiExplanation != :nullString')
+                ->andWhere('s.grade = :grade')
+                ->setParameter('emptyString', '')
+                ->setParameter('nullString', 'NULL')
+                ->setParameter('grade', $grade);
 
-            // If we found subjects the learner has answered, prioritize those
+            // If learner has answered questions, prioritize those subjects
             if (!empty($subjectIds)) {
-                $qb->andWhere('q.subject IN (:subjects)')
-                    ->setParameter('subjects', $subjectIds);
+                $qb->andWhere('s.id IN (:subjectIds)')
+                    ->setParameter('subjectIds', $subjectIds);
             }
 
-            // Get random question
             $questions = $qb->getQuery()->getResult();
+
+            // If no questions found from learner's subjects, try any question from their grade
             if (empty($questions)) {
-                // If no questions found with AI explanations from learner's subjects,
-                // try to get any question with AI explanation
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
-                    ->from('App\Entity\Question', 'q')
-                    ->where('q.active = :active')
-                    ->andWhere('q.status = :status')
-                    ->andWhere('q.aiExplanation IS NOT NULL')
-                    ->andWhere("q.aiExplanation != ''")
-                    ->andWhere("q.aiExplanation != 'NULL'")
-                    ->setParameter('active', true)
-                    ->setParameter('status', 'approved');
+                    ->from(Question::class, 'q')
+                    ->join('q.subject', 's')
+                    ->where('q.aiExplanation IS NOT NULL')
+                    ->andWhere('q.aiExplanation != :emptyString')
+                    ->andWhere('q.aiExplanation != :nullString')
+                    ->andWhere('s.grade = :grade')
+                    ->setParameter('emptyString', '')
+                    ->setParameter('nullString', 'NULL')
+                    ->setParameter('grade', $grade);
 
                 $questions = $qb->getQuery()->getResult();
             }
@@ -3164,16 +3173,16 @@ class LearnMzansiApi extends AbstractController
             if (empty($questions)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'No questions with AI explanations available'
+                    'message' => 'No questions with AI explanations found for your grade'
                 ];
             }
 
-            // Get random question
+            // Get a random question
             $randomQuestion = $questions[array_rand($questions)];
 
             // Shuffle options if they exist
-            $options = $randomQuestion->getOptions();
-            if ($options) {
+            if ($randomQuestion->getOptions()) {
+                $options = $randomQuestion->getOptions();
                 shuffle($options);
                 $randomQuestion->setOptions($options);
             }
@@ -3187,7 +3196,7 @@ class LearnMzansiApi extends AbstractController
             $this->logger->error($e->getMessage());
             return [
                 'status' => 'NOK',
-                'message' => 'Error getting random question with AI explanation: ' . $e->getMessage()
+                'message' => 'Error getting random question: ' . $e->getMessage()
             ];
         }
     }
