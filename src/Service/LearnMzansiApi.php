@@ -972,8 +972,9 @@ class LearnMzansiApi extends AbstractController
             $requestBody = json_decode($request->getContent(), true);
             $questionId = $requestBody['question_id'];
             $imageName = $requestBody['image_name'];
+            $imageType = $requestBody['image_type'];
 
-            if (empty($questionId) || empty($imageName)) {
+            if (empty($questionId) || empty($imageName) || empty($imageType)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Mandatory values missing'
@@ -988,7 +989,19 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            $question->setAnswerImage($imageName);
+            if ($imageType == 'question_context') {
+                $question->setImagePath($imageName);
+            } elseif ($imageType == 'question') {
+                $question->setQuestionImagePath($imageName);
+            } elseif ($imageType == 'answer') {
+                $question->setAnswerImage($imageName);
+            } else {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Invalid image type'
+                );
+            }
+
             $this->em->persist($question);
             $this->em->flush();
 
