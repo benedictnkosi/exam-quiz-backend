@@ -1976,7 +1976,7 @@ class LearnMzansiApi extends AbstractController
             $messages = [
                 [
                     "role" => "system",
-                    "content" => "You are an AI tutor for students aged 13, that creates lessons to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Format the explanation as **bullet points**.\n4. reference the context and images in your explanation.\n5 have headings in your explanation. make it long as detailed. \n6 at the end, add a small bite size key lesson, prefixed with ***. less than 20 words. \n7 make the lesson fun and add emojis where suitable"
+                    "content" => "You are an AI tutor for students aged 13, that creates lessons to questions based on their context. Follow these rules:\n1. Read the provided context and analyze any accompanying images.\n2. Understand the question and the correct answer.\n3. Format the explanation as **bullet points**.\n4. reference the context and images in your explanation.\n5 have headings in your explanation. make it long as detailed. \n6 at the end, add a small bite size key lesson, prefixed with ***. less than 20 words. \n7 make the lesson fun and add emojis where suitable."
                 ],
                 [
                     "role" => "user",
