@@ -2983,4 +2983,110 @@ class LearnMzansiApi extends AbstractController
             'images' => $result
         ];
     }
+
+    public function getRandomQuestionWithRevision(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $subjectName = $request->query->get('subject_name');
+            $uid = $request->query->get('uid');
+            $isRevision = $request->query->get('revision', false);
+
+            if (empty($subjectName) || empty($uid)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject name and user ID are required'
+                ];
+            }
+
+            // Get the learner
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Get learner's grade
+            $grade = $learner->getGrade();
+            if (!$grade) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner grade not found'
+                ];
+            }
+
+            // Get subject
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $grade]);
+            if (!$subject) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                ];
+            }
+
+            // Build base query
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.subject = :subject')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status');
+
+            // If revision mode is enabled, only get questions that the learner has answered incorrectly
+            if ($isRevision) {
+                $qb->join('App\Entity\Result', 'r', 'WITH', 'r.question = q')
+                    ->andWhere('r.learner = :learner')
+                    ->andWhere('r.outcome = :outcome')
+                    ->setParameter('learner', $learner)
+                    ->setParameter('outcome', 'incorrect');
+            }
+
+            // Set common parameters
+            $qb->setParameter('subject', $subject)
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved');
+
+            // Get random question
+            $questions = $qb->getQuery()->getResult();
+            if (empty($questions)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No questions available'
+                ];
+            }
+
+            // Get random question
+            $randomQuestion = $questions[array_rand($questions)];
+
+            // Shuffle options if they exist
+            $options = $randomQuestion->getOptions();
+            if ($options) {
+                shuffle($options);
+                $randomQuestion->setOptions($options);
+            }
+
+            // Check if question has AI explanation
+            if (!$randomQuestion->getAiExplanation()) {
+                $aiExplanationResult = $this->getAIExplanation($randomQuestion->getId());
+                if ($aiExplanationResult['status'] === 'OK') {
+                    $randomQuestion->setAiExplanation($aiExplanationResult['explanation']);
+                    $this->em->flush();
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'question' => $randomQuestion
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting random question: ' . $e->getMessage()
+            ];
+        }
+    }
 }

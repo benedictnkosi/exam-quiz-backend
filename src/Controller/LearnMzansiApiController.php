@@ -778,4 +778,14 @@ class LearnMzansiApiController extends AbstractController
 
         return new JsonResponse($response, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/question/random', name: 'get_random_question', methods: ['GET'])]
+    public function getRandomQuestionWithRevision(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->getRandomQuestionWithRevision($request);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+    }
 }
