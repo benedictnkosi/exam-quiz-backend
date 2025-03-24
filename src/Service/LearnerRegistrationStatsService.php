@@ -70,7 +70,9 @@ class LearnerRegistrationStatsService
 
             $qb = $this->em->createQueryBuilder();
             $qb->select('COUNT(l.id) as total')
-                ->from('App\\Entity\\Learner', 'l');
+                ->from('App\\Entity\\Learner', 'l')
+                ->where('l.email NOT LIKE :testEmail')
+                ->setParameter('testEmail', '%test%');
 
             $result = $qb->getQuery()->getSingleResult();
 
@@ -103,10 +105,13 @@ class LearnerRegistrationStatsService
             $qb = $this->em->createQueryBuilder();
             $qb->select('COUNT(DISTINCT r.learner) as unique_learners')
                 ->from('App\\Entity\\Result', 'r')
+                ->join('r.learner', 'l')
                 ->where('r.created >= :today')
                 ->andWhere('r.created < :tomorrow')
+                ->andWhere('l.email NOT LIKE :testEmail')
                 ->setParameter('today', $today)
-                ->setParameter('tomorrow', $tomorrow);
+                ->setParameter('tomorrow', $tomorrow)
+                ->setParameter('testEmail', '%test%');
 
             $result = $qb->getQuery()->getSingleResult();
 
@@ -141,12 +146,15 @@ class LearnerRegistrationStatsService
             $qb = $this->em->createQueryBuilder();
             $qb->select('SUBSTRING(r.created, 1, 10) as date, COUNT(DISTINCT r.learner) as unique_learners')
                 ->from('App\\Entity\\Result', 'r')
+                ->join('r.learner', 'l')
                 ->where('r.created >= :startDate')
                 ->andWhere('r.created <= :endDate')
+                ->andWhere('l.email NOT LIKE :testEmail')
                 ->groupBy('date')
                 ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate);
+                ->setParameter('endDate', $endDate)
+                ->setParameter('testEmail', '%test%');
 
             $results = $qb->getQuery()->getResult();
 
