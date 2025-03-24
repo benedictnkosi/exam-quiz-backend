@@ -29,7 +29,7 @@ class QuestionAnswerStatsService
                 ->where('r.created >= :startDate')
                 ->andWhere('r.created <= :endDate')
                 ->groupBy('date')
-                ->orderBy('date', 'DESC')
+                ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
                 ->setParameter('endDate', $endDate);
 
