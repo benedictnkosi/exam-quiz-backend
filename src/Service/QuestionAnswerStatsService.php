@@ -26,12 +26,15 @@ class QuestionAnswerStatsService
             $qb = $this->em->createQueryBuilder();
             $qb->select('SUBSTRING(r.created, 1, 10) as date, COUNT(r.id) as count')
                 ->from('App\\Entity\\Result', 'r')
+                ->join('r.learner', 'l')
                 ->where('r.created >= :startDate')
                 ->andWhere('r.created <= :endDate')
+                ->andWhere('l.email NOT LIKE :testEmail')
                 ->groupBy('date')
                 ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate);
+                ->setParameter('endDate', $endDate)
+                ->setParameter('testEmail', '%test%');
 
             $results = $qb->getQuery()->getResult();
 
