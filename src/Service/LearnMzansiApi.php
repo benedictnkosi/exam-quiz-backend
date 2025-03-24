@@ -1987,7 +1987,7 @@ class LearnMzansiApi extends AbstractController
             // Add question context
             $messages[1]['content'][] = [
                 "type" => "text",
-                "text" => "Context: " . ($question->getContext() ?? "Choose an Answer that matches the description.")
+                "text" => "Context: " . ($question->getContext())
             ];
 
             // Add question text
