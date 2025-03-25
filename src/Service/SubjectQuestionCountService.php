@@ -32,7 +32,7 @@ class SubjectQuestionCountService
             ->setParameter('term', $term)
             ->setParameter('active', true)
             ->groupBy('s.id')
-            ->orderBy('questionCount', 'DESC')
+            ->orderBy('questionCount', 'ASC')
             ->addOrderBy('g.number', 'ASC');
 
         $results = $qb->getQuery()->getResult();
