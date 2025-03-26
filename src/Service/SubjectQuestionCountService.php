@@ -41,23 +41,38 @@ class SubjectQuestionCountService
         $results = $qb->getQuery()->getResult();
 
         $totalRemaining = 0;
-        $subjects = array_map(function ($result) use (&$totalRemaining) {
+        $remainingByGrade = [];
+        $subjects = array_map(function ($result) use (&$totalRemaining, &$remainingByGrade) {
             $currentCount = (int) $result['questionCount'];
             $remaining = self::REQUIRED_QUESTIONS_PER_SUBJECT - $currentCount;
             $totalRemaining += $remaining;
 
+            // Track remaining questions by grade
+            $gradeNumber = $result['gradeNumber'];
+            if (!isset($remainingByGrade[$gradeNumber])) {
+                $remainingByGrade[$gradeNumber] = 0;
+            }
+            $remainingByGrade[$gradeNumber] += $remaining;
+
             return [
                 'subject_name' => $result['name'],
-                'grade' => 'Grade ' . $result['gradeNumber'],
+                'grade' => 'Grade ' . $gradeNumber,
                 'current_question_count' => $currentCount,
                 'remaining_questions_needed' => $remaining,
                 'capturer' => $result['capturerName'] ?? null
             ];
         }, $results);
 
+        // Format remaining questions by grade with specific keys
+        $formattedRemainingByGrade = [];
+        foreach ($remainingByGrade as $gradeNumber => $remaining) {
+            $formattedRemainingByGrade["total_remaining_questions_needed_grade{$gradeNumber}"] = $remaining;
+        }
+
         return [
             'subjects' => $subjects,
-            'total_remaining_questions_needed' => $totalRemaining
+            'total_remaining_questions_needed' => $totalRemaining,
+            ...$formattedRemainingByGrade
         ];
     }
 }
