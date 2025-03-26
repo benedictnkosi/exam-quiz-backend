@@ -44,6 +44,18 @@ class SubjectQuestionCountService
         $remainingByGrade = [];
         $subjects = array_map(function ($result) use (&$totalRemaining, &$remainingByGrade) {
             $currentCount = (int) $result['questionCount'];
+
+            // Skip if already has more than required questions
+            if ($currentCount >= self::REQUIRED_QUESTIONS_PER_SUBJECT) {
+                return [
+                    'subject_name' => $result['name'],
+                    'grade' => 'Grade ' . $result['gradeNumber'],
+                    'current_question_count' => $currentCount,
+                    'remaining_questions_needed' => 0,
+                    'capturer' => $result['capturerName'] ?? null
+                ];
+            }
+
             $remaining = self::REQUIRED_QUESTIONS_PER_SUBJECT - $currentCount;
             $totalRemaining += $remaining;
 
