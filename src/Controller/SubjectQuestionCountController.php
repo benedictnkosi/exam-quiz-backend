@@ -20,11 +20,11 @@ class SubjectQuestionCountController extends AbstractController
     #[Route('/subjects/questions/count/{term}', name: 'subjects_questions_count', methods: ['GET'])]
     public function getQuestionCountsByTerm(int $term): JsonResponse
     {
-        $questionCounts = $this->subjectQuestionCountService->getQuestionCountsByTerm($term);
+        $result = $this->subjectQuestionCountService->getQuestionCountsByTerm($term);
 
         return $this->json([
             'status' => 'success',
-            'data' => $questionCounts
+            'data' => $result
         ]);
     }
 }
