@@ -16,24 +16,25 @@ class SubjectQuestionCountService
     }
 
     /**
-     * Get the number of questions for each subject in a particular term
+     * Get the number of questions for each subject in a particular term and grade
      *
      * @param int $term The term number
+     * @param int $gradeNumber The grade number
      * @return array Array of subjects with their question counts
      */
     public function getQuestionCountsByTerm(int $term): array
     {
         $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('s.name', 'g.number as gradeNumber', 'COUNT(q.id) as questionCount')
+        $qb->select('s.name', 'g.number as gradeNumber', 'COUNT(q.id) as questionCount', 'l.name as capturerName')
             ->from(Subject::class, 's')
             ->leftJoin('s.grade', 'g')
+            ->leftJoin('s.capturer', 'l')
             ->leftJoin(Question::class, 'q', 'WITH', 'q.subject = s AND q.term = :term')
             ->where('s.active = :active')
             ->setParameter('term', $term)
             ->setParameter('active', true)
             ->groupBy('s.id')
-            ->orderBy('g.number', 'DESC')
-            ->addOrderBy('questionCount', 'ASC');
+            ->orderBy('questionCount', 'DESC');
 
         $results = $qb->getQuery()->getResult();
 
@@ -41,7 +42,8 @@ class SubjectQuestionCountService
             return [
                 'subject_name' => $result['name'],
                 'grade' => 'Grade ' . $result['gradeNumber'],
-                'question_count' => (int) $result['questionCount']
+                'question_count' => (int) $result['questionCount'],
+                'capturer' => $result['capturerName'] ?? null
             ];
         }, $results);
     }

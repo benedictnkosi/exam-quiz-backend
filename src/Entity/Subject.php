@@ -25,6 +25,10 @@ class Subject
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
     private ?Grade $grade = null;
 
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'capturer', referencedColumnName: 'id')]
+    private ?Learner $capturer = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -62,6 +66,18 @@ class Subject
     public function setGrade(?Grade $grade): static
     {
         $this->grade = $grade;
+
+        return $this;
+    }
+
+    public function getCapturer(): ?Learner
+    {
+        return $this->capturer;
+    }
+
+    public function setCapturer(?Learner $capturer): static
+    {
+        $this->capturer = $capturer;
 
         return $this;
     }
