@@ -3184,7 +3184,10 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->setOptions($options);
             }
 
-            return $randomQuestion;
+            return [
+                'status' => 'OK',
+                'question' => $randomQuestion
+            ];
 
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
@@ -3192,6 +3195,7 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error getting random question: ' . $e->getMessage()
             ];
+
         }
     }
 }
