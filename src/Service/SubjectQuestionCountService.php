@@ -25,7 +25,7 @@ class SubjectQuestionCountService
     public function getQuestionCountsByTerm(int $term): array
     {
         $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('s.name', 'g.number as gradeNumber', 'COUNT(q.id) as questionCount', 'l.name as capturerName')
+        $qb->select('s.name', 's.id as subjectId', 'g.number as gradeNumber', 'COUNT(q.id) as questionCount', 'l.name as capturerName')
             ->from(Subject::class, 's')
             ->leftJoin('s.grade', 'g')
             ->leftJoin('s.capturer', 'l')
@@ -43,7 +43,8 @@ class SubjectQuestionCountService
                 'subject_name' => $result['name'],
                 'grade' => 'Grade ' . $result['gradeNumber'],
                 'question_count' => (int) $result['questionCount'],
-                'capturer' => $result['capturerName'] ?? null
+                'capturer' => $result['capturerName'] ?? null,
+                'subject_id' => $result['subjectId'] ?? null
             ];
         }, $results);
     }
