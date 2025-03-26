@@ -2984,7 +2984,7 @@ class LearnMzansiApi extends AbstractController
         ];
     }
 
-    public function getRandomQuestionWithRevision(Request $request): array
+    public function getRandomQuestionWithRevision(Request $request): mixed
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
@@ -3076,10 +3076,7 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
-            return [
-                'status' => 'OK',
-                'question' => $randomQuestion
-            ];
+            return $randomQuestion;
 
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
@@ -3090,114 +3087,5 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getRandomQuestionWithAIExplanation(Request $request): array
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        try {
-            $uid = $request->query->get('uid');
 
-            if (empty($uid)) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'User ID is required'
-                ];
-            }
-
-            // Get the learner
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                ];
-            }
-
-            // Get the learner's grade
-            $grade = $learner->getGrade();
-            if (!$grade) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Learner grade not found'
-                ];
-            }
-
-            // Get subjects the learner has answered
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('DISTINCT s.id')
-                ->from(Result::class, 'r')
-                ->join('r.question', 'q')
-                ->join('q.subject', 's')
-                ->where('r.learner = :learner')
-                ->setParameter('learner', $learner);
-
-            $subjectIds = $qb->getQuery()->getSingleColumnResult();
-
-            // Build query for questions with valid AI explanations
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('q')
-                ->from(Question::class, 'q')
-                ->join('q.subject', 's')
-                ->where('q.aiExplanation IS NOT NULL')
-                ->andWhere('q.aiExplanation != :emptyString')
-                ->andWhere('q.aiExplanation != :nullString')
-                ->andWhere('s.grade = :grade')
-                ->setParameter('emptyString', '')
-                ->setParameter('nullString', 'NULL')
-                ->setParameter('grade', $grade);
-
-            // If learner has answered questions, prioritize those subjects
-            if (!empty($subjectIds)) {
-                $qb->andWhere('s.id IN (:subjectIds)')
-                    ->setParameter('subjectIds', $subjectIds);
-            }
-
-            $questions = $qb->getQuery()->getResult();
-
-            // If no questions found from learner's subjects, try any question from their grade
-            if (empty($questions)) {
-                $qb = $this->em->createQueryBuilder();
-                $qb->select('q')
-                    ->from(Question::class, 'q')
-                    ->join('q.subject', 's')
-                    ->where('q.aiExplanation IS NOT NULL')
-                    ->andWhere('q.aiExplanation != :emptyString')
-                    ->andWhere('q.aiExplanation != :nullString')
-                    ->andWhere('s.grade = :grade')
-                    ->setParameter('emptyString', '')
-                    ->setParameter('nullString', 'NULL')
-                    ->setParameter('grade', $grade);
-
-                $questions = $qb->getQuery()->getResult();
-            }
-
-            if (empty($questions)) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'No questions with AI explanations found for your grade'
-                ];
-            }
-
-            // Get a random question
-            $randomQuestion = $questions[array_rand($questions)];
-
-            // Shuffle options if they exist
-            if ($randomQuestion->getOptions()) {
-                $options = $randomQuestion->getOptions();
-                shuffle($options);
-                $randomQuestion->setOptions($options);
-            }
-
-            return [
-                'status' => 'OK',
-                'question' => $randomQuestion
-            ];
-
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return [
-                'status' => 'NOK',
-                'message' => 'Error getting random question: ' . $e->getMessage()
-            ];
-        }
-    }
 }
