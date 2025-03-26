@@ -2989,6 +2989,7 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $subjectName = $request->query->get('subject_name');
+            $paperName = $request->query->get('paper_name');
             $uid = $request->query->get('uid');
             $isRevision = $request->query->get('revision', false);
 
@@ -3018,7 +3019,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Get subject
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $grade]);
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName, 'grade' => $grade]);
             if (!$subject) {
                 return [
                     'status' => 'NOK',
