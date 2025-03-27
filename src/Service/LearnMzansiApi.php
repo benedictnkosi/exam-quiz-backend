@@ -339,7 +339,6 @@ class LearnMzansiApi extends AbstractController
                 $query = $qb->getQuery();
                 $questions = $query->getResult();
                 if (!empty($questions)) {
-                    shuffle($questions);
                     $randomQuestion = $questions[0];
 
                     //shuffle the options
