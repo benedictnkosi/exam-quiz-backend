@@ -52,7 +52,8 @@ class SubjectQuestionCountService
                     'grade' => 'Grade ' . $result['gradeNumber'],
                     'current_question_count' => $currentCount,
                     'remaining_questions_needed' => 0,
-                    'capturer' => $result['capturerName'] ?? null
+                    'capturer' => $result['capturerName'] ?? null,
+                    'subject_id' => $result['subjectId'] ?? null
                 ];
             }
 
@@ -71,7 +72,8 @@ class SubjectQuestionCountService
                 'grade' => 'Grade ' . $gradeNumber,
                 'current_question_count' => $currentCount,
                 'remaining_questions_needed' => $remaining,
-                'capturer' => $result['capturerName'] ?? null
+                'capturer' => $result['capturerName'] ?? null,
+                'subject_id' => $result['subjectId'] ?? null
             ];
         }, $results);
 
