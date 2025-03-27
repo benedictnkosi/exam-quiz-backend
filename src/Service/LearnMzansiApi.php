@@ -318,23 +318,6 @@ class LearnMzansiApi extends AbstractController
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
 
-                //get learner capturing ID by email and uid not learner id
-                $capturer = $this->em->getRepository(Learner::class)
-                    ->createQueryBuilder('l')
-                    ->where('l.email = :email')
-                    ->andWhere('l.uid != :uid')
-                    ->setParameter('email', $learner->getEmail())
-                    ->setParameter('uid', $learner->getUid())
-                    ->getQuery()
-                    ->getOneOrNullResult();
-
-                if (!$capturer) {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => 'Capturer not found'
-                    );
-                }
-
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
                     ->from('App\Entity\Question', 'q')
@@ -348,7 +331,7 @@ class LearnMzansiApi extends AbstractController
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
                     new Parameter('active', true),
                     new Parameter('status', 'new'),
-                    new Parameter('capturer', $capturer)
+                    new Parameter('capturer', $learner)
                 ]);
 
                 $qb->setParameters($parameters);
