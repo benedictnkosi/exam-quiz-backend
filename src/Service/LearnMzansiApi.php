@@ -3017,14 +3017,6 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
-            // If revision mode is enabled, only get questions that the learner has answered incorrectly
-            if ($isRevision) {
-                $qb->join('App\Entity\Result', 'r', 'WITH', 'r.question = q')
-                    ->andWhere('r.learner = :learner')
-                    ->andWhere('r.outcome = :outcome')
-                    ->setParameter('learner', $learner)
-                    ->setParameter('outcome', 'incorrect');
-            }
 
             // Set common parameters
             $qb->setParameter('subject', $subject)

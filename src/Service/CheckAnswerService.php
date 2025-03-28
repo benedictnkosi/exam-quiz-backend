@@ -168,6 +168,10 @@ class CheckAnswerService
 
             $this->entityManager->flush();
 
+            $learner->setLastSeen(new \DateTime());
+            $this->entityManager->persist($learner);
+            $this->entityManager->flush();
+
             return [
                 'status' => 'OK',
                 'correct' => $isCorrect,
