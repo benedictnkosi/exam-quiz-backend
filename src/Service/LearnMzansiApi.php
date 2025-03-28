@@ -3113,9 +3113,12 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.aiExplanation != :emptyString')
                 ->andWhere('q.aiExplanation != :nullString')
                 ->andWhere('s.grade = :grade')
+                ->andWhere('s.name LIKE :math OR s.name LIKE :physics')
                 ->setParameter('emptyString', '')
                 ->setParameter('nullString', 'NULL')
-                ->setParameter('grade', $grade);
+                ->setParameter('grade', $grade)
+                ->setParameter('math', '%Mathematics%')
+                ->setParameter('physics', '%Physical Sciences%');
 
             // If learner has answered questions, prioritize those subjects
             if (!empty($subjectIds)) {
@@ -3135,9 +3138,12 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.aiExplanation != :emptyString')
                     ->andWhere('q.aiExplanation != :nullString')
                     ->andWhere('s.grade = :grade')
+                    ->andWhere('s.name LIKE :math OR s.name LIKE :physics')
                     ->setParameter('emptyString', '')
                     ->setParameter('nullString', 'NULL')
-                    ->setParameter('grade', $grade);
+                    ->setParameter('grade', $grade)
+                    ->setParameter('math', '%Mathematics%')
+                    ->setParameter('physics', '%Physical Sciences%');
 
                 $questions = $qb->getQuery()->getResult();
             }
@@ -3145,7 +3151,7 @@ class LearnMzansiApi extends AbstractController
             if (empty($questions)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'No questions with AI explanations found for your grade'
+                    'message' => 'No questions with AI explanations found for Mathematics or Physical Sciences in your grade'
                 ];
             }
 
