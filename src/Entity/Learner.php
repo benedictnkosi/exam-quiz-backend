@@ -4,6 +4,8 @@ namespace App\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'learner')]
@@ -82,11 +84,15 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $expoPushToken = null;
 
+    #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
+    private Collection $learnerBadges;
+
     public function __construct()
     {
         $this->created = new \DateTime();
         $this->lastSeen = new \DateTime();
         $this->streakLastUpdated = new \DateTime();
+        $this->learnerBadges = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -334,5 +340,10 @@ class Learner
     {
         $this->expoPushToken = $expoPushToken;
         return $this;
+    }
+
+    public function getLearnerBadges(): Collection
+    {
+        return $this->learnerBadges;
     }
 }

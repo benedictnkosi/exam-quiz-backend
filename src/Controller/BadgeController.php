@@ -45,11 +45,11 @@ class BadgeController extends AbstractController
         }
     }
 
-    #[Route('/learner/{learnerId}', name: 'get_learner_badges', methods: ['GET'])]
-    public function getLearnerBadges(int $learnerId): JsonResponse
+    #[Route('/learner/{uid}', name: 'get_learner_badges', methods: ['GET'])]
+    public function getLearnerBadges(string $uid): JsonResponse
     {
         try {
-            $learner = $this->entityManager->getRepository(Learner::class)->find($learnerId);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
 
             if (!$learner) {
                 return $this->json([
@@ -58,28 +58,28 @@ class BadgeController extends AbstractController
                 ], 404);
             }
 
-            $learnerBadges = $learner->getLearnerBadges();
-            $badges = [];
+            $result = $this->badgeService->getLearnerBadges($learner);
 
-            foreach ($learnerBadges as $learnerBadge) {
-                $badge = $learnerBadge->getBadge();
-                $badges[] = [
-                    'id' => $badge->getId(),
-                    'name' => $badge->getName(),
-                    'rules' => $badge->getRules(),
-                    'earned_at' => $learnerBadge->getCreatedAt()->format('Y-m-d H:i:s')
-                ];
-            }
-
-            return $this->json([
-                'status' => 'OK',
-                'badges' => $badges
-            ]);
+            return $this->json($result);
 
         } catch (\Exception $e) {
             return $this->json([
                 'status' => 'NOK',
                 'message' => 'Error fetching badges: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    #[Route('/', name: 'get_all_badges', methods: ['GET'])]
+    public function getAllBadges(): JsonResponse
+    {
+        try {
+            $result = $this->badgeService->getAllBadges();
+            return $this->json($result);
+        } catch (\Exception $e) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Error fetching all badges: ' . $e->getMessage()
             ], 500);
         }
     }

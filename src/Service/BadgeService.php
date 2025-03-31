@@ -84,14 +84,6 @@ class BadgeService
         $badge = $this->entityManager->getRepository(Badge::class)
             ->findOneBy(['name' => $badgeName]);
 
-        if (!$badge) {
-            // Create new badge if it doesn't exist
-            $badge = new Badge();
-            $badge->setName($badgeName);
-            $badge->setRules($this->getBadgeRules($badgeName));
-            $this->entityManager->persist($badge);
-        }
-
         // Check if learner already has this badge
         $existingLearnerBadge = $this->entityManager->getRepository(LearnerBadge::class)
             ->findOneBy([
@@ -108,19 +100,6 @@ class BadgeService
 
         $this->entityManager->flush();
     }
-
-    private function getBadgeRules(string $badgeName): string
-    {
-        return match ($badgeName) {
-            '3-Day Streak' => 'Maintain a 3-day streak',
-            '7-Day Streak' => 'Maintain a 7-day streak',
-            '30-Day Streak' => 'Maintain a 30-day streak',
-            '5 in a row' => 'Answer 5 questions correctly in a row',
-            '10 in a row' => 'Answer 10 questions correctly in a row',
-            default => ''
-        };
-    }
-
     private function getConsecutiveCorrectAnswers(Learner $learner): int
     {
         $qb = $this->entityManager->createQueryBuilder();
@@ -161,5 +140,64 @@ class BadgeService
             ]);
 
         return $existingLearnerBadge !== null;
+    }
+
+    public function getLearnerBadges(Learner $learner): array
+    {
+        try {
+            $learnerBadges = $learner->getLearnerBadges();
+            $badges = [];
+
+            foreach ($learnerBadges as $learnerBadge) {
+                $badge = $learnerBadge->getBadge();
+                $badges[] = [
+                    'id' => $badge->getId(),
+                    'name' => $badge->getName(),
+                    'rules' => $badge->getRules(),
+                    'earned_at' => $learnerBadge->getCreatedAt()->format('Y-m-d H:i:s')
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'badges' => $badges
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error('Error in getLearnerBadges: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error fetching badges'
+            ];
+        }
+    }
+
+    public function getAllBadges(): array
+    {
+        try {
+            $badges = $this->entityManager->getRepository(Badge::class)->findAll();
+            $badgeList = [];
+
+            foreach ($badges as $badge) {
+                $badgeList[] = [
+                    'id' => $badge->getId(),
+                    'name' => $badge->getName(),
+                    'rules' => $badge->getRules(),
+                    'image' => $badge->getImage()
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'badges' => $badgeList
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error('Error in getAllBadges: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error fetching all badges'
+            ];
+        }
     }
 }

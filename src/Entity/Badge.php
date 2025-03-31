@@ -25,6 +25,9 @@ class Badge
     #[ORM\Column(name: 'rules', type: Types::STRING, length: 255, nullable: true)]
     private ?string $rules = null;
 
+    #[ORM\Column(name: 'image', type: Types::STRING, length: 255, nullable: true)]
+    private ?string $image = null;
+
     #[ORM\OneToMany(mappedBy: 'badge', targetEntity: LearnerBadge::class)]
     private Collection $learnerBadges;
 
@@ -69,6 +72,17 @@ class Badge
     public function setRules(?string $rules): self
     {
         $this->rules = $rules;
+        return $this;
+    }
+
+    public function getImage(): ?string
+    {
+        return $this->image;
+    }
+
+    public function setImage(?string $image): self
+    {
+        $this->image = $image;
         return $this;
     }
 
