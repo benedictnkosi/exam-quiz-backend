@@ -19,3 +19,7 @@
 .phpunit.result.cache
 ###< phpunit/phpunit ###
 /config/packages/monolog.yamllearnMzansi .zip
+
+###> learnMzansi images ###
+/public/assets/images/learnMzansi/
+###< learnMzansi images ###
