@@ -198,6 +198,16 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
+    #[Route('/learn/chat/upload-file', name: 'upload_chat_file', methods: ['POST'])]
+    public function uploadChatFile(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->uploadChatFile($request);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+    }
+
     #[Route('/learn/learner/get-image', name: 'get_image', methods: ['GET'])]
     public function getImage(Request $request): Response
     {
@@ -231,6 +241,43 @@ class LearnMzansiApiController extends AbstractController
             return new JsonResponse([
                 'status' => 'NOK',
                 'message' => 'Error retrieving image'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR, ['Access-Control-Allow-Origin' => '*']);
+        }
+    }
+
+    #[Route('/learn/get-chat-file', name: 'get_chat_file', methods: ['GET'])]
+    public function getChatFile(Request $request): Response
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $fileName = $request->query->get('file');
+        if (!$fileName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'File parameter is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $uploadDir = __DIR__ . '/../../public/assets/chat/';
+        $filePath = $uploadDir . $fileName;
+
+        if (!file_exists($filePath)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'File not found'
+            ], Response::HTTP_NOT_FOUND, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        try {
+            return new BinaryFileResponse($filePath, Response::HTTP_OK, [
+                'Access-Control-Allow-Origin' => '*',
+                'Content-Type' => mime_content_type($filePath)
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error in getImage: ' . $e->getMessage());
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error retrieving file'
             ], Response::HTTP_INTERNAL_SERVER_ERROR, ['Access-Control-Allow-Origin' => '*']);
         }
     }

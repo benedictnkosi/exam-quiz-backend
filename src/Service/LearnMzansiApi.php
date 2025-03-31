@@ -898,6 +898,55 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    public function uploadChatFile(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $file = $request->files->get('file');
+            if (!$file) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'No file provided'
+                );
+            }
+
+            // Create upload directory if it doesn't exist
+            $uploadDir = $this->projectDir . '/public/assets/chat';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            // Validate file
+            if (!$file->isValid()) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Invalid file upload'
+                );
+            }
+
+            // Generate unique filename
+            $newFilename = uniqid() . '.' . $file->guessExtension();
+            $this->logger->info("Attempting to upload file: $newFilename");
+
+            // Move file to upload directory
+            $file->move($uploadDir, $newFilename);
+            $this->logger->info("File successfully uploaded: $newFilename");
+
+            return array(
+                'status' => 'OK',
+                'message' => 'File successfully uploaded',
+                'fileName' => $newFilename,
+                'filePath' => '/assets/chat/' . $newFilename
+            );
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error uploading file: ' . $e->getMessage()
+            );
+        }
+    }
+
     public function setImagePathForQuestion(Request $request): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
