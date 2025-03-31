@@ -58,7 +58,7 @@ class MissingImageService
 
         // Check context image
         $contextImagePath = $question->getImagePath();
-        if ($contextImagePath && !empty($contextImagePath) && !file_exists($this->imageBasePath . $contextImagePath)) {
+        if ($contextImagePath && !empty($contextImagePath) && !str_contains($contextImagePath, 'NULL') && !file_exists($this->imageBasePath . $contextImagePath)) {
             $missingImages[] = [
                 'type' => 'context',
                 'path' => $contextImagePath
@@ -67,7 +67,7 @@ class MissingImageService
 
         // Check question image
         $questionImagePath = $question->getQuestionImagePath();
-        if ($questionImagePath && !empty($questionImagePath) && !file_exists($this->imageBasePath . $questionImagePath)) {
+        if ($questionImagePath && !empty($questionImagePath) && !str_contains($questionImagePath, 'NULL') && !file_exists($this->imageBasePath . $questionImagePath)) {
             $missingImages[] = [
                 'type' => 'question',
                 'path' => $questionImagePath
@@ -76,7 +76,7 @@ class MissingImageService
 
         // Check answer image
         $answerImagePath = $question->getAnswerImage();
-        if ($answerImagePath && !empty($answerImagePath) && !file_exists($this->imageBasePath . $answerImagePath)) {
+        if ($answerImagePath && !empty($answerImagePath) && !str_contains($answerImagePath, 'NULL') && !file_exists($this->imageBasePath . $answerImagePath)) {
             $missingImages[] = [
                 'type' => 'answer',
                 'path' => $answerImagePath
