@@ -22,6 +22,7 @@ use App\Service\SchoolFactService;
 use App\Service\QuestionStatsService;
 use App\Service\TestDataCleanupService;
 use App\Service\SmallestImageService;
+use App\Service\MissingImageService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -885,5 +886,14 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->getReportedMessages($request);
         $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/questions/missing-images', name: 'check_missing_images', methods: ['GET'])]
+    public function checkMissingImages(
+        MissingImageService $missingImageService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $missingImageService->checkMissingImages();
+        return new JsonResponse($response, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*']);
     }
 }
