@@ -16,6 +16,7 @@ use App\Entity\Issue;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query\Parameter;
 use App\Entity\Subscription;
+use App\Entity\ReportedMessages;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -3151,7 +3152,7 @@ class LearnMzansiApi extends AbstractController
             if (empty($questions)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'No questions with AI explanations found for Mathematics or Physical Sciences in your grade'
+                    'message' => 'No questions with AI explanations found for subjects other than Mathematics and Physical Sciences in your grade'
                 ];
             }
 
@@ -3177,6 +3178,189 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'Error getting random question: ' . $e->getMessage()
             ];
 
+        }
+    }
+
+    public function deleteTestLearners(): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Find all test learners
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('l')
+                ->from(Learner::class, 'l')
+                ->where('l.name LIKE :testName OR l.email LIKE :testEmail')
+                ->setParameter('testName', '%test%')
+                ->setParameter('testEmail', '%test%');
+
+            $testLearners = $qb->getQuery()->getResult();
+
+            if (empty($testLearners)) {
+                return [
+                    'status' => 'OK',
+                    'message' => 'No test learners found',
+                    'deleted_count' => 0
+                ];
+            }
+
+            $deletedCount = 0;
+
+            // Begin transaction
+            $this->em->beginTransaction();
+            try {
+                foreach ($testLearners as $learner) {
+                    // Delete associated results
+                    $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
+                    foreach ($results as $result) {
+                        $this->em->remove($result);
+                    }
+
+                    // Delete the learner
+                    $this->em->remove($learner);
+                    $deletedCount++;
+                }
+
+                $this->em->flush();
+                $this->em->commit();
+
+                return [
+                    'status' => 'OK',
+                    'message' => 'Successfully deleted test learners and their data',
+                    'deleted_count' => $deletedCount
+                ];
+
+            } catch (\Exception $e) {
+                $this->em->rollback();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error deleting test learners: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    public function createReportedMessage(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $data = json_decode($request->getContent(), true);
+
+            // Validate required fields
+            if (!isset($data['author_id']) || !isset($data['reporter_id']) || !isset($data['message_uid']) || !isset($data['message'])) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Missing required fields: author_id, reporter_id, message_uid, and message are required'
+                ];
+            }
+
+            // Get the author and reporter learners
+            $author = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $data['author_id']]);
+            $reporter = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $data['reporter_id']]);
+
+            if (!$author || !$reporter) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Author or reporter not found'
+                ];
+            }
+
+            // Create new reported message
+            $reportedMessage = new ReportedMessages();
+            $reportedMessage->setAuthor($author);
+            $reportedMessage->setReporter($reporter);
+            $reportedMessage->setMessageUid($data['message_uid']);
+            $reportedMessage->setMessage($data['message']);
+
+            // Persist and flush
+            $this->em->persist($reportedMessage);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Report created successfully',
+                'report_id' => $reportedMessage->getId()
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error creating report: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    public function getReportedMessages(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $authorId = $request->query->get('author_id');
+            $reporterId = $request->query->get('reporter_id');
+            $messageUid = $request->query->get('message_uid');
+            $limit = $request->query->get('limit', 50);
+            $offset = $request->query->get('offset', 0);
+
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('r')
+                ->from(ReportedMessages::class, 'r')
+                ->orderBy('r.createdAt', 'DESC');
+
+            // Add filters if provided
+            if ($authorId) {
+                $qb->andWhere('r.author = :author')
+                    ->setParameter('author', $authorId);
+            }
+
+            if ($reporterId) {
+                $qb->andWhere('r.reporter = :reporter')
+                    ->setParameter('reporter', $reporterId);
+            }
+
+            if ($messageUid) {
+                $qb->andWhere('r.messageUid = :messageUid')
+                    ->setParameter('messageUid', $messageUid);
+            }
+
+            // Add pagination
+            $qb->setFirstResult($offset)
+                ->setMaxResults($limit);
+
+            $reports = $qb->getQuery()->getResult();
+
+            // Format the response
+            $formattedReports = [];
+            foreach ($reports as $report) {
+                $formattedReports[] = [
+                    'id' => $report->getId(),
+                    'created_at' => $report->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'author_id' => $report->getAuthor()->getUid(),
+                    'author_name' => $report->getAuthor()->getName(),
+                    'reporter_id' => $report->getReporter()->getUid(),
+                    'reporter_name' => $report->getReporter()->getName(),
+                    'message_uid' => $report->getMessageUid(),
+                    'message' => $report->getMessage()
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'message' => 'Reports retrieved successfully',
+                'reports' => $formattedReports,
+                'total' => count($reports),
+                'limit' => $limit,
+                'offset' => $offset
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving reports: ' . $e->getMessage()
+            ];
         }
     }
 }

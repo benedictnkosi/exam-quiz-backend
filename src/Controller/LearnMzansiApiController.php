@@ -798,4 +798,45 @@ class LearnMzansiApiController extends AbstractController
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
+
+    /**
+     * @Route("/learn/learner/delete-test-learners", name="delete_test_learners", methods={"DELETE"})
+     */
+    public function deleteTestLearners(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $adminCheck = $this->learnMzansiApi->validateAdminAccess($request);
+            if ($adminCheck['status'] === 'NOK') {
+                return $this->json($adminCheck);
+            }
+
+            $result = $this->learnMzansiApi->deleteTestLearners();
+            return $this->json($result);
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Error deleting test learners'
+            ]);
+        }
+    }
+
+    #[Route('/learn/report/create', name: 'create_report', methods: ['POST'])]
+    public function createReport(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->createReportedMessage($request);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/reports', name: 'get_reports', methods: ['GET'])]
+    public function getReports(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->getReportedMessages($request);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
+    }
 }

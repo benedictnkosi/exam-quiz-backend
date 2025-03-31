@@ -9,8 +9,11 @@ symfony server:start --no-tls --allow-http --port=8000 --allow-all-ip
 ### migrate changes to database
 php bin/console doctrine:migrations:generate
 
-php bin/console doctrine:migrations:migrate --no-interactions
+php bin/console doctrine:migrations:migrate
 
+php bin/console doctrine:schema:validate
+
+php bin/console doctrine:schema:update --force
 
 ## on server
 php bin/console doctrine:migrations:migrate
@@ -42,6 +45,8 @@ scp ./test.sql root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/public/a
 copy logs
 scp root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/var/log/dev.log ./dev.log
 
+scp root@examquiz.dedicated.co.za:/var/www/exam-quiz-backend/exam_quiz-2025-03-29_10-32-11.sql.gz ./exam_quiz-2025-03-29_10-32-11.sql.gz
+exam_quiz-2025-03-29_10-32-11.sql.gz
 
 run sql in file
 mysql -u root -p exam_quiz < app_question.sql
