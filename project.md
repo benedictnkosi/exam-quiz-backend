@@ -53,3 +53,8 @@ mysql -u root -p exam_quiz < app_question.sql
 
 restart fpm
 sudo systemctl restart php8.3-fpm.service
+
+
+Git commit and merge
+git merge --no-ff -m "Merge branch"
+cd /var/www/exam-quiz-backend && git merge --no-ff -m "Merge branch"

@@ -48,3 +48,8 @@ services:
         arguments:
             $projectDir: "%kernel.project_dir%"
             $openAiKey: "%env(OPENAI_API_KEY)%"
+
+    App\Service\SmsPortalService:
+        arguments:
+            $apiKey: "%env(SMS_API_KEY)%"
+            $apiSecret: "%env(SMS_API_SECRET)%"

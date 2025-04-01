@@ -827,7 +827,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*']);
     }
 
-    #[Route('/learn/question/random', name: 'get_random_question', methods: ['GET'])]
+    #[Route('/learn/question/random', name: 'get_random_question_revision', methods: ['GET'])]
     public function getRandomQuestionWithRevision(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
