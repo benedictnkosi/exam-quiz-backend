@@ -3155,6 +3155,7 @@ class LearnMzansiApi extends AbstractController
             $subjectIds = $qb->getQuery()->getSingleColumnResult();
 
             // Build query for questions with valid AI explanations
+            //ai_explanation should contain text "Key Lesson"
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
                 ->from(Question::class, 'q')
@@ -3163,12 +3164,15 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.aiExplanation != :emptyString')
                 ->andWhere('q.aiExplanation != :nullString')
                 ->andWhere('s.grade = :grade')
-                ->andWhere('s.name NOT LIKE :math AND s.name NOT LIKE :physics')
+                ->andWhere('q.aiExplanation NOT LIKE :dollarSign')
+                ->andWhere('q.aiExplanation NOT LIKE :curlyBraces')
+                ->andWhere('q.aiExplanation LIKE :keyLesson')
                 ->setParameter('emptyString', '')
                 ->setParameter('nullString', 'NULL')
                 ->setParameter('grade', $grade)
-                ->setParameter('math', '%Mathematics%')
-                ->setParameter('physics', '%Physical Sciences%');
+                ->setParameter('dollarSign', '%$%')
+                ->setParameter('curlyBraces', '%{%')
+                ->setParameter('keyLesson', '%Key Lesson%');
 
             // If learner has answered questions, prioritize those subjects
             if (!empty($subjectIds)) {
@@ -3179,6 +3183,7 @@ class LearnMzansiApi extends AbstractController
             $questions = $qb->getQuery()->getResult();
 
             // If no questions found from learner's subjects, try any question from their grade
+            //do not include questions where ai explanations contains $ or { sign
             if (empty($questions)) {
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
@@ -3188,12 +3193,15 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('q.aiExplanation != :emptyString')
                     ->andWhere('q.aiExplanation != :nullString')
                     ->andWhere('s.grade = :grade')
-                    ->andWhere('s.name NOT LIKE :math AND s.name NOT LIKE :physics')
+                    ->andWhere('q.aiExplanation NOT LIKE :dollarSign')
+                    ->andWhere('q.aiExplanation NOT LIKE :curlyBraces')
+                    ->andWhere('q.aiExplanation LIKE :keyLesson')
                     ->setParameter('emptyString', '')
                     ->setParameter('nullString', 'NULL')
                     ->setParameter('grade', $grade)
-                    ->setParameter('math', '%Mathematics%')
-                    ->setParameter('physics', '%Physical Sciences%');
+                    ->setParameter('dollarSign', '%$%')
+                    ->setParameter('curlyBraces', '%{%')
+                    ->setParameter('keyLesson', '%Key Lesson%');
 
                 $questions = $qb->getQuery()->getResult();
             }
