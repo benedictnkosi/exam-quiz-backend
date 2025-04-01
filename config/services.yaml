@@ -53,3 +53,10 @@ services:
         arguments:
             $apiKey: "%env(SMS_API_KEY)%"
             $apiSecret: "%env(SMS_API_SECRET)%"
+
+    # Configure HTTP Client
+    Symfony\Contracts\HttpClient\HttpClientInterface:
+        factory: ['Symfony\Component\HttpClient\HttpClient', "createForBaseUri"]
+        arguments:
+            - "https://rest.smsportal.com"
+            - []
