@@ -49,6 +49,13 @@ class BadgeService
 
             // Check consecutive correct answers badges
             $consecutiveCorrect = $this->getConsecutiveCorrectAnswers($learner);
+            if ($consecutiveCorrect >= 3) {
+                $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '3 in a row']);
+                if (!$this->hasLearnerBadge($learner, '3 in a row')) {
+                    $this->assignBadge($learner, '3 in a row');
+                    $newBadges[] = $this->formatBadge($badge);
+                }
+            }
             if ($consecutiveCorrect >= 5) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '5 in a row']);
                 if (!$this->hasLearnerBadge($learner, '5 in a row')) {
@@ -63,7 +70,13 @@ class BadgeService
                     $newBadges[] = $this->formatBadge($badge);
                 }
             }
-
+            if ($consecutiveCorrect >= 30) {
+                $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '30 in a row']);
+                if (!$this->hasLearnerBadge($learner, '30 in a row')) {
+                    $this->assignBadge($learner, '30 in a row');
+                    $newBadges[] = $this->formatBadge($badge);
+                }
+            }
             return [
                 'status' => 'OK',
                 'new_badges' => $newBadges
