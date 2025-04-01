@@ -57,4 +57,4 @@ sudo systemctl restart php8.3-fpm.service
 
 Git commit and merge
 git merge --no-ff -m "Merge branch"
-cd /var/www/exam-quiz-backend && git merge --no-ff -m "Merge branch"
+cd /var/www/exam-quiz-backend && git pull && git merge --no-ff -m "Merge branch"
