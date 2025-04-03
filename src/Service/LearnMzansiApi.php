@@ -281,7 +281,7 @@ class LearnMzansiApi extends AbstractController
     }
 
 
-    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId)
+    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app')
     {
         try {
             // Get the learner first
@@ -520,8 +520,10 @@ class LearnMzansiApi extends AbstractController
                 shuffle($options);
                 $randomQuestion->setOptions($options);
             }
-            // Remove answer before returning
-            //$randomQuestion->setAnswer(null);
+            // Remove answer before returning if platform is web
+            if ($platform === 'web') {
+                $randomQuestion->setAnswer(null);
+            }
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
