@@ -37,9 +37,11 @@ class LearnerRankingService
                 ->andWhere('l.role = :role')
                 ->andWhere('l.email NOT LIKE :testEmail')
                 ->andWhere('l.name NOT LIKE :testName')
+                ->andWhere('l.grade = :grade')
                 ->setParameter('role', 'learner')
                 ->setParameter('testEmail', '%test%')
                 ->setParameter('testName', '%test%')
+                ->setParameter('grade', $currentLearner->getGrade())
                 ->orderBy('l.points', 'DESC');
 
             $allLearners = $qb->getQuery()->getResult();
