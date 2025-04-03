@@ -23,6 +23,7 @@ use App\Service\QuestionStatsService;
 use App\Service\TestDataCleanupService;
 use App\Service\SmallestImageService;
 use App\Service\MissingImageService;
+use App\Service\LearnerNoteService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -896,5 +897,73 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $missingImageService->checkMissingImages();
         return new JsonResponse($response, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/notes', name: 'get_notes', methods: ['GET'])]
+    public function getNotes(
+        Request $request,
+        LearnerNoteService $noteService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $uid = $request->query->get('uid');
+        $subjectName = $request->query->get('subject_name');
+
+        if (!$uid || !$subjectName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'UID and subject_name are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $noteService->getNotesByLearnerAndSubject($uid, $subjectName);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
+
+    #[Route('/learn/notes', name: 'create_note', methods: ['POST'])]
+    public function createNote(
+        Request $request,
+        LearnerNoteService $noteService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $data = json_decode($request->getContent(), true);
+        $uid = $data['uid'] ?? null;
+        $text = $data['text'] ?? null;
+        $subjectName = $data['subject_name'] ?? null;
+
+        if (!$uid || !$text || !$subjectName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'UID, text, and subject_name are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $noteService->createNote($uid, $text, $subjectName);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
+
+    #[Route('/learn/notes/{noteId}', name: 'delete_note', methods: ['DELETE'])]
+    public function deleteNote(
+        Request $request,
+        LearnerNoteService $noteService,
+        int $noteId
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $uid = $request->query->get('uid');
+        if (!$uid) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'UID is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $noteService->deleteNote($uid, $noteId);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 }

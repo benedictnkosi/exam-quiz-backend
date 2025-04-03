@@ -87,12 +87,16 @@ class Learner
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     private Collection $learnerBadges;
 
+    #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerNote::class)]
+    private Collection $notes;
+
     public function __construct()
     {
         $this->created = new \DateTime();
         $this->lastSeen = new \DateTime();
         $this->streakLastUpdated = new \DateTime();
         $this->learnerBadges = new ArrayCollection();
+        $this->notes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -345,5 +349,35 @@ class Learner
     public function getLearnerBadges(): Collection
     {
         return $this->learnerBadges;
+    }
+
+    /**
+     * @return Collection<int, LearnerNote>
+     */
+    public function getNotes(): Collection
+    {
+        return $this->notes;
+    }
+
+    public function addNote(LearnerNote $note): static
+    {
+        if (!$this->notes->contains($note)) {
+            $this->notes->add($note);
+            $note->setLearner($this);
+        }
+
+        return $this;
+    }
+
+    public function removeNote(LearnerNote $note): static
+    {
+        if ($this->notes->removeElement($note)) {
+            // set the owning side to null (unless already changed)
+            if ($note->getLearner() === $this) {
+                $note->setLearner(null);
+            }
+        }
+
+        return $this;
     }
 }
