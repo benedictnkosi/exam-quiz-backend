@@ -31,8 +31,9 @@ class LearnerRankingService
 
             // Get ALL learners with their points
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.points')
+            $qb->select('l.uid, l.name, l.points, l.avatar')
                 ->from(Learner::class, 'l')
+                ->where('l.points > 0')
                 ->orderBy('l.points', 'DESC');
 
             $allLearners = $qb->getQuery()->getResult();
@@ -67,37 +68,43 @@ class LearnerRankingService
             // Format the response
             $rankings = [];
             $currentLearnerInTop10 = false;
+            $currentLearnerPosition = null;
+            $currentLearnerPoints = $currentLearner->getPoints();
 
             foreach ($topLearners as $learner) {
                 $isCurrentLearner = ($learner['uid'] === $currentLearnerUid);
                 if ($isCurrentLearner) {
                     $currentLearnerInTop10 = true;
+                    $currentLearnerPosition = $positionMap[$learner['uid']]['position'];
                 }
 
                 $rankings[] = [
                     'name' => $learner['name'],
                     'points' => $positionMap[$learner['uid']]['points'],
                     'position' => $positionMap[$learner['uid']]['position'],
-                    'isCurrentLearner' => $isCurrentLearner
+                    'isCurrentLearner' => $isCurrentLearner,
+                    'avatar' => $learner['avatar']
                 ];
             }
 
-            // If current learner is not in top 10, add them to the response separately
-            if (!$currentLearnerInTop10) {
+            // If current learner is not in top 10 and has points, add them to the response separately
+            if (!$currentLearnerInTop10 && $currentLearnerPoints > 0) {
+                $currentLearnerPosition = $positionMap[$currentLearnerUid]['position'] ?? count($allLearners) + 1;
                 $rankings[] = [
                     'name' => $currentLearner->getName(),
-                    'points' => $positionMap[$currentLearnerUid]['points'],
-                    'position' => $positionMap[$currentLearnerUid]['position'],
+                    'points' => $currentLearnerPoints,
+                    'position' => $currentLearnerPosition,
                     'isCurrentLearner' => true,
-                    'notInTop10' => true
+                    'notInTop10' => true,
+                    'avatar' => $currentLearner->getAvatar()
                 ];
             }
 
             return [
                 'status' => 'OK',
                 'rankings' => $rankings,
-                'currentLearnerPoints' => $positionMap[$currentLearnerUid]['points'],
-                'currentLearnerPosition' => $positionMap[$currentLearnerUid]['position'],
+                'currentLearnerPoints' => $currentLearnerPoints,
+                'currentLearnerPosition' => $currentLearnerPosition,
                 'totalLearners' => count($allLearners)
             ];
 
