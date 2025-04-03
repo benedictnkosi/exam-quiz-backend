@@ -29,36 +29,36 @@ class LearnerRankingService
                 ];
             }
 
-            // Get ALL learners with their scores
+            // Get ALL learners with their points
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.score')
+            $qb->select('l.uid, l.name, l.points')
                 ->from(Learner::class, 'l')
-                ->orderBy('l.score', 'DESC');
+                ->orderBy('l.points', 'DESC');
 
             $allLearners = $qb->getQuery()->getResult();
 
             // Create position map for all learners
             $positionMap = [];
             $position = 1;
-            $lastScore = null;
+            $lastPoints = null;
             $skipPositions = 0;
 
             foreach ($allLearners as $index => $learner) {
-                $score = round($learner['score'] ?? 0, 2);
+                $points = round($learner['points'] ?? 0, 2);
 
-                if ($lastScore !== null && $lastScore !== $score) {
+                if ($lastPoints !== null && $lastPoints !== $points) {
                     $position += $skipPositions + 1;
                     $skipPositions = 0;
-                } else if ($lastScore === $score) {
+                } else if ($lastPoints === $points) {
                     $skipPositions++;
                 }
 
                 $positionMap[$learner['uid']] = [
                     'position' => $position,
-                    'score' => $score
+                    'points' => $points
                 ];
 
-                $lastScore = $score;
+                $lastPoints = $points;
             }
 
             // Get top 10 only
@@ -76,7 +76,7 @@ class LearnerRankingService
 
                 $rankings[] = [
                     'name' => $learner['name'],
-                    'score' => $positionMap[$learner['uid']]['score'],
+                    'points' => $positionMap[$learner['uid']]['points'],
                     'position' => $positionMap[$learner['uid']]['position'],
                     'isCurrentLearner' => $isCurrentLearner
                 ];
@@ -86,7 +86,7 @@ class LearnerRankingService
             if (!$currentLearnerInTop10) {
                 $rankings[] = [
                     'name' => $currentLearner->getName(),
-                    'score' => $positionMap[$currentLearnerUid]['score'],
+                    'points' => $positionMap[$currentLearnerUid]['points'],
                     'position' => $positionMap[$currentLearnerUid]['position'],
                     'isCurrentLearner' => true,
                     'notInTop10' => true
@@ -96,7 +96,7 @@ class LearnerRankingService
             return [
                 'status' => 'OK',
                 'rankings' => $rankings,
-                'currentLearnerScore' => $positionMap[$currentLearnerUid]['score'],
+                'currentLearnerPoints' => $positionMap[$currentLearnerUid]['points'],
                 'currentLearnerPosition' => $positionMap[$currentLearnerUid]['position'],
                 'totalLearners' => count($allLearners)
             ];
