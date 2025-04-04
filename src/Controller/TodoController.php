@@ -33,27 +33,23 @@ class TodoController extends AbstractController
     public function create(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        
-        if (!isset($data['learnerUid'])) {
-            return new JsonResponse(['error' => 'learnerUid is required'], Response::HTTP_BAD_REQUEST);
+        $learnerUid = $data['learnerUid'] ?? null;
+        $title = $data['title'] ?? null;
+        $dueDate = isset($data['dueDate']) 
+            ? new \DateTimeImmutable($data['dueDate'])
+            : null;
+
+        if (!$learnerUid || !$title) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'learnerUid and title are required'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
-        $learner = $this->learnerRepository->findOneBy(['uid' => $data['learnerUid']]);
-        if (!$learner) {
-            return new JsonResponse(['error' => 'Learner not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        $dueDate = isset($data['dueDate']) ? new \DateTime($data['dueDate']) : null;
-        $todo = $this->todoService->createTodo(
-            $learner,
-            $data['title'],
-            $dueDate
-        );
-
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($todo, 'json', $context);
-
-            return new JsonResponse($jsonContent, Response::HTTP_CREATED, ['Access-Control-Allow-Origin' => '*'], true);
+        $response = $this->todoService->create($learnerUid, $title, $dueDate);
+        $context = SerializationContext::create()->enableMaxDepthChecks()->setGroups(['todo']);
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, Response::HTTP_CREATED, [], true);
     }
 
     #[Route('/{id}', name: 'todo_update', methods: ['PUT'])]

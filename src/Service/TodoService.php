@@ -5,14 +5,16 @@ namespace App\Service;
 use App\Entity\Todo;
 use App\Entity\Learner;
 use App\Repository\TodoRepository;
+use App\Repository\LearnerRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class TodoService
 {
     public function __construct(
+        private EntityManagerInterface $entityManager,
         private TodoRepository $todoRepository,
-        private EntityManagerInterface $entityManager
+        private LearnerRepository $learnerRepository
     ) {
     }
 
@@ -96,7 +98,15 @@ class TodoService
             ];
         }
 
-        $todo = $this->todoRepository->createTodo($learner, $title, $dueDate);
+        $todo = new Todo();
+        $todo->setTitle($title);
+        $todo->setDueDate($dueDate);
+        $todo->setLearner($learner);
+        $todo->setStatus('pending');
+
+        $this->entityManager->persist($todo);
+        $this->entityManager->flush();
+
         return [
             'status' => 'OK',
             'message' => 'Todo created successfully',
