@@ -141,10 +141,23 @@ class LearnerFollowingService
 
     public function getFollowers(Learner $learner): array
     {
-        return $this->repository->findBy([
+        $followers = $this->repository->findBy([
             'following' => $learner,
             'status' => 'active'
         ]);
+
+        $result = [];
+        foreach ($followers as $follow) {
+            $follower = $follow->getFollower();
+            $result[] = [
+                'id' => $follow->getId(),
+                'name' => $follower->getName(),
+                'uid' => $follower->getUid(),
+                'follow_code' => $follower->getFollowMeCode()
+            ];
+        }
+
+        return $result;
     }
 
     public function getFollowingCount(Learner $learner): int
