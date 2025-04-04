@@ -23,6 +23,18 @@ class TodoRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findByLearnerAndSubject(int $learnerId, string $subjectName): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.learner = :learnerId')
+            ->andWhere('t.subjectName = :subjectName')
+            ->setParameter('learnerId', $learnerId)
+            ->setParameter('subjectName', $subjectName)
+            ->orderBy('t.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findByLearnerAndStatus(int $learnerId, string $status): array
     {
         return $this->createQueryBuilder('t')

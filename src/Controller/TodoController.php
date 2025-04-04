@@ -120,9 +120,9 @@ class TodoController extends AbstractController
             return new JsonResponse(['error' => 'Learner not found'], Response::HTTP_NOT_FOUND);
         }
 
-        $status = $request->query->get('status');
-        $todos = $status
-            ? $this->todoService->getLearnerTodosByStatus($learner->getId(), $status)
+        $subjectName = $request->query->get('subjectName');
+        $todos = $subjectName
+            ? $this->todoService->getLearnerTodosBySubject($learner->getId(), $subjectName)
             : $this->todoService->getLearnerTodos($learner->getId());
 
         $this->logger->info('Todos: ' . json_encode($todos));

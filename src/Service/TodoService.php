@@ -78,14 +78,17 @@ class TodoService
         return $todo;
     }
 
-    public function getLearnerTodos(int $learnerId): array
+    public function getLearnerTodos(int $learnerId, ?string $subjectName = null): array
     {
+        if ($subjectName) {
+            return $this->todoRepository->findByLearnerAndSubject($learnerId, $subjectName);
+        }
         return $this->todoRepository->findByLearner($learnerId);
     }
 
-    public function getLearnerTodosByStatus(int $learnerId, string $status): array
+    public function getLearnerTodosBySubject(int $learnerId, string $subjectName): array
     {
-        return $this->todoRepository->findByLearnerAndStatus($learnerId, $status);
+        return $this->todoRepository->findByLearnerAndSubject($learnerId, $subjectName);
     }
 
     public function create(string $learnerUid, string $title, ?\DateTimeImmutable $dueDate = null): array

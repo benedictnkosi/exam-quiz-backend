@@ -24,6 +24,10 @@ class Todo
     #[Serializer\Groups(['todo'])]
     private ?string $status = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    #[Serializer\Groups(['todo'])]
+    private ?string $subjectName = null;
+
     #[ORM\Column]
     #[Serializer\Groups(['todo'])]
     private ?\DateTimeImmutable $createdAt = null;
@@ -68,6 +72,18 @@ class Todo
     public function setStatus(string $status): static
     {
         $this->status = $status;
+
+        return $this;
+    }
+
+    public function getSubjectName(): ?string
+    {
+        return $this->subjectName;
+    }
+
+    public function setSubjectName(?string $subjectName): static
+    {
+        $this->subjectName = $subjectName;
 
         return $this;
     }
