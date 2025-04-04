@@ -2223,6 +2223,12 @@ class LearnMzansiApi extends AbstractController
             $learner->setSchoolLongitude($requestBody['school_longitude']);
             $learner->setAvatar($requestBody['avatar']);
 
+            // Generate random 4-letter code starting with first letter of name
+            $firstLetter = strtoupper(substr($name, 0, 1));
+            $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
+            $followMeCode = $firstLetter . $randomLetters;
+            $learner->setFollowMeCode($followMeCode);
+
             $this->em->persist($learner);
             $this->em->flush();
 
