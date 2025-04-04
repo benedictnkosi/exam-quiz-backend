@@ -16,11 +16,10 @@ class TodoService
     ) {
     }
 
-    public function createTodo(Learner $learner, string $title, ?string $description = null, ?\DateTime $dueDate = null): Todo
+    public function createTodo(Learner $learner, string $title, ?\DateTimeImmutable $dueDate = null): Todo
     {
         $todo = new Todo();
         $todo->setTitle($title);
-        $todo->setDescription($description);
         $todo->setDueDate($dueDate);
         $todo->setLearner($learner);
         $todo->setStatus('pending');
@@ -41,14 +40,14 @@ class TodoService
         if (isset($data['title'])) {
             $todo->setTitle($data['title']);
         }
-        if (isset($data['description'])) {
-            $todo->setDescription($data['description']);
-        }
         if (isset($data['status'])) {
             $todo->setStatus($data['status']);
         }
         if (isset($data['dueDate'])) {
-            $todo->setDueDate($data['dueDate']);
+            $dueDate = $data['dueDate'] instanceof \DateTime 
+                ? \DateTimeImmutable::createFromMutable($data['dueDate'])
+                : new \DateTimeImmutable($data['dueDate']);
+            $todo->setDueDate($dueDate);
         }
 
         $this->entityManager->flush();
@@ -85,5 +84,23 @@ class TodoService
     public function getLearnerTodosByStatus(int $learnerId, string $status): array
     {
         return $this->todoRepository->findByLearnerAndStatus($learnerId, $status);
+    }
+
+    public function create(string $learnerUid, string $title, ?\DateTimeImmutable $dueDate = null): array
+    {
+        $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+        if (!$learner) {
+            return [
+                'status' => 'NOK',
+                'message' => 'Learner not found'
+            ];
+        }
+
+        $todo = $this->todoRepository->createTodo($learner, $title, $dueDate);
+        return [
+            'status' => 'OK',
+            'message' => 'Todo created successfully',
+            'todo' => $todo
+        ];
     }
 } 

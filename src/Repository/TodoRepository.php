@@ -34,4 +34,17 @@ class TodoRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function createTodo(Learner $learner, string $title, ?\DateTimeImmutable $dueDate = null): Todo
+    {
+        $todo = new Todo();
+        $todo->setLearner($learner);
+        $todo->setTitle($title);
+        $todo->setDueDate($dueDate);
+
+        $this->getEntityManager()->persist($todo);
+        $this->getEntityManager()->flush();
+
+        return $todo;
+    }
 } 
