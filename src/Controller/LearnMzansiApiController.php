@@ -966,4 +966,30 @@ class LearnMzansiApiController extends AbstractController
         $response = $noteService->deleteNote($uid, $noteId);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/notes/{noteId}/update', name: 'update_note', methods: ['PUT'])]
+    public function updateNote(
+        Request $request,
+        LearnerNoteService $noteService,
+        int $noteId
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $data = json_decode($request->getContent(), true);
+        $uid = $data['uid'] ?? null;
+        $text = $data['text'] ?? null;
+        $subjectName = $data['subject_name'] ?? null;
+
+        if (!$uid || !$text || !$subjectName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'UID, text, and subject_name are required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $noteService->updateNote($uid, $noteId, $text, $subjectName);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
 }

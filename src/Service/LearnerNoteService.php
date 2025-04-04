@@ -78,4 +78,28 @@ class LearnerNoteService
             'message' => 'Note deleted successfully'
         ];
     }
+
+    public function updateNote(string $uid, int $noteId, string $text, string $subjectName): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $note = $this->noteRepository->findOneByLearnerAndId($uid, $noteId);
+        if (!$note) {
+            return [
+                'status' => 'NOK',
+                'message' => 'Note not found or does not belong to the learner'
+            ];
+        }
+
+        $note->setText($text);
+        $note->setSubjectName($subjectName);
+
+        $this->entityManager->flush();
+
+        return [
+            'status' => 'OK',
+            'message' => 'Note updated successfully',
+            'note' => $note
+        ];
+    }
 } 
