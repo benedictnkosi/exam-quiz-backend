@@ -101,6 +101,8 @@ class LearnerFollowingService
             $lastResult = $this->entityManager->getRepository(Result::class)
                 ->findOneBy(['learner' => $followingLearner], ['created' => 'DESC']);
             
+            $firstResult = $this->entityManager->getRepository(Result::class)
+                ->findOneBy(['learner' => $followingLearner], ['created' => 'ASC']);
             // Get questions answered today
             $today = new \DateTime();
             $today->setTime(0, 0, 0);
@@ -137,6 +139,12 @@ class LearnerFollowingService
                     'outcome' => $lastResult->getOutcome(),
                     'created' => $lastResult->getCreated(),
                     'duration' => $lastResult->getDuration()
+                ] : null,
+                'firstResult' => $firstResult ? [
+                    'id' => $firstResult->getId(),
+                    'outcome' => $firstResult->getOutcome(),
+                    'created' => $firstResult->getCreated(),
+                    'duration' => $firstResult->getDuration()
                 ] : null,
                 'questionsAnsweredToday' => $questionsToday,
                 'questionsAnsweredThisWeek' => $questionsThisWeek
