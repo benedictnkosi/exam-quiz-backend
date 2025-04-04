@@ -121,7 +121,8 @@ class LearnerFollowingService
                 ->getSingleScalarResult();
             
             $result[] = [
-                'learner' => $followingLearner,
+                'learner_uid' => $followingLearner->getUid(),
+                'learner_name' => $followingLearner->getName(),
                 'points' => $followingLearner->getPoints(),
                 'lastResult' => $lastResult ? [
                     'id' => $lastResult->getId(),
