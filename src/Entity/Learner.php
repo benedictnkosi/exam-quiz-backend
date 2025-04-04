@@ -93,6 +93,12 @@ class Learner
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: Todo::class)]
     private Collection $todos;
 
+    #[ORM\OneToMany(mappedBy: 'follower', targetEntity: LearnerFollowing::class)]
+    private Collection $following;
+
+    #[ORM\OneToMany(mappedBy: 'following', targetEntity: LearnerFollowing::class)]
+    private Collection $followers;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -101,6 +107,8 @@ class Learner
         $this->learnerBadges = new ArrayCollection();
         $this->notes = new ArrayCollection();
         $this->todos = new ArrayCollection();
+        $this->following = new ArrayCollection();
+        $this->followers = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -406,6 +414,66 @@ class Learner
                 $todo->setLearner(null);
             }
         }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, LearnerFollowing>
+     */
+    public function getFollowing(): Collection
+    {
+        return $this->following;
+    }
+
+    public function addFollowing(LearnerFollowing $following): self
+    {
+        if (!$this->following->contains($following)) {
+            $this->following->add($following);
+            $following->setFollower($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFollowing(LearnerFollowing $following): self
+    {
+        if ($this->following->removeElement($following)) {
+            // set the owning side to null (unless already changed)
+            if ($following->getFollower() === $this) {
+                $following->setFollower(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, LearnerFollowing>
+     */
+    public function getFollowers(): Collection
+    {
+        return $this->followers;
+    }
+
+    public function addFollower(LearnerFollowing $follower): self
+    {
+        if (!$this->followers->contains($follower)) {
+            $this->followers->add($follower);
+            $follower->setFollowing($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFollower(LearnerFollowing $follower): self
+    {
+        if ($this->followers->removeElement($follower)) {
+            // set the owning side to null (unless already changed)
+            if ($follower->getFollowing() === $this) {
+                $follower->setFollowing(null);
+            }
+        }
+
         return $this;
     }
 }
