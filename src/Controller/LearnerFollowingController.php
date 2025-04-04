@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class LearnerFollowingController extends AbstractController
 {
     private $serializer;
-    private const VALID_STATUSES = ['active', 'blocked', 'rejected'];
+    private const VALID_STATUSES = ['active', 'deleted', 'rejected'];
 
     public function __construct(
         private LearnerFollowingService $learnerFollowingService,

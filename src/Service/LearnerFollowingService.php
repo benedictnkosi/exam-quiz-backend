@@ -62,7 +62,7 @@ class LearnerFollowingService
         return $learnerFollowing;
     }
 
-    public function updateStatus(Learner $follower, Learner $following, string $status): LearnerFollowing
+    public function updateStatus(Learner $follower, Learner $following, string $status): ?LearnerFollowing
     {
         $relationship = $this->repository->findOneBy([
             'follower' => $follower,
@@ -73,6 +73,13 @@ class LearnerFollowingService
             throw new \Exception('Relationship not found');
         }
 
+        //if status is deleted, remove the relationship
+        if ($status === 'deleted') {
+            $this->entityManager->remove($relationship);
+            $this->entityManager->flush();
+            return null;
+        }
+        
         $relationship->setStatus($status);
         $this->entityManager->flush();
 
