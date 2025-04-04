@@ -124,6 +124,7 @@ class LearnerFollowingService
                 'learner_uid' => $followingLearner->getUid(),
                 'learner_name' => $followingLearner->getName(),
                 'points' => $followingLearner->getPoints(),
+                'streak' => $followingLearner->getStreak(),
                 'lastResult' => $lastResult ? [
                     'id' => $lastResult->getId(),
                     'outcome' => $lastResult->getOutcome(),
