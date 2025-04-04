@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Learner;
 use App\Entity\LearnerFollowing;
+use App\Entity\Result;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 
@@ -80,10 +81,60 @@ class LearnerFollowingService
 
     public function getFollowing(Learner $learner): array
     {
-        return $this->repository->findBy([
+        $following = $this->repository->findBy([
             'follower' => $learner,
             'status' => 'active'
         ]);
+
+        $result = [];
+        foreach ($following as $follow) {
+            $followingLearner = $follow->getFollowing();
+            
+            // Get last result entry
+            $lastResult = $this->entityManager->getRepository(Result::class)
+                ->findOneBy(['learner' => $followingLearner], ['created' => 'DESC']);
+            
+            // Get questions answered today
+            $today = new \DateTime();
+            $today->setTime(0, 0, 0);
+            $questionsToday = $this->entityManager->getRepository(Result::class)
+                ->createQueryBuilder('r')
+                ->select('COUNT(r.id)')
+                ->where('r.learner = :learner')
+                ->andWhere('r.created >= :today')
+                ->setParameter('learner', $followingLearner)
+                ->setParameter('today', $today)
+                ->getQuery()
+                ->getSingleScalarResult();
+            
+            // Get questions answered this week
+            $weekStart = clone $today;
+            $weekStart->modify('-' . $today->format('w') . ' days');
+            $questionsThisWeek = $this->entityManager->getRepository(Result::class)
+                ->createQueryBuilder('r')
+                ->select('COUNT(r.id)')
+                ->where('r.learner = :learner')
+                ->andWhere('r.created >= :weekStart')
+                ->setParameter('learner', $followingLearner)
+                ->setParameter('weekStart', $weekStart)
+                ->getQuery()
+                ->getSingleScalarResult();
+            
+            $result[] = [
+                'learner' => $followingLearner,
+                'points' => $followingLearner->getPoints(),
+                'lastResult' => $lastResult ? [
+                    'id' => $lastResult->getId(),
+                    'outcome' => $lastResult->getOutcome(),
+                    'created' => $lastResult->getCreated(),
+                    'duration' => $lastResult->getDuration()
+                ] : null,
+                'questionsAnsweredToday' => $questionsToday,
+                'questionsAnsweredThisWeek' => $questionsThisWeek
+            ];
+        }
+
+        return $result;
     }
 
     public function getFollowers(Learner $learner): array
