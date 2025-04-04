@@ -25,17 +25,21 @@ class LearnerFollowingController extends AbstractController
         $this->serializer = SerializerBuilder::create()->build();
     }
 
-    #[Route('/follow/{followerUid}/{followingUid}', name: 'learner_following_follow', methods: ['POST'])]
-    public function followLearner(string $followerUid, string $followingUid): JsonResponse
+    #[Route('/follow/{followerUid}/{followMeCode}', name: 'learner_following_follow', methods: ['POST'])]
+    public function followLearner(string $followerUid, string $followMeCode): JsonResponse
     {
         $follower = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $followerUid]);
-        $following = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $followingUid]);
+        $following = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
 
-        if (!$follower || !$following) {
-            return new JsonResponse(['error' => 'Learner not found'], 404);
+        if (!$follower) {
+            return new JsonResponse(['error' => 'Follower learner not found'], 404);
         }
 
-        if ($followerUid === $followingUid) {
+        if (!$following) {
+            return new JsonResponse(['error' => 'No learner found with this follow code'], 404);
+        }
+
+        if ($follower->getUid() === $following->getUid()) {
             return new JsonResponse(['error' => 'Cannot follow yourself'], 400);
         }
 
