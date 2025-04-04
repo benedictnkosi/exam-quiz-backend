@@ -8,6 +8,7 @@ use App\Repository\TodoRepository;
 use App\Repository\LearnerRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use DateTimeImmutable;
 
 class TodoService
 {
@@ -91,28 +92,29 @@ class TodoService
         return $this->todoRepository->findByLearnerAndSubject($learnerId, $subjectName);
     }
 
-    public function create(string $learnerUid, string $title, ?\DateTimeImmutable $dueDate = null): array
+    public function create(string $learnerUid, string $title, string $subjectName, ?DateTimeImmutable $dueDate = null): array
     {
-        $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
         if (!$learner) {
             return [
-                'status' => 'NOK',
+                'success' => false,
                 'message' => 'Learner not found'
             ];
         }
 
         $todo = new Todo();
         $todo->setTitle($title);
+        $todo->setSubjectName($subjectName);
+        $todo->setStatus('pending');
+        $todo->setCreatedAt(new DateTimeImmutable());
         $todo->setDueDate($dueDate);
         $todo->setLearner($learner);
-        $todo->setStatus('pending');
 
         $this->entityManager->persist($todo);
         $this->entityManager->flush();
 
         return [
-            'status' => 'OK',
-            'message' => 'Todo created successfully',
+            'success' => true,
             'todo' => $todo
         ];
     }

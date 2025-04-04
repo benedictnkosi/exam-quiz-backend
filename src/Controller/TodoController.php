@@ -38,7 +38,7 @@ class TodoController extends AbstractController
         $dueDate = isset($data['dueDate']) 
             ? new \DateTimeImmutable($data['dueDate'])
             : null;
-
+        $subjectName = $data['subjectName'] ?? null;
         if (!$learnerUid || !$title) {
             return new JsonResponse([
                 'status' => 'NOK',
@@ -46,7 +46,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $response = $this->todoService->create($learnerUid, $title, $dueDate);
+        $response = $this->todoService->create($learnerUid, $title,$subjectName,  $dueDate);
         $context = SerializationContext::create()->enableMaxDepthChecks()->setGroups(['todo']);
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, Response::HTTP_CREATED, [], true);
