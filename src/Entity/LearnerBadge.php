@@ -17,7 +17,7 @@ class LearnerBadge
     #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private \DateTime $createdAt;
 
-    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\ManyToOne(targetEntity: Learner::class, inversedBy: 'learnerBadges')]
     #[ORM\JoinColumn(name: 'learner', referencedColumnName: 'id')]
     private ?Learner $learner = null;
 

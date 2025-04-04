@@ -90,6 +90,9 @@ class Learner
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerNote::class)]
     private Collection $notes;
 
+    #[ORM\OneToMany(mappedBy: 'learner', targetEntity: Todo::class)]
+    private Collection $todos;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -97,6 +100,7 @@ class Learner
         $this->streakLastUpdated = new \DateTime();
         $this->learnerBadges = new ArrayCollection();
         $this->notes = new ArrayCollection();
+        $this->todos = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -378,6 +382,30 @@ class Learner
             }
         }
 
+        return $this;
+    }
+
+    public function getTodos(): Collection
+    {
+        return $this->todos;
+    }
+
+    public function addTodo(Todo $todo): self
+    {
+        if (!$this->todos->contains($todo)) {
+            $this->todos->add($todo);
+            $todo->setLearner($this);
+        }
+        return $this;
+    }
+
+    public function removeTodo(Todo $todo): self
+    {
+        if ($this->todos->removeElement($todo)) {
+            if ($todo->getLearner() === $this) {
+                $todo->setLearner(null);
+            }
+        }
         return $this;
     }
 }
