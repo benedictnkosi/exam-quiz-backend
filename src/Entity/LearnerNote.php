@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\LearnerNoteRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity(repositoryClass: LearnerNoteRepository::class)]
 class LearnerNote
@@ -13,22 +14,27 @@ class LearnerNote
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups(['note:read'])]
+    #[Serializer\Groups(['note:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
     #[Groups(['note:read'])]
+    #[Serializer\Groups(['note:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(type: 'text')]
     #[Groups(['note:read'])]
+    #[Serializer\Groups(['note:read'])]
     private ?string $text = null;
 
     #[ORM\ManyToOne(targetEntity: Learner::class, inversedBy: 'notes')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Serializer\Exclude]
     private ?Learner $learner = null;
 
     #[ORM\Column(length: 255)]
     #[Groups(['note:read'])]
+    #[Serializer\Groups(['note:read'])]
     private ?string $subjectName = null;
 
     public function __construct()
