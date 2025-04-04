@@ -47,7 +47,6 @@ class TodoController extends AbstractController
         $todo = $this->todoService->createTodo(
             $learner,
             $data['title'],
-            $data['description'] ?? null,
             $dueDate
         );
 
