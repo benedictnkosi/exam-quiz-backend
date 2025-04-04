@@ -84,6 +84,9 @@ class Learner
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $expoPushToken = null;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $followMeCode = null;
+
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     private Collection $learnerBadges;
 
@@ -355,6 +358,17 @@ class Learner
     public function setExpoPushToken(?string $expoPushToken): self
     {
         $this->expoPushToken = $expoPushToken;
+        return $this;
+    }
+
+    public function getFollowMeCode(): ?string
+    {
+        return $this->followMeCode;
+    }
+
+    public function setFollowMeCode(?string $followMeCode): self
+    {
+        $this->followMeCode = $followMeCode;
         return $this;
     }
 
