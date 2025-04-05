@@ -12,6 +12,13 @@ framework:
         cookie_secure: auto
         cookie_samesite: lax
 
+    # Configure file upload limits
+    http_client:
+        max_redirects: 7
+        max_host_connections: 10
+        max_connections: 10
+        timeout: 300
+
     #esi: true
     #fragments: true
     php_errors:
