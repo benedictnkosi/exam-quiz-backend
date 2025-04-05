@@ -912,6 +912,15 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+            // Validate file size (5MB limit)
+            $maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
+            if ($file->getSize() > $maxFileSize) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'File size exceeds the maximum limit of 5MB'
+                );
+            }
+
             // Create upload directory if it doesn't exist
             $uploadDir = $this->projectDir . '/public/assets/chat';
             if (!file_exists($uploadDir)) {
@@ -919,12 +928,12 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Validate file
-            if (!$file->isValid()) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Invalid file upload'
-                );
-            }
+            // if (!$file->isValid()) {
+            //     return array(
+            //         'status' => 'NOK',
+            //         'message' => 'Invalid file upload'
+            //     );
+            // }
 
             // Generate unique filename
             $newFilename = uniqid() . '.' . $file->guessExtension();
