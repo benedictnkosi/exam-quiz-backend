@@ -174,4 +174,143 @@ class PushNotificationService
             ];
         }
     }
+
+    public function sendFollowNotification(Learner $follower, Learner $following): array
+    {
+        try {
+            $pushToken = $following->getExpoPushToken();
+            if (!$pushToken) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No push token found for the following learner'
+                ];
+            }
+
+            $notification = [
+                'to' => $pushToken,
+                'title' => 'New Follower!',
+                'body' => $follower->getName() . ' started following you',
+                'sound' => 'default',
+                'data' => [
+                    'type' => 'new_follower',
+                    'followerUid' => $follower->getUid(),
+                    'followerName' => $follower->getName()
+                ]
+            ];
+
+            return $this->sendPushNotification($notification);
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending follow notification: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send follow notification'
+            ];
+        }
+    }
+
+    public function sendUnfollowNotification(Learner $follower, Learner $following): array
+    {
+        try {
+            $pushToken = $following->getExpoPushToken();
+            if (!$pushToken) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No push token found for the following learner'
+                ];
+            }
+
+            $notification = [
+                'to' => $pushToken,
+                'title' => 'Someone Unfollowed You',
+                'body' => $follower->getName() . ' unfollowed you',
+                'sound' => 'default',
+                'data' => [
+                    'type' => 'unfollow',
+                    'followerUid' => $follower->getUid(),
+                    'followerName' => $follower->getName()
+                ]
+            ];
+
+            return $this->sendPushNotification($notification);
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending unfollow notification: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send unfollow notification'
+            ];
+        }
+    }
+
+    public function sendBlockRejectNotification(Learner $follower, Learner $following): array
+    {
+        try {
+            $pushToken = $follower->getExpoPushToken();
+            if (!$pushToken) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No push token found for the follower'
+                ];
+            }
+
+            $notification = [
+                'to' => $pushToken,
+                'title' => 'Follow Request Rejected',
+                'body' => $following->getName() . ' rejected your follow request',
+                'sound' => 'default',
+                'data' => [
+                    'type' => 'follow_rejected',
+                    'followingUid' => $following->getUid(),
+                    'followingName' => $following->getName()
+                ]
+            ];
+
+            return $this->sendPushNotification($notification);
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending block/reject notification: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send block/reject notification'
+            ];
+        }
+    }
+
+    private function sendPushNotification(array $notification): array
+    {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::EXPO_API_URL);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Accept: application/json'
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200) {
+                return [
+                    'status' => 'OK',
+                    'message' => 'Notification sent successfully'
+                ];
+            }
+
+            $this->logger->error('Failed to send notification: ' . $response);
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send notification',
+                'error' => $response
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending push notification: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send notification',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }

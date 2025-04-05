@@ -12,11 +12,15 @@ class LearnerFollowingService
 {
     private EntityManagerInterface $entityManager;
     private EntityRepository $repository;
+    private PushNotificationService $pushNotificationService;
 
-    public function __construct(EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        PushNotificationService $pushNotificationService
+    ) {
         $this->entityManager = $entityManager;
         $this->repository = $entityManager->getRepository(LearnerFollowing::class);
+        $this->pushNotificationService = $pushNotificationService;
     }
 
     public function isFollowing(Learner $follower, Learner $following): bool
@@ -59,6 +63,9 @@ class LearnerFollowingService
         $this->entityManager->persist($learnerFollowing);
         $this->entityManager->flush();
 
+        // Send follow notification
+        $this->pushNotificationService->sendFollowNotification($follower, $following);
+
         return $learnerFollowing;
     }
 
@@ -77,11 +84,18 @@ class LearnerFollowingService
         if ($status === 'deleted') {
             $this->entityManager->remove($relationship);
             $this->entityManager->flush();
+            // Send unfollow notification
+            $this->pushNotificationService->sendUnfollowNotification($follower, $following);
             return null;
         }
         
         $relationship->setStatus($status);
         $this->entityManager->flush();
+
+        // If status is rejected or blocked, send notification
+        if ($status === 'rejected' || $status === 'blocked') {
+            $this->pushNotificationService->sendBlockRejectNotification($follower, $following);
+        }
 
         return $relationship;
     }
