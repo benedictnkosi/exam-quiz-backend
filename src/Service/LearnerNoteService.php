@@ -79,7 +79,7 @@ class LearnerNoteService
         ];
     }
 
-    public function updateNote(string $uid, int $noteId, string $text, string $subjectName): array
+    public function updateNote(string $uid, int $noteId, string $text, string $subjectName, string $date): array
     {
         $this->logger->info("Starting Method: " . __METHOD__);
 
@@ -93,6 +93,7 @@ class LearnerNoteService
 
         $note->setText($text);
         $note->setSubjectName($subjectName);
+        $note->setCreatedAt(new \DateTimeImmutable($date));
 
         $this->entityManager->flush();
 

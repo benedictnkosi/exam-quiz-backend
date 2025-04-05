@@ -979,15 +979,16 @@ class LearnMzansiApiController extends AbstractController
         $uid = $data['uid'] ?? null;
         $text = $data['text'] ?? null;
         $subjectName = $data['subject_name'] ?? null;
+        $date = $data['date'] ?? null;
 
-        if (!$uid || !$text || !$subjectName) {
+        if (!$uid || !$text || !$subjectName || !$date) {
             return new JsonResponse([
                 'status' => 'NOK',
-                'message' => 'UID, text, and subject_name are required'
+                'message' => 'UID, text, subject_name, and date are required'
             ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
         }
 
-        $response = $noteService->updateNote($uid, $noteId, $text, $subjectName);
+        $response = $noteService->updateNote($uid, $noteId, $text, $subjectName, $date);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
