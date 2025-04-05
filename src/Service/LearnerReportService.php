@@ -115,7 +115,7 @@ class LearnerReportService
                 'SUBSTRING(r.created, 1, 4) as year',
                 'SUBSTRING(r.created, 6, 2) as month',
                 'SUBSTRING(r.created, 9, 2) as day',
-                'MIN(SUBSTRING(r.created, 1, 10)) as week_start',
+                'MIN(SUBSTRING(r.created, 1, 10)) as first_date',
                 'COUNT(r.id) as total_answers',
                 'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
                 'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
@@ -141,26 +141,57 @@ class LearnerReportService
 
         $results = $qb->getQuery()->getResult();
 
-        $report = [];
+        // Group results by week in PHP
+        $weeklyResults = [];
         foreach ($results as $result) {
-            $total = (int)$result['total_answers'];
-            $correct = (int)$result['correct_answers'];
+            $date = new \DateTime($result['first_date']);
+            $weekNumber = (int)$date->format('W');
+            $year = $result['year'];
+            $weekKey = $year . '-' . $weekNumber;
+
+            // Calculate the Monday of this week
+            $weekStart = clone $date;
+            $weekStart->modify('monday this week');
+            $weekStart->setTime(0, 0, 0);
+
+            if (!isset($weeklyResults[$weekKey])) {
+                $weeklyResults[$weekKey] = [
+                    'week' => $weekKey,
+                    'weekStart' => $weekStart->format('Y-m-d'),
+                    'totalAnswers' => 0,
+                    'correctAnswers' => 0,
+                    'incorrectAnswers' => 0
+                ];
+            }
+
+            $weeklyResults[$weekKey]['totalAnswers'] += (int)$result['total_answers'];
+            $weeklyResults[$weekKey]['correctAnswers'] += (int)$result['correct_answers'];
+            $weeklyResults[$weekKey]['incorrectAnswers'] += (int)$result['incorrect_answers'];
+        }
+
+        // Calculate percentages and grades for each week
+        $report = [];
+        foreach ($weeklyResults as $weekData) {
+            $total = $weekData['totalAnswers'];
+            $correct = $weekData['correctAnswers'];
             $percentage = $total > 0 ? ($correct / $total) * 100 : 0;
             
-            $date = new \DateTime($result['week_start']);
-            $weekNumber = (int)$date->format('W');
-            
             $report[] = [
-                'week' => $result['year'] . '-' . $weekNumber,
-                'weekStart' => $result['week_start'],
+                'week' => $weekData['week'],
+                'weekStart' => $weekData['weekStart'],
                 'totalAnswers' => $total,
                 'correctAnswers' => $correct,
-                'incorrectAnswers' => (int)$result['incorrect_answers'],
+                'incorrectAnswers' => $weekData['incorrectAnswers'],
                 'percentage' => round($percentage, 2),
                 'grade' => $this->calculateGrade($percentage),
                 'gradeDescription' => $this->getGradeDescription($percentage)
             ];
         }
+
+        // Sort by week in descending order
+        usort($report, function($a, $b) {
+            return strcmp($b['week'], $a['week']);
+        });
 
         return $report;
     }
