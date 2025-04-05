@@ -22,6 +22,7 @@ class LearnerReportService
         $qb->select([
                 's.name as subject_name',
                 'COUNT(r.id) as total_answers',
+                's.id as subject_id',
                 'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
                 'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
             ])
@@ -44,6 +45,7 @@ class LearnerReportService
             
             $report[] = [
                 'subject' => $result['subject_name'],
+                'subjectId' => $result['subject_id'],
                 'totalAnswers' => $total,
                 'correctAnswers' => $correct,
                 'incorrectAnswers' => $result['incorrect_answers'],
@@ -56,7 +58,7 @@ class LearnerReportService
         return $report;
     }
 
-    public function getDailyActivity(Learner $learner): array
+    public function getDailyActivity(Learner $learner, ?int $subjectId = null): array
     {
         $thirtyDaysAgo = new \DateTime();
         $thirtyDaysAgo->modify('-30 days');
@@ -79,6 +81,13 @@ class LearnerReportService
             ->setParameter('correct', 'correct')
             ->setParameter('incorrect', 'incorrect');
 
+        if ($subjectId !== null) {
+            $qb->join('r.question', 'q')
+               ->join('q.subject', 's')
+               ->andWhere('s.id = :subjectId')
+               ->setParameter('subjectId', $subjectId);
+        }
+
         $results = $qb->getQuery()->getResult();
 
         // Format the dates to be more readable
@@ -95,7 +104,7 @@ class LearnerReportService
         return $formattedResults;
     }
 
-    public function getWeeklyProgress(Learner $learner): array
+    public function getWeeklyProgress(Learner $learner, ?int $subjectId = null): array
     {
         $twelveWeeksAgo = new \DateTime();
         $twelveWeeksAgo->modify('-12 weeks');
@@ -122,6 +131,13 @@ class LearnerReportService
             ->setParameter('startDate', $twelveWeeksAgo)
             ->setParameter('correct', 'correct')
             ->setParameter('incorrect', 'incorrect');
+
+        if ($subjectId !== null) {
+            $qb->join('r.question', 'q')
+               ->join('q.subject', 's')
+               ->andWhere('s.id = :subjectId')
+               ->setParameter('subjectId', $subjectId);
+        }
 
         $results = $qb->getQuery()->getResult();
 
