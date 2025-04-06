@@ -43,14 +43,15 @@ class LearnerReportController extends AbstractController
     }
 
     #[Route('/api/learner/{uid}/weekly-progress', name: 'learner_weekly_progress', methods: ['GET'])]
-    public function getWeeklyProgress(string $uid): JsonResponse
+    public function getWeeklyProgress(string $uid, Request $request): JsonResponse
     {
         $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$learner) {
             return new JsonResponse(['error' => 'Learner not found'], 404);
         }
 
-        $report = $this->reportService->getWeeklyProgress($learner);
+        $subjectId = $request->query->get('subject_id');
+        $report = $this->reportService->getWeeklyProgress($learner, $subjectId ? (int)$subjectId : null);
         return new JsonResponse(['data' => $report]);
     }
 } 
