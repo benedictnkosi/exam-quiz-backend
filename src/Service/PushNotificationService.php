@@ -188,7 +188,7 @@ class PushNotificationService
 
             $notification = [
                 'to' => $pushToken,
-                'title' => 'New Follower!',
+                'title' => '👋 New Follower!',
                 'body' => $follower->getName() . ' started following you',
                 'sound' => 'default',
                 'data' => [
@@ -221,7 +221,7 @@ class PushNotificationService
 
             $notification = [
                 'to' => $pushToken,
-                'title' => 'Someone Unfollowed You',
+                'title' => '😢 Someone Unfollowed You',
                 'body' => $follower->getName() . ' unfollowed you',
                 'sound' => 'default',
                 'data' => [
@@ -254,7 +254,7 @@ class PushNotificationService
 
             $notification = [
                 'to' => $pushToken,
-                'title' => 'Follow Request Rejected',
+                'title' => '❌ Follow Request Rejected',
                 'body' => $following->getName() . ' rejected your follow request',
                 'sound' => 'default',
                 'data' => [
@@ -277,7 +277,6 @@ class PushNotificationService
     public function sendStreakNotification(Learner $learner, int $streak): array
     {
         try {
-            // Get all followers of the learner
             $followers = $learner->getFollowers();
             $notificationsSent = 0;
             $errors = [];
@@ -291,7 +290,7 @@ class PushNotificationService
 
                 $notification = [
                     'to' => $pushToken,
-                    'title' => 'Streak Update!',
+                    'title' => '🔥 Streak Update!',
                     'body' => $learner->getName() . ' has reached a streak of ' . $streak . ' days!',
                     'sound' => 'default',
                     'data' => [
@@ -345,7 +344,7 @@ class PushNotificationService
 
                 $notification = [
                     'to' => $pushToken,
-                    'title' => 'New Badge Earned!',
+                    'title' => '🏆 New Badge Earned!',
                     'body' => $learner->getName() . ' has earned the ' . $badgeName . ' badge!',
                     'sound' => 'default',
                     'data' => [
