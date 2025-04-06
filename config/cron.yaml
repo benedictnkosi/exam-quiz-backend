@@ -1,0 +1,2 @@
+# Run todo notifications every day at 9 AM
+0 9 * * * /usr/local/bin/php /var/www/html/bin/console app:send-todo-notifications >> /var/log/todo-notifications.log 2>&1 
