@@ -28,9 +28,11 @@ class PushNotificationController extends AbstractController
             ], 400);
         }
 
+        $pushToken = str_contains($data['push_token'], 'disable') ? null : $data['push_token'];
+
         $result = $this->pushNotificationService->updatePushToken(
             $data['uid'],
-            $data['push_token']
+            $pushToken
         );
 
         return $this->json($result);
