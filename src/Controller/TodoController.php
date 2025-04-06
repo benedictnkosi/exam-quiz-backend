@@ -109,7 +109,8 @@ class TodoController extends AbstractController
     #[Route('', name: 'todo_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $this->logger->error('Listing todos');
+        $this->logger->info('Listing todos');
+        
         $learnerUid = $request->query->get('learnerUid');
         if (!$learnerUid) {
             return new JsonResponse(['error' => 'learnerUid is required'], Response::HTTP_BAD_REQUEST);
