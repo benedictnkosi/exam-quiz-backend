@@ -19,19 +19,6 @@ class TodoService
     ) {
     }
 
-    public function createTodo(Learner $learner, string $title, ?\DateTimeImmutable $dueDate = null): Todo
-    {
-        $todo = new Todo();
-        $todo->setTitle($title);
-        $todo->setDueDate($dueDate);
-        $todo->setLearner($learner);
-        $todo->setStatus('pending');
-
-        $this->entityManager->persist($todo);
-        $this->entityManager->flush();
-
-        return $todo;
-    }
 
     public function updateTodo(int $id, array $data): Todo
     {
@@ -102,6 +89,10 @@ class TodoService
             ];
         }
 
+        if ($dueDate) {
+            $dueDate = $dueDate->setTime(23, 59, 59);
+        }
+        
         $todo = new Todo();
         $todo->setTitle($title);
         $todo->setSubjectName($subjectName);

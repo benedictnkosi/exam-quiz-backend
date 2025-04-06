@@ -13,7 +13,8 @@ class CheckAnswerService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private PushNotificationService $pushNotificationService
     ) {
     }
 
@@ -162,6 +163,9 @@ class CheckAnswerService
                         $streakUpdated = true;
                         $learner->setStreak($currentStreak)
                             ->setStreakLastUpdated(new \DateTime());
+                        
+                        // Send streak notification to followers
+                        $this->pushNotificationService->sendStreakNotification($learner, $currentStreak);
                     }
                 }
             }

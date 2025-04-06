@@ -13,7 +13,8 @@ class BadgeService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private PushNotificationService $pushNotificationService
     ) {
     }
 
@@ -109,9 +110,11 @@ class BadgeService
             $learnerBadge->setLearner($learner);
             $learnerBadge->setBadge($badge);
             $this->entityManager->persist($learnerBadge);
-        }
+            $this->entityManager->flush();
 
-        $this->entityManager->flush();
+            // Send notification to followers
+            $this->pushNotificationService->sendBadgeNotification($learner, $badgeName);
+        }
     }
 
     private function getConsecutiveCorrectAnswers(Learner $learner): int

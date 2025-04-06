@@ -274,6 +274,115 @@ class PushNotificationService
         }
     }
 
+    public function sendStreakNotification(Learner $learner, int $streak): array
+    {
+        try {
+            // Get all followers of the learner
+            $followers = $learner->getFollowers();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($followers as $follower) {
+                $followerLearner = $follower->getFollower();
+                $pushToken = $followerLearner->getExpoPushToken();
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => 'Streak Update!',
+                    'body' => $learner->getName() . ' has reached a streak of ' . $streak . ' days!',
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'streak_update',
+                        'learnerUid' => $learner->getUid(),
+                        'learnerName' => $learner->getName(),
+                        'streak' => $streak
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'followerUid' => $followerLearner->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalFollowers' => count($followers),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending streak notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send streak notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function sendBadgeNotification(Learner $learner, string $badgeName): array
+    {
+        try {
+            $followers = $learner->getFollowers();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($followers as $follower) {
+                $followerLearner = $follower->getFollower();
+                $pushToken = $followerLearner->getExpoPushToken();
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => 'New Badge Earned!',
+                    'body' => $learner->getName() . ' has earned the ' . $badgeName . ' badge!',
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'badge_earned',
+                        'learnerUid' => $learner->getUid(),
+                        'learnerName' => $learner->getName(),
+                        'badgeName' => $badgeName
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'followerUid' => $followerLearner->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalFollowers' => count($followers),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending badge notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send badge notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
     private function sendPushNotification(array $notification): array
     {
         try {
