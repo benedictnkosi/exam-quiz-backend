@@ -382,6 +382,54 @@ class PushNotificationService
         }
     }
 
+    public function sendNotificationsToTokens(array $pushTokens, string $message, string $title = 'New Message'): array
+    {
+        try {
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($pushTokens as $token) {
+                if (empty($token)) {
+                    continue;
+                }
+
+                $notification = [
+                    'to' => $token,
+                    'title' => $title,
+                    'body' => $message,
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'custom_message'
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'token' => $token,
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalTokens' => count($pushTokens),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending notifications to tokens: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
     private function sendPushNotification(array $notification): array
     {
         try {

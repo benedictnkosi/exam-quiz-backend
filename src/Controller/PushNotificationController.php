@@ -52,4 +52,26 @@ class PushNotificationController extends AbstractController
             ], 500);
         }
     }
+
+    #[Route('/send', name: 'send_notifications', methods: ['POST'])]
+    public function sendNotifications(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['message']) || !isset($data['pushTokens']) || !is_array($data['pushTokens'])) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Invalid request data. Required fields: message, pushTokens'
+            ], 400);
+        }
+
+        $title = $data['title'] ?? 'New Message';
+        $result = $this->pushNotificationService->sendNotificationsToTokens(
+            $data['pushTokens'],
+            $data['message'],
+            $title
+        );
+
+        return new JsonResponse($result, $result['status'] === 'OK' ? 200 : 500);
+    }
 }
