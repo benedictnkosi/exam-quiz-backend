@@ -136,7 +136,7 @@ class LearnMzansiApi extends AbstractController
 
             //return an error if the capturer has more than 10 rejected questions
             $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $user->getId(), 'status' => 'rejected']);
-            if (count($rejectedQuestions) >= 100 && $questionId == 0) {
+            if (count($rejectedQuestions) >= 5 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Cannot create new question - Please fix the errors in your rejected questions'
