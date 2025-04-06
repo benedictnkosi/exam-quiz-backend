@@ -47,6 +47,53 @@ class TodoRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findFutureTodosByLearner(int $learnerId): array
+    {
+        $now = new \DateTimeImmutable();
+        
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.learner = :learnerId')
+            ->andWhere('t.dueDate > :now')
+            ->setParameter('learnerId', $learnerId)
+            ->setParameter('now', $now)
+            ->orderBy('t.dueDate', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findFutureTodosByLearnerAndSubject(int $learnerId, string $subjectName): array
+    {
+        $now = new \DateTimeImmutable();
+        
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.learner = :learnerId')
+            ->andWhere('t.subjectName = :subjectName')
+            ->andWhere('t.dueDate > :now')
+            ->setParameter('learnerId', $learnerId)
+            ->setParameter('subjectName', $subjectName)
+            ->setParameter('now', $now)
+            ->orderBy('t.dueDate', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByLearnerAndSubjectWithinLast30Days(int $learnerId, string $subjectName): array
+    {
+        $now = new \DateTimeImmutable();
+        $thirtyDaysAgo = $now->modify('-30 days');
+        
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.learner = :learnerId')
+            ->andWhere('t.subjectName = :subjectName')
+            ->andWhere('t.dueDate > :thirtyDaysAgo')
+            ->setParameter('learnerId', $learnerId)
+            ->setParameter('subjectName', $subjectName)
+            ->setParameter('thirtyDaysAgo', $thirtyDaysAgo)
+            ->orderBy('t.dueDate', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function createTodo(Learner $learner, string $title, ?\DateTimeImmutable $dueDate = null): Todo
     {
         $todo = new Todo();
