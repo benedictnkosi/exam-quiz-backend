@@ -140,7 +140,7 @@ class CheckAnswerService
 
             if ($isCorrect) {
                 $today = new \DateTime();
-                $today->setTime(0, 0, 0);
+                $today->setTime(hour: 0, minute: 0, second: 0);
                 $lastUpdated = $learner->getStreakLastUpdated();
                 $wasUpdatedToday = $lastUpdated && $lastUpdated >= $today;
 
