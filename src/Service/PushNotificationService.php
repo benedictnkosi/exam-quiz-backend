@@ -71,32 +71,32 @@ class PushNotificationService
             $this->entityManager->flush();
 
             // Send welcome notification if learner was created today
-            $today = new \DateTime('today');
-            $createdToday = $learner->getCreated()->format('Y-m-d') === $today->format('Y-m-d');
+            // $today = new \DateTime('today');
+            // $createdToday = $learner->getCreated()->format('Y-m-d') === $today->format('Y-m-d');
             
-            if ($createdToday && $pushToken) {
-                $title = '🎉 Welcome to the Winning Team!';
-                $message = 'We\'re excited to have you on board! Get ready to ace your exams with our top-notch questions and practice materials. Let\'s start learning! 💪📚';
+            // if ($createdToday && $pushToken) {
+            //     $title = '🎉 Welcome to the Winning Team!';
+            //     $message = 'We\'re excited to have you on board! Get ready to ace your exams with our top-notch questions and practice materials. Let\'s start learning! 💪📚';
 
-                // If learner has a grade, use grade-specific message
-                $grade = $learner->getGrade();
-                if ($grade) {
-                    $gradeNumber = $grade->getNumber();
-                    if ($gradeNumber == 12) {
-                        $message = 'Welcome to your final year! 🎓 We\'ve got everything you need to prepare for your matric exams. Let\'s make this year count! 💪📚';
-                    } elseif ($gradeNumber == 11) {
-                        $message = 'We\'re already hard at work collecting top-notch questions for the big June exam! 🔥 Keep checking in — fresh questions are dropping soon! 💪📚';
-                    } else {
-                        $message = 'Heads up — we\'re still busy adding more questions for the June exam. 🔧📚 You might notice fewer right now, but hang tight — more are on the way soon! 🚀';
-                    }
-                }
+            //     // If learner has a grade, use grade-specific message
+            //     $grade = $learner->getGrade();
+            //     if ($grade) {
+            //         $gradeNumber = $grade->getNumber();
+            //         if ($gradeNumber == 12) {
+            //             $message = 'Welcome to your final year! 🎓 We\'ve got everything you need to prepare for your matric exams. Let\'s make this year count! 💪📚';
+            //         } elseif ($gradeNumber == 11) {
+            //             $message = 'We\'re already hard at work collecting top-notch questions for the big June exam! 🔥 Keep checking in — fresh questions are dropping soon! 💪📚';
+            //         } else {
+            //             $message = 'Heads up — we\'re still busy adding more questions for the June exam. 🔧📚 You might notice fewer right now, but hang tight — more are on the way soon! 🚀';
+            //         }
+            //     }
 
-                $this->sendNotificationsToTokens(
-                    [$pushToken],
-                    $message,
-                    $title
-                );
-            }
+            //     $this->sendNotificationsToTokens(
+            //         [$pushToken],
+            //         $message,
+            //         $title
+            //     );
+            // }
             
             return [
                 'status' => 'OK',

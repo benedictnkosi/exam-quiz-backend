@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\SmsMarketing;
 use App\Repository\SmsMarketingRepository;
 use App\Service\SmsPortalService;
+use App\Service\WhatsAppService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,7 +18,8 @@ class SmsMarketingController extends AbstractController
     public function __construct(
         private SmsPortalService $smsPortalService,
         private SmsMarketingRepository $smsMarketingRepository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private WhatsAppService $whatsAppService
     ) {
     }
 
@@ -72,13 +74,22 @@ class SmsMarketingController extends AbstractController
         }, $existingNumbers);
 
         foreach ($numbers as $number) {
-            // Clean the number and add +27 prefix
+            // Clean the number and ensure it has +27 prefix
             $number = trim($number);
-            $fullNumber = '+27' . $number;
+            $fullNumber = str_starts_with($number, '+27') ? $number : '+27' . $number;
+
+            // Debug the number format
+            $debugInfo = [
+                'original' => $number,
+                'cleaned' => $fullNumber,
+                'length' => strlen($fullNumber),
+                'matches' => preg_match('/^\+27[0-9]{9}$/', $fullNumber)
+            ];
+            error_log(json_encode($debugInfo));
 
             // Validate number format
             if (!preg_match('/^\+27[0-9]{9}$/', $fullNumber)) {
-                $results['errors'][] = "Invalid number format: $number";
+                $results['errors'][] = "Invalid number format: $number (debug: " . json_encode($debugInfo) . ")";
                 continue;
             }
 
@@ -126,6 +137,7 @@ class SmsMarketingController extends AbstractController
         }
 
         // Check if number already exists
+        $phoneNumber = trim($data['phoneNumber']);
         $existing = $this->smsMarketingRepository->findOneBy(['phoneNumber' => $data['phoneNumber']]);
         if ($existing) {
             return $this->json(['error' => 'Phone number already exists'], 400);
@@ -159,5 +171,70 @@ class SmsMarketingController extends AbstractController
         }, $numbers);
 
         return $this->json($data);
+    }
+
+    #[Route('/whatsapp/send', name: 'send_whatsapp_marketing', methods: ['POST'])]
+    public function sendWhatsAppMarketing(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $staticMessage = "📚 Start your June exam prep early with Exam Quiz! 🚀 Practice past questions, boost your confidence, and track your progress. Don't wait—download now and get ahead! 📝📈\n\n👉 https://examquiz.co.za";
+
+        $results = [
+            'success' => [],
+            'failed' => []
+        ];
+
+        // If a specific number is provided, send only to that number
+        if (isset($data['phoneNumber'])) {
+            $phoneNumber = trim($data['phoneNumber']);
+            $response = $this->whatsAppService->sendMessage($phoneNumber, $staticMessage);
+
+            if (isset($response['error'])) {
+                $results['failed'][] = [
+                    'number' => $phoneNumber,
+                    'error' => $response['error']
+                ];
+            } else {
+                $results['success'][] = [
+                    'number' => $phoneNumber,
+                    'response' => $response
+                ];
+            }
+        } else {
+            // Send to all numbers in the database
+            $numbers = $this->smsMarketingRepository->findAll();
+            if (empty($numbers)) {
+                return $this->json(['message' => 'No numbers found in marketing database']);
+            }
+
+            foreach ($numbers as $number) {
+                $response = $this->whatsAppService->sendMessage(
+                    $number->getPhoneNumber(),
+                    $staticMessage
+                );
+
+                if (isset($response['error'])) {
+                    $results['failed'][] = [
+                        'number' => $number->getPhoneNumber(),
+                        'error' => $response['error']
+                    ];
+                } else {
+                    $results['success'][] = [
+                        'number' => $number->getPhoneNumber(),
+                        'response' => $response
+                    ];
+                }
+            }
+        }
+
+        return $this->json([
+            'message' => 'WhatsApp marketing campaign completed',
+            'results' => [
+                'total_processed' => count($results['success']) + count($results['failed']),
+                'success' => count($results['success']),
+                'failed' => count($results['failed']),
+                'details' => $results
+            ]
+        ]);
     }
 }
