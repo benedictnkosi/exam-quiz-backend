@@ -25,6 +25,9 @@ class SmsMarketing
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lastMessageSent = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $lastMessageId = null;
+
     #[ORM\Column]
     private bool $isActive = true;
 
@@ -73,6 +76,17 @@ class SmsMarketing
     public function setLastMessageSent(?string $lastMessageSent): static
     {
         $this->lastMessageSent = $lastMessageSent;
+        return $this;
+    }
+
+    public function getLastMessageId(): ?string
+    {
+        return $this->lastMessageId;
+    }
+
+    public function setLastMessageId(?string $lastMessageId): static
+    {
+        $this->lastMessageId = $lastMessageId;
         return $this;
     }
 

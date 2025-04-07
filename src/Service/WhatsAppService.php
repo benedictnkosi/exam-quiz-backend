@@ -4,15 +4,11 @@ namespace App\Service;
 
 class WhatsAppService
 {
-    private string $instanceId;
-    private string $apiToken;
     private string $baseUrl;
 
-    public function __construct(string $instanceId, string $apiToken)
+    public function __construct()
     {
-        $this->instanceId = $instanceId;
-        $this->apiToken = $apiToken;
-        $this->baseUrl = "https://7103.api.greenapi.com/waInstance{$this->instanceId}/sendMessage/{$this->apiToken}";
+        $this->baseUrl = "https://7103.api.greenapi.com/waInstance7103220992/sendMessage/480b83071d8c40cea3a3baf9b4862ec956c94dbb653a4fea9d";
     }
 
     public function sendMessage(string $phoneNumber, string $message, bool $linkPreview = true): array

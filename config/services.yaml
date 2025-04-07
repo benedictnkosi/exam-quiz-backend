@@ -55,9 +55,7 @@ services:
             $apiSecret: "%env(SMS_API_SECRET)%"
 
     App\Service\WhatsAppService:
-        arguments:
-            $instanceId: '7103220992'
-            $apiToken: '480b83071d8c40cea3a3baf9b4862ec956c94dbb653a4fea9d'
+        arguments: []
 
     # Configure HTTP Client
     Symfony\Contracts\HttpClient\HttpClientInterface:

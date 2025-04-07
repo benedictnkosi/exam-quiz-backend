@@ -27,22 +27,89 @@ class SmsMarketingController extends AbstractController
     public function sendMarketingSms(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        $staticMessage = "Start prepping for June exams with Exam Quiz! Practice past papers, boost confidence & track progress. Your friends are on it—join now https://examquiz.co.za";
 
-        if (!isset($data['message'])) {
-            return $this->json(['error' => 'Message is required'], 400);
+        $results = [
+            'success' => [],
+            'failed' => []
+        ];
+
+        // If a specific number is provided, send only to that number
+        if (isset($data['phoneNumber'])) {
+            $phoneNumber = trim($data['phoneNumber']);
+            $record = $this->smsMarketingRepository->findOneBy(['phoneNumber' => $phoneNumber]);
+            if (!$record) {
+                return $this->json(['error' => 'Phone number not found'], 404);
+            }
+            $response = $this->smsPortalService->sendMarketingSms($record, $staticMessage);
+            
+            if ($response === false || (is_array($response) && isset($response['error']))) {
+                $results['failed'][] = [
+                    'number' => $phoneNumber,
+                    'error' => is_array($response) ? $response['error'] : 'Failed to send SMS'
+                ];
+            } else {
+                // Update the record in database
+                $record->setLastSmsSentAt(new \DateTimeImmutable());
+                $record->setLastMessageSent($staticMessage);
+                $record->setLastMessageId($response['messageId'] ?? null);
+                $this->entityManager->persist($record);
+                $this->entityManager->flush();
+
+                $results['success'][] = [
+                    'number' => $phoneNumber,
+                    'response' => $response
+                ];
+            }
+        } else {
+            // Send to 10 numbers where lastSmsSentAt is NULL
+            $numbers = $this->smsMarketingRepository->findBy(
+                ['lastSmsSentAt' => null],
+                ['createdAt' => 'ASC'],
+                1
+            );
+
+            if (empty($numbers)) {
+                return $this->json(['message' => 'No eligible numbers found (no numbers with NULL lastSmsSentAt)']);
+            }
+
+            foreach ($numbers as $number) {
+                $response = $this->smsPortalService->sendMarketingSms(
+                    $number,
+                    $staticMessage
+                );
+
+                if ($response === false || (is_array($response) && isset($response['error']))) {
+                    $results['failed'][] = [
+                        'number' => $number->getPhoneNumber(),
+                        'error' => is_array($response) ? $response['error'] : 'Failed to send SMS'
+                    ];
+                } else {
+                    // Update the record in database
+                    $number->setLastSmsSentAt(new \DateTimeImmutable());
+                    $number->setLastMessageSent($staticMessage);
+                    $number->setLastMessageId($response['messageId'] ?? null);
+                    $this->entityManager->persist($number);
+                    
+                    $results['success'][] = [
+                        'number' => $number->getPhoneNumber(),
+                        'response' => $response
+                    ];
+                }
+            }
+            
+            // Flush all updates at once for bulk sending
+            $this->entityManager->flush();
         }
-
-        $eligibleNumbers = $this->smsMarketingRepository->findEligibleNumbersForMarketing();
-
-        if (empty($eligibleNumbers)) {
-            return $this->json(['message' => 'No eligible numbers found for marketing SMS']);
-        }
-
-        $results = $this->smsPortalService->sendBulkMarketingSms($eligibleNumbers, $data['message']);
 
         return $this->json([
-            'message' => 'Marketing SMS campaign completed',
-            'results' => $results
+            'message' => 'SMS marketing campaign completed',
+            'results' => [
+                'total_processed' => count($results['success']) + count($results['failed']),
+                'success' => count($results['success']),
+                'failed' => count($results['failed']),
+                'details' => $results
+            ]
         ]);
     }
 
@@ -177,7 +244,10 @@ class SmsMarketingController extends AbstractController
     public function sendWhatsAppMarketing(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $staticMessage = "📚 Start your June exam prep early with Exam Quiz! 🚀 Practice past questions, boost your confidence, and track your progress. Don't wait—download now and get ahead! 📝📈\n\n👉 https://examquiz.co.za";
+        $staticMessage = "📚 Start your June exam prep early with Exam Quiz! 🚀 
+        \nPractice past questions, boost your confidence, and track your progress. 
+        \nYour friends are already using Exam Quiz — download now and get ahead! 📝📈
+        \n👉 https://examquiz.co.za";
 
         $results = [
             'success' => [],
@@ -187,24 +257,40 @@ class SmsMarketingController extends AbstractController
         // If a specific number is provided, send only to that number
         if (isset($data['phoneNumber'])) {
             $phoneNumber = trim($data['phoneNumber']);
-            $response = $this->whatsAppService->sendMessage($phoneNumber, $staticMessage);
-
-            if (isset($response['error'])) {
+            $record = $this->smsMarketingRepository->findOneBy(['phoneNumber' => $phoneNumber]);
+            if (!$record) {
+                return $this->json(['error' => 'Phone number not found'], 404);
+            }
+            $response = $this->whatsAppService->sendMessage($record->getPhoneNumber(), $staticMessage);
+            
+            if ($response === false || (is_array($response) && isset($response['error']))) {
                 $results['failed'][] = [
                     'number' => $phoneNumber,
-                    'error' => $response['error']
+                    'error' => is_array($response) ? $response['error'] : 'Failed to send SMS'
                 ];
             } else {
+                // Update the record in database
+                $record->setLastSmsSentAt(new \DateTimeImmutable());
+                $record->setLastMessageSent($staticMessage);
+                $record->setLastMessageId($response['idMessage'] ?? null);
+                $this->entityManager->persist($record);
+                $this->entityManager->flush();
+
                 $results['success'][] = [
                     'number' => $phoneNumber,
                     'response' => $response
                 ];
             }
         } else {
-            // Send to all numbers in the database
-            $numbers = $this->smsMarketingRepository->findAll();
+            // Send to 10 numbers where lastSmsSentAt is NULL
+            $numbers = $this->smsMarketingRepository->findBy(
+                ['lastSmsSentAt' => null],
+                ['createdAt' => 'ASC'],
+                30
+            );
+
             if (empty($numbers)) {
-                return $this->json(['message' => 'No numbers found in marketing database']);
+                return $this->json(['message' => 'No eligible numbers found (no numbers with NULL lastSmsSentAt)']);
             }
 
             foreach ($numbers as $number) {
@@ -213,18 +299,27 @@ class SmsMarketingController extends AbstractController
                     $staticMessage
                 );
 
-                if (isset($response['error'])) {
+                if ($response === false || (is_array($response) && isset($response['error']))) {
                     $results['failed'][] = [
                         'number' => $number->getPhoneNumber(),
-                        'error' => $response['error']
+                        'error' => is_array($response) ? $response['error'] : 'Failed to send SMS'
                     ];
                 } else {
+                    // Update the record in database
+                    $number->setLastSmsSentAt(new \DateTimeImmutable());
+                    $number->setLastMessageSent($staticMessage);
+                    $number->setLastMessageId($response['idMessage'] ?? null);
+                    $this->entityManager->persist($number);
+                    
                     $results['success'][] = [
                         'number' => $number->getPhoneNumber(),
                         'response' => $response
                     ];
                 }
             }
+            
+            // Flush all updates at once for bulk sending
+            $this->entityManager->flush();
         }
 
         return $this->json([
