@@ -109,8 +109,8 @@ class CheckAnswerService
             $lastThreeCorrect = count($lastAnswers) === 3 &&
                 array_reduce($lastAnswers, fn($carry, $item) => $carry && $item->getOutcome() === 'correct', true);
 
-            // Calculate points change
-            $pointsChange = $isCorrect ? ($lastThreeCorrect ? 3 : 1) : -1;
+            // Calculate points change - simplified to 1 point for correct, -1 for incorrect
+            $pointsChange = $isCorrect ? 1 : -1;
             $newPoints = max(0, $learner->getPoints() + $pointsChange);
             $learner->setPoints($newPoints);
 
