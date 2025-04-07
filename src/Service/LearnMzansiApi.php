@@ -30,6 +30,7 @@ class LearnMzansiApi extends AbstractController
         LoggerInterface $logger,
         string $projectDir,
         string $openAiKey,
+        private readonly PushNotificationService $pushNotificationService,
     ) {
         $this->em = $em;
         $this->logger = $logger;
@@ -2140,8 +2141,6 @@ class LearnMzansiApi extends AbstractController
             $curriculum = $requestBody['curriculum'];
             $schoolName = $requestBody['school_name'];
             $schoolAddress = $requestBody['school_address'];
-            $schoolLatitude = $requestBody['school_latitude'];
-            $schoolLongitude = $requestBody['school_longitude'];
             $email = $requestBody['email'];
 
             if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress)) {
@@ -2162,6 +2161,7 @@ class LearnMzansiApi extends AbstractController
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
+                //new user
                 $learner = new Learner();
                 $learner->setUid($uid);
                 $learner->setPoints(0);
@@ -2175,6 +2175,12 @@ class LearnMzansiApi extends AbstractController
                 if (!empty($email)) {
                     $learner->setEmail($email);
                 }
+
+                // Generate random 4-letter code starting with first letter of name
+                $firstLetter = strtoupper(substr($name, 0, 1));
+                $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
+                $followMeCode = $firstLetter . $randomLetters;
+                $learner->setFollowMeCode($followMeCode);
             } else {
                 //if learner is admin
                 if ($learner->getRole() == 'admin') {
@@ -2232,11 +2238,7 @@ class LearnMzansiApi extends AbstractController
             $learner->setSchoolLongitude($requestBody['school_longitude']);
             $learner->setAvatar($requestBody['avatar']);
 
-            // Generate random 4-letter code starting with first letter of name
-            $firstLetter = strtoupper(substr($name, 0, 1));
-            $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
-            $followMeCode = $firstLetter . $randomLetters;
-            $learner->setFollowMeCode($followMeCode);
+            
 
             $this->em->persist($learner);
             $this->em->flush();

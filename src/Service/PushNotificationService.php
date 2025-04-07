@@ -70,6 +70,21 @@ class PushNotificationService
             $this->entityManager->persist($learner);
             $this->entityManager->flush();
 
+            // Send welcome notification if learner was created today
+            $today = new \DateTime('today');
+            $createdToday = $learner->getCreated()->format('Y-m-d') === $today->format('Y-m-d');
+            
+            if ($createdToday && $pushToken) {
+                $title = '🎉 Welcome to the Winning Team!';
+                $message = 'We\'re excited to have you on board! Get ready to ace your exams with our top-notch questions and practice materials. Let\'s start learning! 💪📚';
+
+                $this->sendNotificationsToTokens(
+                    [$pushToken],
+                    $message,
+                    $title
+                );
+            }
+            
             return [
                 'status' => 'OK',
                 'message' => 'Push token updated successfully'
