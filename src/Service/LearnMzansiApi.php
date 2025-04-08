@@ -468,8 +468,7 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Mode: " . $mode);
             if ($mode === 'recording') {
                 $qb->andWhere('(q.imagePath IS NULL OR q.imagePath = :emptyString)')
-                   ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)')
-                   ->setParameter('emptyString', '');
+                   ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)');
             }
 
             // Exclude mastered questions if any exist
@@ -497,6 +496,10 @@ class LearnMzansiApi extends AbstractController
 
             if (!empty($masteredQuestionIds)) {
                 $parameters->add(new Parameter('masteredIds', $masteredQuestionIds));
+            }
+
+            if ($mode === 'recording') {
+                $parameters->add(new Parameter('emptyString', ''));
             }
 
             if (!empty($learnerTerms)) {
