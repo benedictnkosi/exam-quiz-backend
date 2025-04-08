@@ -59,7 +59,7 @@ services:
 
     # Configure HTTP Client
     Symfony\Contracts\HttpClient\HttpClientInterface:
-        factory: ['Symfony\Component\HttpClient\HttpClient', "createForBaseUri"]
+        factory: ['Symfony\Component\HttpClient\HttpClient', 'createForBaseUri']
         arguments:
             - "https://rest.smsportal.com"
             - []
