@@ -533,7 +533,7 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->setOptions($options);
             }
             // Remove answer before returning if platform is web
-            if ($platform === 'web') {
+            if ($platform === 'web' && $mode === 'normal') {
                 $randomQuestion->setAnswer(null);
             }
             return $randomQuestion;
