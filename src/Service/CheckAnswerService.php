@@ -18,7 +18,7 @@ class CheckAnswerService
     ) {
     }
 
-    public function checkAnswer(string $uid, int $questionId, string $answer, ?int $duration): array
+    public function checkAnswer(string $uid, int $questionId, string $answer, ?int $duration, string $mode = 'normal'): array
     {
         try {
             // Get the learner
@@ -84,6 +84,23 @@ class CheckAnswerService
                     'streakUpdated' => false,
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                     'is_favorited' => true
+                ];
+            }
+
+            // If mode is 'recording', return the result without persisting any data
+            if ($mode === 'recording') {
+                return [
+                    'status' => 'OK',
+                    'correct' => $isCorrect,
+                    'explanation' => $question->getExplanation(),
+                    'correctAnswer' => $question->getAnswer(),
+                    'points' => $learner->getPoints(), // Return current points without change
+                    'message' => $isCorrect ? 'Correct answer! (No points awarded in recording mode)' : 'Incorrect answer',
+                    'lastThreeCorrect' => false,
+                    'streak' => $learner->getStreak(),
+                    'streakUpdated' => false,
+                    'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
+                    'is_favorited' => false
                 ];
             }
 

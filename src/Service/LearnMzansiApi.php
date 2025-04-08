@@ -282,7 +282,7 @@ class LearnMzansiApi extends AbstractController
     }
 
 
-    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app')
+    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app', string $mode = 'normal')
     {
         try {
             // Get the learner first
@@ -463,6 +463,14 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('s.grade = :grade')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
+
+            // For recording mode, only return questions without images
+            $this->logger->info("Mode: " . $mode);
+            if ($mode === 'recording') {
+                $qb->andWhere('(q.imagePath IS NULL OR q.imagePath = :emptyString)')
+                   ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)')
+                   ->setParameter('emptyString', '');
+            }
 
             // Exclude mastered questions if any exist
             if (!empty($masteredQuestionIds)) {
