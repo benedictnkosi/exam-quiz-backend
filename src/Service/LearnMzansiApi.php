@@ -565,7 +565,9 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status')
                 ->andWhere('(q.imagePath IS NULL OR q.imagePath = :emptyString)')
-                ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)');
+                ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)')
+                ->andWhere('LENGTH(q.context) < 300')
+                ->andWhere('LENGTH(q.question) < 300');
 
             // Exclude already recorded questions
             if (!empty($recordedQuestionIds)) {
