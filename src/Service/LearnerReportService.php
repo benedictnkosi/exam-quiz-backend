@@ -60,9 +60,9 @@ class LearnerReportService
 
     public function getDailyActivity(Learner $learner, ?int $subjectId = null): array
     {
-        $thirtyDaysAgo = new \DateTime();
-        $thirtyDaysAgo->modify('-30 days');
-        $thirtyDaysAgo->setTime(0, 0, 0);
+        $sevenDaysAgo = new \DateTime();
+        $sevenDaysAgo->modify('-7 days');
+        $sevenDaysAgo->setTime(0, 0, 0);
 
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
@@ -77,7 +77,7 @@ class LearnerReportService
             ->groupBy('date')
             ->orderBy('date', 'DESC')
             ->setParameter('learner', $learner)
-            ->setParameter('startDate', $thirtyDaysAgo)
+            ->setParameter('startDate', $sevenDaysAgo)
             ->setParameter('correct', 'correct')
             ->setParameter('incorrect', 'incorrect');
 
@@ -106,9 +106,9 @@ class LearnerReportService
 
     public function getWeeklyProgress(Learner $learner, ?int $subjectId = null): array
     {
-        $twelveWeeksAgo = new \DateTime();
-        $twelveWeeksAgo->modify('-12 weeks');
-        $twelveWeeksAgo->setTime(0, 0, 0);
+        $eightWeeksAgo = new \DateTime();
+        $eightWeeksAgo->modify('-8 weeks');
+        $eightWeeksAgo->setTime(0, 0, 0);
 
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
@@ -128,7 +128,7 @@ class LearnerReportService
             ->addOrderBy('month', 'DESC')
             ->addOrderBy('day', 'DESC')
             ->setParameter('learner', $learner)
-            ->setParameter('startDate', $twelveWeeksAgo)
+            ->setParameter('startDate', $eightWeeksAgo)
             ->setParameter('correct', 'correct')
             ->setParameter('incorrect', 'incorrect');
 
