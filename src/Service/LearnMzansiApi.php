@@ -17,6 +17,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query\Parameter;
 use App\Entity\Subscription;
 use App\Entity\ReportedMessages;
+use App\Entity\RecordedQuestion;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -282,7 +283,7 @@ class LearnMzansiApi extends AbstractController
     }
 
 
-    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app', string $mode = 'normal')
+    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app')
     {
         try {
             // Get the learner first
@@ -464,13 +465,6 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
-            // For recording mode, only return questions without images
-            $this->logger->info("Mode: " . $mode);
-            if ($mode === 'recording') {
-                $qb->andWhere('(q.imagePath IS NULL OR q.imagePath = :emptyString)')
-                   ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)');
-            }
-
             // Exclude mastered questions if any exist
             if (!empty($masteredQuestionIds)) {
                 $qb->andWhere('q.id NOT IN (:masteredIds)');
@@ -496,10 +490,6 @@ class LearnMzansiApi extends AbstractController
 
             if (!empty($masteredQuestionIds)) {
                 $parameters->add(new Parameter('masteredIds', $masteredQuestionIds));
-            }
-
-            if ($mode === 'recording') {
-                $parameters->add(new Parameter('emptyString', ''));
             }
 
             if (!empty($learnerTerms)) {
@@ -533,10 +523,111 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->setOptions($options);
             }
             // Remove answer before returning if platform is web
-            if ($platform === 'web' && $mode === 'normal') {
+            if ($platform === 'web') {
                 $randomQuestion->setAnswer(null);
             }
             return $randomQuestion;
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error getting random question'
+            );
+        }
+    }
+
+    public function getRecordingQuestion(string $subjectName, string $paperName, string $uid, int $grade, string $learnerTerms)
+    {
+        try {
+            // Get the learner first
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                );
+            }
+
+            // Get already recorded question IDs
+            $recordedQuestionIds = $this->em->getRepository(RecordedQuestion::class)
+                ->findRecordedQuestionIds();
+            $recordedQuestionIds = array_map(function($item) {
+                return $item['questionId'];
+            }, $recordedQuestionIds);
+
+            // Build query with term and curriculum conditions
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.subject', 's')
+                ->where('s.name = :subjectName')
+                ->andWhere('s.grade = :grade')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status')
+                ->andWhere('(q.imagePath IS NULL OR q.imagePath = :emptyString)')
+                ->andWhere('(q.questionImagePath IS NULL OR q.questionImagePath = :emptyString)');
+
+            // Exclude already recorded questions
+            if (!empty($recordedQuestionIds)) {
+                $qb->andWhere('q.id NOT IN (:recordedIds)');
+            }
+
+            // Add term condition if learner has terms specified
+            if (!empty($learnerTerms)) {
+                $qb->andWhere($qb->expr()->in('q.term', ':terms'));
+            }
+
+            // Add curriculum condition if learner has curriculum specified
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'));
+            }
+
+            // Set parameters
+            $parameters = new ArrayCollection([
+                new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                new Parameter('grade', $grade),
+                new Parameter('active', true),
+                new Parameter('status', 'approved'),
+                new Parameter('emptyString', '')
+            ]);
+
+            if (!empty($recordedQuestionIds)) {
+                $parameters->add(new Parameter('recordedIds', $recordedQuestionIds));
+            }
+
+            if (!empty($learnerTerms)) {
+                $parameters->add(new Parameter('terms', $learnerTerms));
+            }
+
+            if (!empty($learnerCurriculum)) {
+                $parameters->add(new Parameter('curriculum', $learnerCurriculum));
+            }
+
+            $qb->setParameters($parameters);
+
+            $query = $qb->getQuery();
+            $questions = $query->getResult();
+            
+            if (!empty($questions)) {
+                // Get a random question
+                $randomQuestion = $questions[array_rand($questions)];
+                
+                // Create a new RecordedQuestion entry
+                $recordedQuestion = new RecordedQuestion();
+                $recordedQuestion->setQuestionId($randomQuestion->getId());
+                $recordedQuestion->setSubjectId($randomQuestion->getSubject()->getId());
+                
+                $this->em->persist($recordedQuestion);
+                $this->em->flush();
+
+                return $randomQuestion;
+            }
+
+            return array(
+                'status' => 'NOK',
+                'message' => 'No questions found'
+            );
+
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
@@ -3448,6 +3539,32 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error retrieving reports: ' . $e->getMessage()
             ];
+        }
+    }
+
+    public function removeRecordedQuestionsBySubject(int $subjectId): array
+    {
+        try {
+            $this->logger->info("Starting Method: " . __METHOD__);
+            
+            $qb = $this->em->createQueryBuilder();
+            $qb->delete('App\Entity\RecordedQuestion', 'rq')
+               ->where('rq.subjectId = :subjectId')
+               ->setParameter('subjectId', $subjectId);
+
+            $result = $qb->getQuery()->execute();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'Recorded questions removed successfully',
+                'count' => $result
+            );
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error removing recorded questions'
+            );
         }
     }
 }

@@ -995,4 +995,37 @@ class LearnMzansiApiController extends AbstractController
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
     }
+
+    #[Route('/learn/question/recording', name: 'get_recording_question', methods: ['GET'])]
+    public function getRecordingQuestion(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        
+        $subjectName = $request->query->get('subjectName');
+        $paperName = $request->query->get('paperName');
+        $uid = $request->query->get('uid');
+        $grade = (int) $request->query->get('grade');
+        $learnerTerms = $request->query->get('learnerTerms');
+
+        if (!$subjectName || !$paperName || !$uid || !$grade) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Missing required parameters'
+            ], 400);
+        }
+
+        $response = $this->api->getRecordingQuestion($subjectName, $paperName, $uid, $grade, $learnerTerms);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+    }
+
+    #[Route('/learn/question/recording/{subjectId}', name: 'remove_recorded_questions', methods: ['DELETE'])]
+    public function removeRecordedQuestions(int $subjectId): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        
+        $response = $this->api->removeRecordedQuestionsBySubject($subjectId);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }
