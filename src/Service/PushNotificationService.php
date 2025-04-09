@@ -429,7 +429,7 @@ class PushNotificationService
         }
     }
 
-    private function sendPushNotification(array $notification): array
+    public function sendPushNotification(array $notification): array
     {
         try {
             $ch = curl_init();
