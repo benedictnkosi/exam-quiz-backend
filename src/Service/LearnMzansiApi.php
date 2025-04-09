@@ -536,7 +536,7 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getRecordingQuestion(string $subjectName, string $paperName, string $uid, int $grade, string $learnerTerms)
+    public function getRecordingQuestion(string $subjectName, string $uid, int $grade, string $learnerTerms)
     {
         try {
             // Get the learner first
@@ -584,7 +584,7 @@ class LearnMzansiApi extends AbstractController
 
             // Set parameters
             $parameters = new ArrayCollection([
-                new Parameter('subjectName', $subjectName . ' ' . $paperName),
+                new Parameter('subjectName', $subjectName),
                 new Parameter('grade', $grade),
                 new Parameter('active', true),
                 new Parameter('status', 'approved'),

@@ -1002,19 +1002,18 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         
         $subjectName = $request->query->get('subjectName');
-        $paperName = $request->query->get('paperName');
         $uid = $request->query->get('uid');
         $grade = (int) $request->query->get('grade');
         $learnerTerms = $request->query->get('learnerTerms');
 
-        if (!$subjectName || !$paperName || !$uid || !$grade) {
+        if (!$subjectName || !$uid || !$grade) {
             return new JsonResponse([
                 'status' => 'NOK',
                 'message' => 'Missing required parameters'
             ], 400);
         }
 
-        $response = $this->api->getRecordingQuestion($subjectName, $paperName, $uid, $grade, $learnerTerms);
+        $response = $this->api->getRecordingQuestion($subjectName, $uid, $grade, $learnerTerms);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
