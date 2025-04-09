@@ -3542,15 +3542,23 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function removeRecordedQuestionsBySubject(int $subjectId): array
+    public function removeRecordedQuestionsBySubject(string $subjectName, int $grade): array
     {
         try {
             $this->logger->info("Starting Method: " . __METHOD__);
-            
+
+            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName, 'grade' => $grade]);
+            if (!$subject) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                );
+            }
+
             $qb = $this->em->createQueryBuilder();
             $qb->delete('App\Entity\RecordedQuestion', 'rq')
                ->where('rq.subjectId = :subjectId')
-               ->setParameter('subjectId', $subjectId);
+               ->setParameter('subjectId', $subject->getId());
 
             $result = $qb->getQuery()->execute();
 
