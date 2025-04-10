@@ -1020,7 +1020,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
-    #[Route('/learn/question/recording/{subjectName}/{grade}', name: 'remove_recorded_questions', methods: ['DELETE'])]
+    #[Route(path: '/learn/question/recording/{subjectName}/{grade}', name: 'remove_recorded_questions', methods: ['DELETE'])]
     public function removeRecordedQuestions(string $subjectName, int $grade): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
@@ -1049,4 +1049,13 @@ class LearnMzansiApiController extends AbstractController
 
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
+
+
+
+    #[Route('/learn/messages', name: 'get_messages', methods: ['GET'])]
+    public function getMessages(Request $request): JsonResponse
+    {
+        return $this->json($this->api->getMessages($request));
+    }
+
 }

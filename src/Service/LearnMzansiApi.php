@@ -18,6 +18,7 @@ use Doctrine\ORM\Query\Parameter;
 use App\Entity\Subscription;
 use App\Entity\ReportedMessages;
 use App\Entity\RecordedQuestion;
+use App\Entity\Message;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -3575,6 +3576,31 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error removing recorded questions'
             );
+        }
+    }
+
+    public function getMessages(Request $request): array
+    {
+        try {
+            $messages = $this->em->getRepository(Message::class)->findAllOrderedByDate();
+            
+            return [
+                'success' => true,
+                'data' => array_map(function (Message $message) {
+                    return [
+                        'id' => $message->getId(),
+                        'title' => $message->getTitle(),
+                        'message' => $message->getMessage(),
+                        'createdAt' => $message->getCreatedAt()->format('Y-m-d H:i:s')
+                    ];
+                }, $messages)
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting messages: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve messages'
+            ];
         }
     }
 }
