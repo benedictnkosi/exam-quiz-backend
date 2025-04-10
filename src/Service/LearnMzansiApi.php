@@ -45,7 +45,6 @@ class LearnMzansiApi extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
-
             $uid = $request->query->get('uid');
 
             if (empty($uid)) {
@@ -63,7 +62,28 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            return $learner;
+            // Return only essential fields
+            return [
+                'id' => $learner->getId(),
+                'uid' => $learner->getUid(),
+                'name' => $learner->getName(),
+                'email' => $learner->getEmail(),
+                'grade' => $learner->getGrade() ? $learner->getGrade()->getNumber() : null,
+                'school_name' => $learner->getSchoolName(),
+                'school_address' => $learner->getSchoolAddress(),
+                'created' => $learner->getCreated(),
+                'lastSeen' => $learner->getLastSeen(),
+                'points' => $learner->getPoints(),
+                'rating' => $learner->getRating(),
+                'avatar' => $learner->getAvatar(),
+                'terms' => $learner->getTerms(),
+                'curriculum' => $learner->getCurriculum(),
+                'private_school' => $learner->getPrivateSchool(),
+                'role' => $learner->getRole(),
+                'notification_hour' => $learner->getNotificationHour(),
+                'streak' => $learner->getStreak(),
+                'streak_last_updated' => $learner->getStreakLastUpdated()
+            ];
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
