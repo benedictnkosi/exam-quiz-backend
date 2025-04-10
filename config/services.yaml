@@ -56,3 +56,16 @@ services:
 
     App\Service\WhatsAppService:
         arguments: []
+
+    App\Service\MonitoringService:
+        arguments:
+            $influxdbUrl: '%env(INFLUXDB_URL)%'
+            $influxdbToken: '%env(INFLUXDB_TOKEN)%'
+            $influxdbOrg: '%env(INFLUXDB_ORG)%'
+            $influxdbBucket: '%env(INFLUXDB_BUCKET)%'
+            $logger: '@monolog.logger.influxdb'
+
+    App\Service\RouteMonitoringService:
+        arguments:
+            $logger: '@monolog.logger.influxdb'
+            $monitoringService: '@App\Service\MonitoringService'
