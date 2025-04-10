@@ -1,5 +1,5 @@
 monolog:
-    channels: ["public", "influxdb"]
+    channels: ["public"]
     handlers:
         main:
             type: fingers_crossed
@@ -11,13 +11,6 @@ monolog:
             type: stream
             path: "%kernel.logs_dir%/%kernel.environment%.log"
             level: error
-            channels: ["!event", "!influxdb"]
-        influxdb:
-            type: stream
-            path: "%kernel.logs_dir%/influxdb.log"
-            level: error
-            channels: ["influxdb", "public"]
-            formatter: monolog.formatter.line
         console:
             type: console
             process_psr_3_messages: false
