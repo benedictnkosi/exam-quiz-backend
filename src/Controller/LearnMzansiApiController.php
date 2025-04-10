@@ -24,6 +24,7 @@ use App\Service\TestDataCleanupService;
 use App\Service\SmallestImageService;
 use App\Service\MissingImageService;
 use App\Service\LearnerNoteService;
+use App\Service\WeeklyScoreboardService;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -1026,5 +1027,26 @@ class LearnMzansiApiController extends AbstractController
         
         $response = $this->api->removeRecordedQuestionsBySubject($subjectName, $grade);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/scoreboard/weekly', name: 'get_weekly_scoreboard', methods: ['GET'])]
+    public function getWeeklyScoreboard(
+        Request $request,
+        WeeklyScoreboardService $weeklyScoreboardService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        
+        $uid = $request->query->get('uid');
+        if (!$uid) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner UID is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $weeklyScoreboardService->getWeeklyScoreboard($uid);
+        $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
+
+        return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
     }
 }
