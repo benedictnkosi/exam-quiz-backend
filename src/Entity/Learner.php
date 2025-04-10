@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'learner')]
@@ -15,91 +16,125 @@ class Learner
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: Types::INTEGER)]
+    #[Serializer\Groups(['learner:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 45, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $uid = null;
 
     #[ORM\ManyToOne(targetEntity: Grade::class)]
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
+    #[Serializer\Groups(['learner:read'])]
     private ?Grade $grade = null;
 
     #[ORM\Column(name: 'points', type: Types::INTEGER, options: ['default' => 0])]
+    #[Serializer\Groups(['learner:read'])]
     private int $points = 0;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $name = null;
 
     #[ORM\Column(name: 'notification_hour', type: Types::SMALLINT, options: ['default' => 0])]
+    #[Serializer\Groups(['learner:read'])]
     private int $notificationHour = 0;
 
     #[ORM\Column(type: Types::STRING, length: 10, options: ['default' => 'learner'])]
+    #[Serializer\Groups(['learner:read'])]
     private string $role = 'learner';
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Serializer\Groups(['learner:read'])]
     private \DateTime $created;
 
     #[ORM\Column(name: 'lastSeen', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Serializer\Groups(['learner:read'])]
     private \DateTime $lastSeen;
 
     #[ORM\Column(name: 'school_address', type: Types::STRING, length: 500, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $schoolAddress = null;
 
     #[ORM\Column(name: 'school_name', type: Types::STRING, length: 100, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $schoolName = null;
 
     #[ORM\Column(name: 'school_latitude', type: Types::FLOAT, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?float $schoolLatitude = null;
 
     #[ORM\Column(name: 'school_longitude', type: Types::FLOAT, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?float $schoolLongitude = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $terms = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $curriculum = null;
 
     #[ORM\Column(name: 'private_school', type: Types::BOOLEAN, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?bool $privateSchool = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $email = null;
 
     #[ORM\Column(type: Types::FLOAT, options: ['default' => 0])]
+    #[Serializer\Groups(['learner:read'])]
     private float $rating = 0;
 
     #[ORM\Column(name: 'rating_cancelled', type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?\DateTime $ratingCancelled = null;
 
     #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
+    #[Serializer\Groups(['learner:read'])]
     private int $streak = 0;
 
     #[ORM\Column(name: 'streak_last_updated', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Serializer\Groups(['learner:read'])]
     private \DateTime $streakLastUpdated;
 
     #[ORM\Column(type: Types::STRING, options: ['default' => '8.png'])]
+    #[Serializer\Groups(['learner:read'])]
     private string $avatar = '8.png';
 
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $expoPushToken = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $followMeCode = null;
 
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\MaxDepth(1)]
     private Collection $learnerBadges;
 
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerNote::class)]
+    #[Serializer\Groups([])]
+    #[Serializer\MaxDepth(1)]
     private Collection $notes;
 
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: Todo::class)]
+    #[Serializer\Groups([])]
+    #[Serializer\MaxDepth(1)]
     private Collection $todos;
 
     #[ORM\OneToMany(mappedBy: 'follower', targetEntity: LearnerFollowing::class)]
+    #[Serializer\Groups([])]
+    #[Serializer\MaxDepth(1)]
     private Collection $following;
 
     #[ORM\OneToMany(mappedBy: 'following', targetEntity: LearnerFollowing::class)]
+    #[Serializer\Groups([])]
+    #[Serializer\MaxDepth(1)]
     private Collection $followers;
 
     public function __construct()

@@ -14,17 +14,17 @@ class Grade
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Serializer\Groups(['default'])]
+    #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('integer')]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    #[Serializer\Groups(['default'])]
+    #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('integer')]
     private ?int $number = null;
 
     #[ORM\Column(type: Types::SMALLINT, nullable: true, options: ['default' => 1])]
-    #[Serializer\Groups(['default'])]
+    #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('integer')]
     private ?int $active = 1;
 

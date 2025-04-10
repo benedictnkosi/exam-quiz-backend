@@ -44,7 +44,9 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->getLearner($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $context = SerializationContext::create()
+            ->setGroups(['learner:read'])
+            ->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }

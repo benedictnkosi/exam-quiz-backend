@@ -6,6 +6,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'badge')]
@@ -13,22 +14,28 @@ class Badge
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::INTEGER)]
+    #[Serializer\Groups(['learner:read'])]
     private ?int $id = null;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Serializer\Groups(['learner:read'])]
     private \DateTime $createdAt;
 
-    #[ORM\Column(name: 'name', type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $name = null;
 
-    #[ORM\Column(name: 'rules', type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $rules = null;
 
-    #[ORM\Column(name: 'image', type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[Serializer\Groups(['learner:read'])]
     private ?string $image = null;
 
     #[ORM\OneToMany(mappedBy: 'badge', targetEntity: LearnerBadge::class)]
+    #[Serializer\Exclude]
     private Collection $learnerBadges;
 
     public function __construct()

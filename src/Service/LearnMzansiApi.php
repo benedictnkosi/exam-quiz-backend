@@ -62,6 +62,7 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Learner not found'
                 );
             }
+            
 
             return $learner;
         } catch (\Exception $e) {

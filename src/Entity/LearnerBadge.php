@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'learner_badges')]
@@ -12,17 +13,22 @@ class LearnerBadge
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: Types::BIGINT)]
+    #[Serializer\Groups(['learner:read'])]
     private ?int $id = null;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Serializer\Groups(['learner:read'])]
     private \DateTime $createdAt;
 
     #[ORM\ManyToOne(targetEntity: Learner::class, inversedBy: 'learnerBadges')]
     #[ORM\JoinColumn(name: 'learner', referencedColumnName: 'id')]
+    #[Serializer\Exclude]
     private ?Learner $learner = null;
 
     #[ORM\ManyToOne(targetEntity: Badge::class, inversedBy: 'learnerBadges')]
     #[ORM\JoinColumn(name: 'badge', referencedColumnName: 'id')]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\MaxDepth(1)]
     private ?Badge $badge = null;
 
     public function __construct()
