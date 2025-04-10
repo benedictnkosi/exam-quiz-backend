@@ -12,16 +12,16 @@ class TodoNotificationService
 {
     private const NOTIFICATION_MESSAGES = [
         'today' => [
-            'title' => '📝 Todo Due Today!',
-            'body' => 'You have a todo due today: %s'
+            'title' => '📝 Due Today!',
+            'body' => '%s'
         ],
         'tomorrow' => [
-            'title' => '📝 Todo Due Tomorrow!',
-            'body' => 'You have a todo due tomorrow: %s'
+            'title' => '📝 Due Tomorrow!',
+            'body' => '%s'
         ],
         'three_days' => [
-            'title' => '📝 Todo Due in 3 Days!',
-            'body' => 'You have a todo due in 3 days: %s'
+            'title' => '📝 Due in 3 Days!',
+            'body' => '%s'
         ]
     ];
 
