@@ -61,3 +61,12 @@ cd /var/www/exam-quiz-backend && git pull && git merge --no-ff -m "Merge branch"
 
 ### manual script to send todos 
 php bin/console app:send-todo-notifications
+
+### To see the cron jobs scheduled for the current user, run the following command in the terminal:
+crontab -l
+
+### IP config
+ipconfig getifaddr en0
+
+## modify cron jobs
+DITOR=nano crontab -e

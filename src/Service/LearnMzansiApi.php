@@ -2286,6 +2286,24 @@ class LearnMzansiApi extends AbstractController
                 $firstLetter = strtoupper(substr($name, 0, 1));
                 $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
                 $followMeCode = $firstLetter . $randomLetters;
+                
+                // Check if code is already in use
+                $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
+                $attempts = 0;
+                while ($existingLearner && $attempts < 10) {
+                    $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
+                    $followMeCode = $firstLetter . $randomLetters;
+                    $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
+                    $attempts++;
+                }
+                
+                if ($existingLearner) {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'Unable to generate a unique follow code. Please try again.'
+                    );
+                }
+                
                 $learner->setFollowMeCode($followMeCode);
             } else {
                 //if learner is admin
