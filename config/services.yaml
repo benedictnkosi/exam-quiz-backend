@@ -63,4 +63,5 @@ services:
             $influxdbToken: '%env(INFLUXDB_TOKEN)%'
             $influxdbOrg: '%env(INFLUXDB_ORG)%'
             $influxdbBucket: '%env(INFLUXDB_BUCKET)%'
-
+            $logger: "@monolog.logger.api"
+            $httpClient: "@http_client"
