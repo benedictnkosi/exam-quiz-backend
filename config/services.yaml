@@ -56,3 +56,4 @@ services:
 
     App\Service\WhatsAppService:
         arguments: []
+
