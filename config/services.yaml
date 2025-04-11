@@ -57,3 +57,10 @@ services:
     App\Service\WhatsAppService:
         arguments: []
 
+    App\Service\RequestTimingSubscriber:
+        arguments:
+            $influxdbUrl: '%env(INFLUXDB_URL)%'
+            $influxdbToken: '%env(INFLUXDB_TOKEN)%'
+            $influxdbOrg: '%env(INFLUXDB_ORG)%'
+            $influxdbBucket: '%env(INFLUXDB_BUCKET)%'
+
