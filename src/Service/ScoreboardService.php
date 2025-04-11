@@ -7,7 +7,7 @@ use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
-class WeeklyScoreboardService
+class ScoreboardService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -15,7 +15,7 @@ class WeeklyScoreboardService
     ) {
     }
 
-    public function getWeeklyScoreboard(string $currentLearnerUid): array
+    public function getScoreboard(string $currentLearnerUid, string $period = 'weekly'): array
     {
         try {
             // Get current learner
@@ -29,25 +29,30 @@ class WeeklyScoreboardService
                 ];
             }
 
-            // Calculate start and end of current week
+            // Calculate start and end of current period
             $now = new \DateTime();
-            $weekStart = (clone $now)->modify('monday this week')->setTime(0, 0, 0);
-            $weekEnd = (clone $now)->modify('sunday this week')->setTime(23, 59, 59);
+            if ($period === 'daily') {
+                $periodStart = (clone $now)->setTime(0, 0, 0);
+                $periodEnd = (clone $now)->setTime(23, 59, 59);
+            } else {
+                $periodStart = (clone $now)->modify('monday this week')->setTime(0, 0, 0);
+                $periodEnd = (clone $now)->modify('sunday this week')->setTime(23, 59, 59);
+            }
 
-            // Get all results for the current week with scoring
+            // Get all results for the current period with scoring
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.avatar, 
+            $qb->select('l.uid, l.name, l.avatar, l.schoolName,
                         COUNT(r.id) as total_answers,
                         SUM(CASE WHEN r.outcome = \'correct\' THEN 1 ELSE -1 END) as score')
                ->from(Result::class, 'r')
                ->join('r.learner', 'l')
-               ->where('r.created BETWEEN :weekStart AND :weekEnd')
+               ->where('r.created BETWEEN :periodStart AND :periodEnd')
                ->andWhere('l.role = :role')
                ->andWhere('l.email NOT LIKE :testEmail')
                ->andWhere('l.name NOT LIKE :testName')
                ->andWhere('l.grade = :grade')
-               ->setParameter('weekStart', $weekStart)
-               ->setParameter('weekEnd', $weekEnd)
+               ->setParameter('periodStart', $periodStart)
+               ->setParameter('periodEnd', $periodEnd)
                ->setParameter('role', 'learner')
                ->setParameter('testEmail', '%test%')
                ->setParameter('testName', '%test%')
@@ -56,14 +61,14 @@ class WeeklyScoreboardService
                ->having('score > 0')
                ->orderBy('score', 'DESC');
 
-            $weeklyResults = $qb->getQuery()->getResult();
+            $periodResults = $qb->getQuery()->getResult();
 
             // Format the response
             $scoreboard = [];
             $currentLearnerInTop10 = false;
             $currentLearnerPosition = null;
 
-            foreach ($weeklyResults as $index => $result) {
+            foreach ($periodResults as $index => $result) {
                 $isCurrentLearner = ($result['uid'] === $currentLearnerUid);
                 if ($isCurrentLearner) {
                     $currentLearnerInTop10 = $index < 10;
@@ -77,14 +82,15 @@ class WeeklyScoreboardService
                         'totalAnswers' => (int)$result['total_answers'],
                         'position' => $index + 1,
                         'isCurrentLearner' => $isCurrentLearner,
-                        'avatar' => $result['avatar']
+                        'avatar' => $result['avatar'],
+                        'school' => $result['schoolName']
                     ];
                 }
             }
 
             // If current learner is not in top 10, add them separately
             if (!$currentLearnerInTop10 && $currentLearnerPosition) {
-                $currentLearnerResult = $weeklyResults[$currentLearnerPosition - 1];
+                $currentLearnerResult = $periodResults[$currentLearnerPosition - 1];
                 $scoreboard[] = [
                     'name' => $currentLearnerResult['name'],
                     'score' => (int)$currentLearnerResult['score'],
@@ -92,23 +98,25 @@ class WeeklyScoreboardService
                     'position' => $currentLearnerPosition,
                     'isCurrentLearner' => true,
                     'notInTop10' => true,
-                    'avatar' => $currentLearnerResult['avatar']
+                    'avatar' => $currentLearnerResult['avatar'],
+                    'school' => $currentLearnerResult['schoolName']
                 ];
             }
 
             return [
                 'status' => 'OK',
                 'scoreboard' => $scoreboard,
-                'weekStart' => $weekStart->format('Y-m-d'),
-                'weekEnd' => $weekEnd->format('Y-m-d'),
-                'totalParticipants' => count($weeklyResults)
+                'periodStart' => $periodStart->format('Y-m-d'),
+                'periodEnd' => $periodEnd->format('Y-m-d'),
+                'totalParticipants' => count($periodResults),
+                'period' => $period
             ];
 
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return [
                 'status' => 'NOK',
-                'message' => 'Error fetching weekly scoreboard: ' . $e->getMessage()
+                'message' => 'Error fetching scoreboard: ' . $e->getMessage()
             ];
         }
     }
