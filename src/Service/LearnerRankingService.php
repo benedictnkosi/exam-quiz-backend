@@ -31,7 +31,7 @@ class LearnerRankingService
 
             // Get ALL learners with their points
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.points, l.avatar')
+            $qb->select('l.uid, l.name, l.points, l.avatar, l.schoolName')
                 ->from(Learner::class, 'l')
                 ->where('l.points > 0')
                 ->andWhere('l.role = :role')
@@ -91,7 +91,8 @@ class LearnerRankingService
                     'points' => $positionMap[$learner['uid']]['points'],
                     'position' => $positionMap[$learner['uid']]['position'],
                     'isCurrentLearner' => $isCurrentLearner,
-                    'avatar' => $learner['avatar']
+                    'avatar' => $learner['avatar'],
+                    'school' => $learner['schoolName']
                 ];
             }
 
