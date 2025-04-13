@@ -90,6 +90,12 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 10, nullable: false, options: ['default' => 'CAPS'])]
     private string $curriculum = 'CAPS';
 
+    #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ['default' => false])]
+    private bool $isParent = false;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $parentID = null;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -384,6 +390,28 @@ class Question
     public function setCurriculum(string $curriculum): static
     {
         $this->curriculum = $curriculum;
+        return $this;
+    }
+
+    public function isParent(): bool
+    {
+        return $this->isParent;
+    }
+
+    public function setIsParent(bool $isParent): static
+    {
+        $this->isParent = $isParent;
+        return $this;
+    }
+
+    public function getParentID(): ?int
+    {
+        return $this->parentID;
+    }
+
+    public function setParentID(?int $parentID): static
+    {
+        $this->parentID = $parentID;
         return $this;
     }
 }

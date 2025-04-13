@@ -100,6 +100,54 @@ class LearnMzansiApi extends AbstractController
         return $query->getResult();
     }
 
+    /**
+     * Get question IDs by parent ID.
+     *
+     * @param Request $request The request containing the parent ID
+     * @return array The question IDs with the specified parent ID
+     */
+    public function getQuestionsByParentId(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $parentId = $request->query->get('parent_id');
+
+            if (empty($parentId)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Parent ID is required'
+                );
+            }
+
+            $query = $this->em->createQuery(
+                'SELECT q.id
+                FROM App\Entity\Question q
+                WHERE q.parentID = :parentId
+                AND q.active = true'
+            )->setParameter('parentId', $parentId);
+
+            $questionIds = $query->getSingleColumnResult();
+
+            if (empty($questionIds)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'No questions found for this parent ID'
+                );
+            }
+
+            return array(
+                'status' => 'OK',
+                'question_ids' => $questionIds
+            );
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error getting questions by parent ID'
+            );
+        }
+    }
 
     /**
      * Create a new question from JSON request data.
@@ -119,7 +167,11 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Admin check passed");
 
             $userId = $data['uid'] ?? null;
+            $isParent = $data['isParent'] ?? false;
+            $parentID = $data['parentID'] ?? null;
 
+            $this->logger->info("isParent: " . $isParent);
+            $this->logger->info("parentID: " . $parentID);
             $user = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $userId]);
             if (!$user) {
                 return array(
@@ -131,10 +183,17 @@ class LearnMzansiApi extends AbstractController
             $questionId = $data['question_id'] ?? null;
 
             // Validate required fields
-            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term']) || empty($data['answer']) || empty($data['curriculum'])) {
+            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term'])  || empty($data['curriculum'])) {
                 return array(
                     'status' => 'NOK',
                     'message' => "Missing required fields."
+                );
+            }
+
+            if(!$isParent && empty($data['answer'])){
+                return array(
+                    'status' => 'NOK',
+                    'message' => "Answer is required for non-parent questions."
                 );
             }
 
@@ -158,7 +217,7 @@ class LearnMzansiApi extends AbstractController
 
 
             // Validate that options are not empty for multiple_choice or multi_select types - fixed
-            if (($data['type'] == 'multiple_choice' || $data['type'] == 'multi_select')) {
+            if (($data['type'] == 'multiple_choice' || $data['type'] == 'multi_select') && !$isParent) {
                 if (empty($data['options']['option1']) || empty($data['options']['option2']) || empty($data['options']['option3']) || empty($data['options']['option4'])) {
                     return array(
                         'status' => 'NOK',
@@ -211,20 +270,22 @@ class LearnMzansiApi extends AbstractController
                 $question = new Question();
             }
 
-            $data['options']['option1'] = str_replace('{"answers":"', '', $data['options']['option1']);
-            $data['options']['option1'] = rtrim($data['options']['option1'], '"}');
+            //no options for parent questions
+            if (!$isParent) {
+                $data['options']['option1'] = str_replace('{"answers":"', '', $data['options']['option1']);
+                $data['options']['option1'] = rtrim($data['options']['option1'], '"}');
 
-            $data['options']['option2'] = str_replace('{"answers":"', '', $data['options']['option2']);
-            $data['options']['option2'] = rtrim($data['options']['option2'], '"}');
-
-
-            $data['options']['option3'] = str_replace('{"answers":"', '', $data['options']['option3']);
-            $data['options']['option3'] = rtrim($data['options']['option3'], '"}');
+                $data['options']['option2'] = str_replace('{"answers":"', '', $data['options']['option2']);
+                $data['options']['option2'] = rtrim($data['options']['option2'], '"}');
 
 
-            $data['options']['option4'] = str_replace('{"answers":"', '', $data['options']['option4']);
-            $data['options']['option4'] = rtrim($data['options']['option4'], '"}');
+                $data['options']['option3'] = str_replace('{"answers":"', '', $data['options']['option3']);
+                $data['options']['option3'] = rtrim($data['options']['option3'], '"}');
 
+
+                $data['options']['option4'] = str_replace('{"answers":"', '', $data['options']['option4']);
+                $data['options']['option4'] = rtrim($data['options']['option4'], '"}');
+            }
 
             if (!empty($data['type'])) {
                 $question->setQuestion($data['question']);
@@ -235,11 +296,16 @@ class LearnMzansiApi extends AbstractController
             $question->setSubject($subject);
             $question->setContext($data['context'] ?? null);
             $question->setAnswer($data['answer']);
-            $question->setOptions($data['options'] ?? null); // Pass the array directly
+            
             $question->setTerm($data['term'] ?? null);
             $question->setExplanation($data['explanation'] ?? null);
             $question->setYear($data['year'] ?? null);
             $question->setCapturer($user);
+            $question->setIsParent($isParent);
+            if (!$isParent) {
+                $question->setParentID($parentID);
+                $question->setOptions($data['options'] ?? null); // Pass the array directly
+            }
             if ($questionId == 0) {
                 $question->setReviewer($user);
                 $question->setCreated(new \DateTime());
@@ -433,13 +499,14 @@ class LearnMzansiApi extends AbstractController
                 ->join('r1.question', 'q1')
                 ->where('r1.learner = :learner')
                 ->andWhere('r1.outcome = :outcome')
+                ->andWhere('q1.parentID IS NULL')
                 ->andWhere('EXISTS (
                     SELECT 1 
                     FROM App\Entity\Result r2 
                     WHERE r2.learner = r1.learner 
                     AND r2.question = r1.question 
                     AND r2.outcome = :outcome 
-                    AND r2.created < r1.created 
+                    AND r2.created < r1.created
                     AND EXISTS (
                         SELECT 1 
                         FROM App\Entity\Result r3 
@@ -3619,6 +3686,51 @@ class LearnMzansiApi extends AbstractController
             return [
                 'success' => false,
                 'error' => 'Failed to retrieve messages'
+            ];
+        }
+    }
+
+    public function updateLearnerVersion(Request $request): array
+    {
+        $data = json_decode($request->getContent(), true);
+        $uid = $data['uid'] ?? null;
+        $version = $data['version'] ?? null;
+        $os = $data['os'] ?? null;
+
+        $this->logger->info("uid: " . $uid);
+        $this->logger->info("version: " . $version);
+        $this->logger->info("os: " . $os);
+
+        if (!$uid || !$version || !$os) {
+            return [
+                'success' => false,
+                'message' => 'Missing required parameters: uid, version, and os are required'
+            ];
+        }
+
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return [
+                'success' => false,
+                'message' => 'Learner not found'
+            ];
+        }
+
+        try {
+            $learner->setVersion($version);
+            $learner->setOs($os);
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return [
+                'success' => true,
+                'message' => 'Learner version and OS updated successfully'
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error updating learner version and OS: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Error updating learner version and OS'
             ];
         }
     }
