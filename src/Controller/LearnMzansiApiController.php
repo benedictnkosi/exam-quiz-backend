@@ -82,6 +82,7 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
+
     #[Route('/learn/question/create', name: 'create_question', methods: ['POST'])]
     public function createQuestion(Request $request): JsonResponse
     {
@@ -1060,6 +1061,14 @@ class LearnMzansiApiController extends AbstractController
     public function getMessages(Request $request): JsonResponse
     {
         return $this->json($this->api->getMessages($request));
+    }
+
+    #[Route('/learn/learner/update-version', name: 'update_learner_version', methods: ['PUT'])]
+    public function updateLearnerVersion(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->updateLearnerVersion($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
 }

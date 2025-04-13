@@ -3622,4 +3622,49 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function updateLearnerVersion(Request $request): array
+    {
+        $data = json_decode($request->getContent(), true);
+        $uid = $data['uid'] ?? null;
+        $version = $data['version'] ?? null;
+        $os = $data['os'] ?? null;
+
+        $this->logger->info("uid: " . $uid);
+        $this->logger->info("version: " . $version);
+        $this->logger->info("os: " . $os);
+
+        if (!$uid || !$version || !$os) {
+            return [
+                'success' => false,
+                'message' => 'Missing required parameters: uid, version, and os are required'
+            ];
+        }
+
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return [
+                'success' => false,
+                'message' => 'Learner not found'
+            ];
+        }
+
+        try {
+            $learner->setVersion($version);
+            $learner->setOs($os);
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return [
+                'success' => true,
+                'message' => 'Learner version and OS updated successfully'
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error updating learner version and OS: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Error updating learner version and OS'
+            ];
+        }
+    }
 }

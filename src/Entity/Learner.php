@@ -112,6 +112,14 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private ?string $followMeCode = null;
 
+    #[ORM\Column(type: Types::STRING, length: 20, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    private ?string $version = null;
+
+    #[ORM\Column(type: Types::STRING, length: 20, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    private ?string $os = null;
+
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     #[Serializer\Groups(['learner:read'])]
     #[Serializer\MaxDepth(1)]
@@ -404,6 +412,28 @@ class Learner
     public function setFollowMeCode(?string $followMeCode): self
     {
         $this->followMeCode = $followMeCode;
+        return $this;
+    }
+
+    public function getVersion(): ?string
+    {
+        return $this->version;
+    }
+
+    public function setVersion(?string $version): self
+    {
+        $this->version = $version;
+        return $this;
+    }
+
+    public function getOs(): ?string
+    {
+        return $this->os;
+    }
+
+    public function setOs(?string $os): self
+    {
+        $this->os = $os;
         return $this;
     }
 
