@@ -14,7 +14,7 @@ class ResultGrowthService
     }
 
     /**
-     * Calculate daily growth in results
+     * Calculate daily growth in results for the past 2 weeks
      * 
      * @return array Array of daily results with date and count
      */
@@ -29,6 +29,7 @@ class ResultGrowthService
                 DATE(created) as date,
                 COUNT(*) as count
             FROM result
+            WHERE created >= DATE_SUB(CURRENT_DATE, INTERVAL 14 DAY)
             GROUP BY DATE(created)
             ORDER BY date DESC',
             $rsm
@@ -38,7 +39,7 @@ class ResultGrowthService
     }
 
     /**
-     * Calculate growth percentage between two consecutive days
+     * Calculate growth percentage between two consecutive days for the past 2 weeks
      * 
      * @return array Array of daily results with date, count and growth percentage
      */
