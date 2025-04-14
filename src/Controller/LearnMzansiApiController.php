@@ -1071,4 +1071,23 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
+    #[Route('/learn/question/same-context', name: 'get_questions_same_context', methods: ['GET'])]
+    public function getQuestionsWithSameContext(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $questionId = $request->query->get('question_id');
+        if (!$questionId) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $response = $this->api->getQuestionsWithSameContext((int) $questionId);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
+
 }

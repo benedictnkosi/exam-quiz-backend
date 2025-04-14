@@ -3667,4 +3667,70 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function getQuestionsWithSameContext(int $questionId): array
+    {
+        try {
+            // Get the question to find its context and subject
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
+            $context = $question->getContext();
+            $imagePath = $question->getImagePath();
+            $subject = $question->getSubject();
+
+            if (!$context && !$imagePath) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question does not have a context or image path'
+                ];
+            }
+
+            // Find questions with the same context or image path and same subject
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q.id')
+                ->from('App\Entity\Question', 'q')
+                ->where('q.subject = :subject')
+                ->andWhere('q.active = :active')
+                ->andWhere($qb->expr()->orX(
+                    $qb->expr()->andX(
+                        $qb->expr()->isNotNull('q.context'),
+                        $qb->expr()->eq('q.context', ':context')
+                    ),
+                    $qb->expr()->andX(
+                        $qb->expr()->isNotNull('q.imagePath'),
+                        $qb->expr()->neq('q.imagePath', ':emptyString'),
+                        $qb->expr()->eq('q.imagePath', ':imagePath')
+                    )
+                ))
+                ->orderBy('q.created', 'ASC')
+                ->setParameter('subject', $subject)
+                ->setParameter('active', true)
+                ->setParameter('context', $context)
+                ->setParameter('imagePath', $imagePath)
+                ->setParameter('emptyString', '');
+
+            $results = $qb->getQuery()->getResult();
+            $questionIds = array_map(function($result) {
+                return $result['id'];
+            }, $results);
+
+            return [
+                'status' => 'OK',
+                'message' => 'Successfully retrieved questions with same context or image path',
+                'question_ids' => $questionIds
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving questions with same context or image path'
+            ];
+        }
+    }
 }
