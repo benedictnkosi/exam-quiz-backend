@@ -528,6 +528,14 @@ class LearnMzansiApi extends AbstractController
             if ($platform === 'web') {
                 $randomQuestion->setAnswer(null);
             }
+
+            // Get related questions (same context and image path)
+            $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
+            $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
+            
+            // Set related question IDs on the question object
+            $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
+
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
@@ -3697,23 +3705,21 @@ class LearnMzansiApi extends AbstractController
                 ->from('App\Entity\Question', 'q')
                 ->where('q.subject = :subject')
                 ->andWhere('q.active = :active')
-                ->andWhere($qb->expr()->orX(
-                    $qb->expr()->andX(
-                        $qb->expr()->isNotNull('q.context'),
-                        $qb->expr()->eq('q.context', ':context')
-                    ),
-                    $qb->expr()->andX(
-                        $qb->expr()->isNotNull('q.imagePath'),
-                        $qb->expr()->neq('q.imagePath', ':emptyString'),
-                        $qb->expr()->eq('q.imagePath', ':imagePath')
-                    )
-                ))
+                ->andWhere('q.id != :currentQuestionId')  // Exclude current question
+                ->andWhere('q.context IS NOT NULL')
+                ->andWhere('q.context = :context')
+                ->andWhere('q.imagePath IS NOT NULL')
+                ->andWhere('q.imagePath != :emptyString')
+                ->andWhere('q.imagePath != :nullString')
+                ->andWhere('q.imagePath = :imagePath')
                 ->orderBy('q.created', 'ASC')
                 ->setParameter('subject', $subject)
                 ->setParameter('active', true)
                 ->setParameter('context', $context)
                 ->setParameter('imagePath', $imagePath)
-                ->setParameter('emptyString', '');
+                ->setParameter('emptyString', '')
+                ->setParameter('nullString', 'NULL')
+                ->setParameter('currentQuestionId', $questionId);
 
             $results = $qb->getQuery()->getResult();
             $questionIds = array_map(function($result) {

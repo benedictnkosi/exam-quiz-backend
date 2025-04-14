@@ -90,6 +90,9 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 10, nullable: false, options: ['default' => 'CAPS'])]
     private string $curriculum = 'CAPS';
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $relatedQuestionIds = null;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -384,6 +387,17 @@ class Question
     public function setCurriculum(string $curriculum): static
     {
         $this->curriculum = $curriculum;
+        return $this;
+    }
+
+    public function getRelatedQuestionIds(): ?array
+    {
+        return $this->relatedQuestionIds;
+    }
+
+    public function setRelatedQuestionIds(?array $relatedQuestionIds): static
+    {
+        $this->relatedQuestionIds = $relatedQuestionIds;
         return $this;
     }
 }
