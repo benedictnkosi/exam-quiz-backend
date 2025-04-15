@@ -18,7 +18,11 @@
 /phpunit.xml
 .phpunit.result.cache
 ###< phpunit/phpunit ###
-/config/packages/monolog.yamllearnMzansi .zip
+/config/packages/monolog.yaml
+
+###> doctrine migrations ###
+/migrations/
+###< doctrine migrations ###
 
 ###> learnMzansi images ###
 /public/assets/images/learnMzansi/

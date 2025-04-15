@@ -18,7 +18,7 @@ class CheckAnswerService
     ) {
     }
 
-    public function checkAnswer(string $uid, int $questionId, string $answer, ?int $duration, string $mode = 'normal'): array
+    public function checkAnswer(string $uid, int $questionId, string $answer, ?int $duration, string $mode = 'normal', ?string $sheetCell = null): array
     {
         try {
             // Get the learner
@@ -51,7 +51,14 @@ class CheckAnswerService
                 ]);
 
             // Check the answer
-            $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
+            
+            if($question->getAnswerSheet() === null){
+                $this->logger->info("Question {$questionId} has no answer sheet");
+                $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
+            }else{
+                $this->logger->info("Question {$questionId} has an answer sheet");
+                $isCorrect = $this->validateAccountingAnswer($sheetCell , $answer, $question->getAnswerSheet());
+            }
 
             //if is learner is admin return the results without recording or awarding points
             if ($learner->getRole() === 'admin' || $learner->getRole() === 'reviewer') {
@@ -250,5 +257,82 @@ class CheckAnswerService
         $normalizedCorrect = array_map($normalizeAnswer, $correctAnswers);
 
         return in_array($normalizedSubmitted, $normalizedCorrect);
+    }
+
+    private function validateAccountingAnswer(string $sheetCell, string $submittedAnswer, string $answerSheet): bool
+    {
+        try {
+            $this->logger->info("Validating accounting answer for cell: {$sheetCell}");
+            $this->logger->info("Submitted answer: {$submittedAnswer}");
+            
+            $answerSheetData = json_decode($answerSheet, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->logger->error('Invalid answer sheet JSON format');
+                return false;
+            }
+
+            // Extract row and column from cell reference (e.g., 'A1' -> row=0, col='A')
+            $col = strtoupper(substr($sheetCell, 0, 1));
+            $row = intval(substr($sheetCell, 1)) - 1;
+
+            $this->logger->info("Looking for row: {$row}, column: {$col}");
+
+            // Check if row exists in answer sheet
+            if (!isset($answerSheetData[$row])) {
+                $this->logger->error("Row {$row} not found in answer sheet");
+                return false;
+            }
+
+            $rowData = $answerSheetData[$row];
+
+            // Check if column exists in row
+            if (!isset($rowData[$col])) {
+                $this->logger->error("Column {$col} not found in row {$row}");
+                return false;
+            }
+
+            $cellData = $rowData[$col];
+            $this->logger->info("Cell data found: " . json_encode($cellData));
+
+            // Handle the standard cell format
+            if (is_array($cellData) && isset($cellData['correct'])) {
+                $correctAnswer = $cellData['correct'];
+                $this->logger->info("Correct answer from cell: {$correctAnswer}");
+                
+                $normalizedSubmitted = $this->normalizeAccountingValue($submittedAnswer);
+                $normalizedCorrect = $this->normalizeAccountingValue($correctAnswer);
+                
+                $this->logger->info("Normalized submitted: {$normalizedSubmitted}");
+                $this->logger->info("Normalized correct: {$normalizedCorrect}");
+                
+                return $normalizedSubmitted === $normalizedCorrect;
+            }
+
+            // Handle simple string values (fallback)
+            if (is_string($cellData)) {
+                $this->logger->info("Simple string value found: {$cellData}");
+                return $this->normalizeAccountingValue($submittedAnswer) === $this->normalizeAccountingValue($cellData);
+            }
+
+            $this->logger->error("Invalid cell data format");
+            return false;
+        } catch (\Exception $e) {
+            $this->logger->error('Error validating accounting answer: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function normalizeAccountingValue(string $value): string
+    {
+        // Remove all spaces
+        $value = preg_replace('/\s+/', '', $value);
+        
+        // Convert to lowercase
+        $value = strtolower($value);
+        
+        // Remove any currency symbols or other special characters
+        $value = preg_replace('/[^a-z0-9\-\(\)\.]/', '', $value);
+        
+        return $value;
     }
 }

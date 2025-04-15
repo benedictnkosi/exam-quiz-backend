@@ -8,7 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class SubjectQuestionCountService
 {
-    private const REQUIRED_QUESTIONS_PER_SUBJECT = 100;
+    private const REQUIRED_QUESTIONS_PER_SUBJECT = 200;
 
     private EntityManagerInterface $entityManager;
 

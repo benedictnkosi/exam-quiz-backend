@@ -36,4 +36,22 @@ class LearnerSubjectController extends AbstractController
             $result['status'] === 'OK' ? 200 : 400
         );
     }
+
+
+    #[Route('/exam-date/{gradeNumber}/{subjectName}', name: 'get_exam_date', methods: ['GET'])]
+    public function getExamDate(string $gradeNumber, string $subjectName): JsonResponse
+    {
+        
+        try {
+            $result = $this->learnerSubjectService->getExamDateBySubject($subjectName, $gradeNumber);
+            
+            return new JsonResponse($result);
+            
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error getting exam date: ' . $e->getMessage()
+            ]);
+        }
+    }
 } 

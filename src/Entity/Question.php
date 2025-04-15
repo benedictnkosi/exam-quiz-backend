@@ -83,6 +83,12 @@ class Question
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $aiExplanation = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $answerSheet = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $otherContextImages = null;
+
     #[ORM\ManyToOne(targetEntity: Subject::class)]
     #[ORM\JoinColumn(name: 'subject', referencedColumnName: 'id')]
     private ?Subject $subject = null;
@@ -398,6 +404,28 @@ class Question
     public function setRelatedQuestionIds(?array $relatedQuestionIds): static
     {
         $this->relatedQuestionIds = $relatedQuestionIds;
+        return $this;
+    }
+
+    public function getAnswerSheet(): ?string
+    {
+        return $this->answerSheet;
+    }
+
+    public function setAnswerSheet(?string $answerSheet): static
+    {
+        $this->answerSheet = $answerSheet;
+        return $this;
+    }
+
+    public function getOtherContextImages(): ?array
+    {
+        return $this->otherContextImages;
+    }
+
+    public function setOtherContextImages(?array $otherContextImages): static
+    {
+        $this->otherContextImages = $otherContextImages;
         return $this;
     }
 }

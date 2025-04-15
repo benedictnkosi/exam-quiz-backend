@@ -131,7 +131,7 @@ class LearnMzansiApi extends AbstractController
             $questionId = $data['question_id'] ?? null;
 
             // Validate required fields
-            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term']) || empty($data['answer']) || empty($data['curriculum'])) {
+            if (empty($data['type']) || empty($data['subject']) || empty($data['year']) || empty($data['term']) || (empty($data['answer']) && empty($data['answer_sheet'])) || empty($data['curriculum'])) {
                 return array(
                     'status' => 'NOK',
                     'message' => "Missing required fields."
@@ -158,7 +158,7 @@ class LearnMzansiApi extends AbstractController
 
 
             // Validate that options are not empty for multiple_choice or multi_select types - fixed
-            if (($data['type'] == 'multiple_choice' || $data['type'] == 'multi_select')) {
+            if (($data['type'] == 'multiple_choice' || $data['type'] == 'multi_select') && empty($data['answer_sheet'])) {
                 if (empty($data['options']['option1']) || empty($data['options']['option2']) || empty($data['options']['option3']) || empty($data['options']['option4'])) {
                     return array(
                         'status' => 'NOK',
@@ -234,7 +234,9 @@ class LearnMzansiApi extends AbstractController
             $question->setType($data['type']);
             $question->setSubject($subject);
             $question->setContext($data['context'] ?? null);
-            $question->setAnswer($data['answer']);
+            if(!empty($data['answer'])){
+                $question->setAnswer($data['answer']);
+            }
             $question->setOptions($data['options'] ?? null); // Pass the array directly
             $question->setTerm($data['term'] ?? null);
             $question->setExplanation($data['explanation'] ?? null);
@@ -255,6 +257,11 @@ class LearnMzansiApi extends AbstractController
             $question->setImagePath('');
             $question->setQuestionImagePath('');
             $question->setAnswerImage('');
+            $question->setOtherContextImages($data['otherContextImages'] ?? null);
+
+            if(!empty($data['answer_sheet'])){
+                $question->setAnswerSheet(json_encode($data['answer_sheet']));
+            }
 
             // Persist and flush the new entity
             $this->em->persist($question);
@@ -532,9 +539,19 @@ class LearnMzansiApi extends AbstractController
             // Get related questions (same context and image path)
             $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
             $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
+            if(!empty($relatedQuestionIds)){
+                $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
+            }
             
             // Set related question IDs on the question object
+            //remove the first question id from the array
+            //unset($relatedQuestionIds[0]);
+            $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
             $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
+
+            // Remove capturer and reviewer from response
+            $randomQuestion->setCapturer(null);
+            $randomQuestion->setReviewer(null);
 
             return $randomQuestion;
         } catch (\Exception $e) {
@@ -692,6 +709,8 @@ class LearnMzansiApi extends AbstractController
     {
         try {
             $uid = $request->query->get('uid');
+            $accounting = $request->query->get('accounting');
+            
             if (empty($uid)) {
                 return array(
                     'status' => 'NOK',
@@ -747,6 +766,10 @@ class LearnMzansiApi extends AbstractController
                 $qb->andWhere('q.status = :status');
             }
 
+            if($accounting === null){
+                $qb->andWhere('s.name NOT LIKE :accounting');
+            }
+
             $qb->groupBy('s.id')
                 ->orderBy('s.name', 'ASC');
 
@@ -762,6 +785,10 @@ class LearnMzansiApi extends AbstractController
             // Add status parameter only for non-admin users
             if ($learner->getRole() !== 'admin') {
                 $parameters->add(new Parameter('status', 'approved'));
+            }
+
+            if($accounting === null){
+                $parameters->add(new Parameter('accounting', '%Accounting%'));
             }
 
             $qb->setParameters($parameters);
@@ -848,6 +875,7 @@ class LearnMzansiApi extends AbstractController
                 $correctAnswers = $correctAnswersQb->getQuery()->getSingleScalarResult();
                 $subject['correctAnswers'] = $correctAnswers;
             }
+
 
             return array(
                 'status' => 'OK',
@@ -990,6 +1018,9 @@ class LearnMzansiApi extends AbstractController
                 $question->setQuestionImagePath($newFilename);
             } elseif ($imageType == 'answer') {
                 $question->setAnswerImage($newFilename);
+            } elseif ($imageType == 'other_context') {
+                //$question->setOtherContextImages($newFilename);
+                $this->logger->info("Other context images: " . $newFilename);
             } else {
                 return array(
                     'status' => 'NOK',
@@ -2176,6 +2207,20 @@ class LearnMzansiApi extends AbstractController
                     "type" => "image_url",
                     "image_url" => ["url" => $imageUrl]
                 ];
+            }
+
+            //add other context images if they exist
+            $otherContextImages = $question->getOtherContextImages();
+            if ($otherContextImages && !empty($otherContextImages)) {
+                foreach ($otherContextImages as $imagePath) {
+                    if ($imagePath && $imagePath != "" && $imagePath != null && $imagePath != "NULL") {
+                        $imageUrl = "https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $imagePath;
+                        $messages[1]['content'][] = [
+                            "type" => "image_url",
+                            "image_url" => ["url" => $imageUrl]
+                        ];
+                    }
+                }
             }
 
             $data = [
@@ -3705,21 +3750,19 @@ class LearnMzansiApi extends AbstractController
                 ->from('App\Entity\Question', 'q')
                 ->where('q.subject = :subject')
                 ->andWhere('q.active = :active')
-                ->andWhere('q.id != :currentQuestionId')  // Exclude current question
                 ->andWhere('q.context IS NOT NULL')
                 ->andWhere('q.context = :context')
                 ->andWhere('q.imagePath IS NOT NULL')
                 ->andWhere('q.imagePath != :emptyString')
                 ->andWhere('q.imagePath != :nullString')
                 ->andWhere('q.imagePath = :imagePath')
-                ->orderBy('q.created', 'ASC')
+                ->orderBy('q.id', 'ASC')
                 ->setParameter('subject', $subject)
                 ->setParameter('active', true)
                 ->setParameter('context', $context)
                 ->setParameter('imagePath', $imagePath)
                 ->setParameter('emptyString', '')
-                ->setParameter('nullString', 'NULL')
-                ->setParameter('currentQuestionId', $questionId);
+                ->setParameter('nullString', 'NULL');
 
             $results = $qb->getQuery()->getResult();
             $questionIds = array_map(function($result) {
@@ -3739,4 +3782,90 @@ class LearnMzansiApi extends AbstractController
             ];
         }
     }
+
+    public function updateLearnerAvatar(Request $request): array
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $uid = $data['uid'] ?? null;
+            $avatar = $data['avatar'] ?? null;
+
+            if (!$uid || !$avatar) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Missing required parameters'
+                ];
+            }
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            $learner->setAvatar($avatar);
+            $this->em->persist($learner);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Avatar updated successfully',
+                'avatar' => $avatar
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error updating learner avatar: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error updating avatar'
+            ];
+        }
+    }
+
+    public function setOtherContextImages(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $adminCheck = $this->validateAdminAccess($request);
+            if ($adminCheck['status'] === 'NOK') {
+                return $adminCheck;
+            }
+
+            $requestBody = json_decode($request->getContent(), true);
+            $questionId = $requestBody['question_id'] ?? null;
+            $otherContextImages = $requestBody['other_context_images'] ?? null;
+
+            if (empty($questionId)) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Question ID is required'
+                );
+            }
+
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                );
+            }
+
+            $question->setOtherContextImages($otherContextImages);
+            $this->em->persist($question);
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'Successfully updated other context images for question'
+            );
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error updating other context images for question'
+            );
+        }
+    }
+
 }

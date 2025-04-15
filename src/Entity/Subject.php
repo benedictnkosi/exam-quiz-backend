@@ -21,6 +21,9 @@ class Subject
     #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => true])]
     private ?bool $active = true;
 
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $examDate = null;
+
     #[ORM\ManyToOne(targetEntity: Grade::class)]
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
     private ?Grade $grade = null;
@@ -78,6 +81,18 @@ class Subject
     public function setCapturer(?Learner $capturer): static
     {
         $this->capturer = $capturer;
+
+        return $this;
+    }
+
+    public function getExamDate(): ?\DateTimeInterface
+    {
+        return $this->examDate;
+    }
+
+    public function setExamDate(?\DateTimeInterface $examDate): static
+    {
+        $this->examDate = $examDate;
 
         return $this;
     }

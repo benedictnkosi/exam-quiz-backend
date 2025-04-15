@@ -141,6 +141,7 @@ class LearnMzansiApiController extends AbstractController
         $answer = $data['answer'] ?? null;
         $duration = $data['duration'] ?? null;
         $mode = $data['mode'] ?? 'normal';
+        $sheetCell = $data['sheet_cell'] ?? null;
 
         if (!$uid || !$questionId || $answer === null) {
             return new JsonResponse([
@@ -149,7 +150,7 @@ class LearnMzansiApiController extends AbstractController
             ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
         }
 
-        $response = $checkAnswerService->checkAnswer($uid, (int) $questionId, $answer, $duration);
+        $response = $checkAnswerService->checkAnswer($uid, (int) $questionId, $answer, $duration, $mode, $sheetCell);
         $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
 
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);
@@ -306,6 +307,16 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->setImageForQuestionAnswer($request);
+        $context = SerializationContext::create()->enableMaxDepthChecks();
+        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
+    }
+
+    #[Route('/learn/question/set-other-context-images', name: 'set_other_context_images', methods: ['POST'])]
+    public function setOtherContextImages(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->setOtherContextImages($request);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
@@ -1088,6 +1099,14 @@ class LearnMzansiApiController extends AbstractController
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, ['Access-Control-Allow-Origin' => '*'], true);
+    }
+
+    #[Route('/learn/learner/update-avatar', name: 'update_learner_avatar', methods: ['PUT'])]
+    public function updateLearnerAvatar(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->updateLearnerAvatar($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
 }

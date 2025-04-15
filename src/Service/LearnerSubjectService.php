@@ -98,4 +98,56 @@ class LearnerSubjectService
             ];
         }
     }
+
+    public function getExamDateBySubject(string $subjectName, string $gradeNumber): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Find the grade
+            $grade = $this->entityManager->getRepository(Grade::class)->findOneBy(['number' => $gradeNumber]);
+            if (!$grade) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Grade not found'
+                ];
+            }
+
+            // Find the subject
+            $subject = $this->entityManager->getRepository(Subject::class)->findOneBy([
+                'name' => $subjectName,
+                'grade' => $grade
+            ]);
+
+            if (!$subject) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                ];
+            }
+
+            $examDate = $subject->getExamDate();
+            if (!$examDate) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Exam date not set for this subject'
+                ];
+            }
+
+            return [
+                'status' => 'OK',
+                'data' => [
+                    'subject_name' => $subject->getName(),
+                    'grade' => $grade->getNumber(),
+                    'exam_date' => $examDate->format('Y-m-d H:i:s')
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting exam date: ' . $e->getMessage()
+            ];
+        }
+    }
 } 
