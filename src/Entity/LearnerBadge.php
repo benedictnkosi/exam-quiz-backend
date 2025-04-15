@@ -12,7 +12,7 @@ class LearnerBadge
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Serializer\Groups(['learner:read'])]
     private ?int $id = null;
 
