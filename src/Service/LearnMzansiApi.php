@@ -351,25 +351,47 @@ class LearnMzansiApi extends AbstractController
                 $query = $qb->getQuery();
                 $questions = $query->getResult();
                 if (!empty($questions)) {
-                    $randomQuestion = $questions[0];
-
-                    //shuffle the options
-                    $options = $randomQuestion->getOptions();
-                    if ($options) {
-                        shuffle($options);
-                        $randomQuestion->setOptions($options);
-                    }
-                    // Remove answer before returning
-                    $randomQuestion->setAnswer(null);
-                    return $randomQuestion;
+                    shuffle($questions);
+                    $randomQuestion = $questions[0]; // Get the first random question
                 } else {
                     return array(
                         'status' => 'NOK',
-                        'message' => 'No new questions found for review',
+                        'message' => 'No more questions available',
                         'context' => '',
                         'image_path' => ''
                     );
                 }
+
+                //shuffle the options
+                $options = $randomQuestion->getOptions();
+                if ($options) {
+                    shuffle($options);
+                    $randomQuestion->setOptions($options);
+                }
+                // Remove answer before returning if platform is web
+                if ($platform === 'web') {
+                    $randomQuestion->setAnswer(null);
+                }
+
+                // Get related questions (same context and image path)
+                $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
+                $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
+                if(!empty($relatedQuestionIds)){
+                    $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
+                }
+                
+                // Set related question IDs on the question object
+                $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
+                $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
+
+                // Remove capturer, reviewer, and subject.capturer information
+                $randomQuestion->setCapturer(null);
+                $randomQuestion->setReviewer(null);
+                if ($randomQuestion->getSubject()) {
+                    $randomQuestion->getSubject()->setCapturer(null);
+                }
+
+                return $randomQuestion;
             }
 
             if ($learner->getRole() === 'reviewer') {
@@ -544,14 +566,15 @@ class LearnMzansiApi extends AbstractController
             }
             
             // Set related question IDs on the question object
-            //remove the first question id from the array
-            //unset($relatedQuestionIds[0]);
             $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
             $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
 
-            // Remove capturer and reviewer from response
+            // Remove capturer, reviewer, and subject.capturer information
             $randomQuestion->setCapturer(null);
             $randomQuestion->setReviewer(null);
+            if ($randomQuestion->getSubject()) {
+                $randomQuestion->getSubject()->setCapturer(null);
+            }
 
             return $randomQuestion;
         } catch (\Exception $e) {
