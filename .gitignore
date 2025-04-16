@@ -28,3 +28,7 @@
 /public/assets/images/learnMzansi/
 /public/assets/chat/
 ###< learnMzansi images ###
+
+###> log files ###
+/dev.log
+###< log files ###

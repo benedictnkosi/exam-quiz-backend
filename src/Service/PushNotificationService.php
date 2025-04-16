@@ -112,6 +112,8 @@ class PushNotificationService
                     continue;
                 }
 
+                $this->logger->info('Sending notification to user ' . $user->getUid());
+
                 // Calculate days inactive
                 $lastSeen = $user->getLastSeen();
                 $daysInactive = $lastSeen->diff($today)->days;
@@ -159,7 +161,7 @@ class PushNotificationService
             }
 
             return [
-                'success' => true,
+                'status' => 'OK',
                 'notificationsSent' => $notificationsSent,
                 'totalInactiveUsers' => count($inactiveUsers),
                 'errors' => $errors
@@ -167,7 +169,7 @@ class PushNotificationService
         } catch (\Exception $e) {
             $this->logger->error('Error sending notifications: ' . $e->getMessage());
             return [
-                'success' => false,
+                'status' => 'NOK',
                 'message' => 'Failed to send notifications',
                 'error' => $e->getMessage()
             ];
@@ -464,6 +466,52 @@ class PushNotificationService
             return [
                 'status' => 'NOK',
                 'message' => 'Failed to send notification',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function sendStreakNotifications(): array
+    {
+        try {
+            $today = new \DateTime('today');
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('l')
+                ->from(Learner::class, 'l')
+                ->andWhere('l.expoPushToken IS NOT NULL')
+                ->andWhere('l.role = :role')
+                ->setParameter('role', 'learner');
+
+            $learners = $qb->getQuery()->getResult();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($learners as $learner) {
+                $streak = $learner->getStreak();
+                if ($streak > 0) {
+                    $result = $this->sendStreakNotification($learner, $streak);
+                    if ($result['status'] === 'OK') {
+                        $notificationsSent += $result['notificationsSent'];
+                    } else {
+                        $errors[] = [
+                            'learnerUid' => $learner->getUid(),
+                            'error' => $result['message']
+                        ];
+                    }
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalFollowers' => count($learners),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending streak notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send streak notifications',
                 'error' => $e->getMessage()
             ];
         }
