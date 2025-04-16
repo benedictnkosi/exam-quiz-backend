@@ -71,5 +71,6 @@ ipconfig getifaddr en0
 ## modify cron jobs
 DITOR=nano crontab -e
 
-### to do reminder cron job
+### view cron jobs
 sudo crontab -u www-data -l
+sudo crontab -u www-data -e

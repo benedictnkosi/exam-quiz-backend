@@ -49,6 +49,9 @@ class PushNotificationService
 
     private function getMessageForInactiveDays(int $daysInactive): array
     {
+        // Ensure daysInactive is at least 1
+        $daysInactive = max(1, $daysInactive);
+        
         // If days inactive is more than the number of messages, use the last message
         $messageIndex = min($daysInactive - 1, count(self::NOTIFICATION_MESSAGES) - 1);
         return self::NOTIFICATION_MESSAGES[$messageIndex];
