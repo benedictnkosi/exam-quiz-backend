@@ -85,7 +85,7 @@ class PushNotificationService
         }
     }
 
-    public function sendNotificationsToInactiveUsers(): array
+    public function sendNotificationsToInactiveUsers(?int $gradeId = null): array
     {
         try {
             // Get users who were last seen less than 7 days ago and have a valid push token
@@ -102,6 +102,12 @@ class PushNotificationService
                 ->setParameter('today', $today)
                 ->setParameter('sevenDaysAgo', $sevenDaysAgo)
                 ->setParameter('role', 'learner');
+
+            // Add grade filter if gradeId is provided
+            if ($gradeId !== null) {
+                $qb->andWhere('l.grade = :gradeId')
+                   ->setParameter('gradeId', $gradeId);
+            }
 
             $inactiveUsers = $qb->getQuery()->getResult();
 

@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(
     name: 'app:send-streak-notifications',
@@ -29,7 +30,8 @@ class SendStreakNotificationsCommand extends Command
         $io->title('Sending streak notifications');
 
         try {
-            $result = $this->pushNotificationService->sendNotificationsToInactiveUsers();
+            $gradeId = $input->getArgument('grade');
+            $result = $this->pushNotificationService->sendNotificationsToInactiveUsers($gradeId);
 
             if ($result['status'] === 'OK') {
                 $io->success(sprintf(
@@ -44,7 +46,7 @@ class SendStreakNotificationsCommand extends Command
                     foreach ($result['errors'] as $error) {
                         $io->writeln(sprintf(
                             '- Learner %s: %s',
-                            $error['learnerUid'],
+                            $error['userId'],
                             $error['error']
                         ));
                     }
@@ -60,5 +62,13 @@ class SendStreakNotificationsCommand extends Command
             $io->error('Error in streak notifications command: ' . $e->getMessage());
             return Command::FAILURE;
         }
+    }
+
+    protected function configure(): void
+    {
+        $this
+            ->setDescription('Sends notifications to inactive learners')
+            ->addArgument('grade', InputArgument::OPTIONAL, 'Grade ID to filter learners by', null)
+        ;
     }
 } 
