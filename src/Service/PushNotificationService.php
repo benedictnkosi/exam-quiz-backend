@@ -525,4 +525,64 @@ class PushNotificationService
             ];
         }
     }
+
+    public function sendQuizWeekendNotification(int $gradeId): array
+    {
+        try {
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('l')
+                ->from(Learner::class, 'l')
+                ->andWhere('l.grade = :gradeId')
+                ->andWhere('l.expoPushToken IS NOT NULL')
+                ->andWhere('l.role = :role')
+                ->setParameter('gradeId', $gradeId)
+                ->setParameter('role', 'learner');
+
+            $learners = $qb->getQuery()->getResult();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($learners as $learner) {
+                $pushToken = $learner->getExpoPushToken();
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => '🎉 Quiz Weekend!',
+                    'body' => 'Quiz Weekend starts now!',
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'quiz_weekend',
+                        'gradeId' => $gradeId
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'learnerUid' => $learner->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalLearners' => count($learners),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending quiz weekend notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send quiz weekend notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }

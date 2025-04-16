@@ -28,21 +28,21 @@ class BadgeService
             $this->logger->info('Streak: ' . $streak);
             if ($streak >= 3) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '3-Day Streak']);
-                if (!$this->hasLearnerBadge($learner, '3-Day Streak')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '3-Day Streak')) {
                     $this->assignBadge($learner, '3-Day Streak');
                     $newBadges[] = $this->formatBadge($badge);
                 }
             }
             if ($streak >= 7) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '7-Day Streak']);
-                if (!$this->hasLearnerBadge($learner, '7-Day Streak')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '7-Day Streak')) {
                     $this->assignBadge($learner, '7-Day Streak');
                     $newBadges[] = $this->formatBadge($badge);
                 }
             }
             if ($streak >= 30) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '30-Day Streak']);
-                if (!$this->hasLearnerBadge($learner, '30-Day Streak')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '30-Day Streak')) {
                     $this->assignBadge($learner, '30-Day Streak');
                     $newBadges[] = $this->formatBadge($badge);
                 }
@@ -52,21 +52,21 @@ class BadgeService
             $consecutiveCorrect = $this->getConsecutiveCorrectAnswers($learner);
             if ($consecutiveCorrect >= 3) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '3 in a row']);
-                if (!$this->hasLearnerBadge($learner, '3 in a row')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '3 in a row')) {
                     $this->assignBadge($learner, '3 in a row');
                     $newBadges[] = $this->formatBadge($badge);
                 }
             }
             if ($consecutiveCorrect >= 5) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '5 in a row']);
-                if (!$this->hasLearnerBadge($learner, '5 in a row')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '5 in a row')) {
                     $this->assignBadge($learner, '5 in a row');
                     $newBadges[] = $this->formatBadge($badge);
                 }
             }
             if ($consecutiveCorrect >= 10) {
                 $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => '10 in a row']);
-                if (!$this->hasLearnerBadge($learner, '10 in a row')) {
+                if ($badge && !$this->hasLearnerBadge($learner, '10 in a row')) {
                     $this->assignBadge($learner, '10 in a row');
                     $newBadges[] = $this->formatBadge($badge);
                 }
