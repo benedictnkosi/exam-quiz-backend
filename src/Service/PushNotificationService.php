@@ -573,7 +573,7 @@ class PushNotificationService
             return [
                 'status' => 'OK',
                 'notificationsSent' => $notificationsSent,
-                'totalLearners' => count($learners),
+                'totalLearners' => count(value: $learners),
                 'errors' => $errors
             ];
         } catch (\Exception $e) {

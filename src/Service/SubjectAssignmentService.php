@@ -36,6 +36,14 @@ class SubjectAssignmentService
             throw new NotFoundHttpException('Learner not found');
         }
 
+        // Find and unassign any existing subject assignments for this learner
+        $existingSubjects = $this->entityManager->getRepository(Subject::class)->findBy(['capturer' => $learner]);
+        foreach ($existingSubjects as $existingSubject) {
+            $existingSubject->setCapturer(null);
+            $this->entityManager->persist($existingSubject);
+        }
+
+        // Assign the new subject
         $subject->setCapturer($learner);
         $this->entityManager->persist($subject);
         $this->entityManager->flush();
