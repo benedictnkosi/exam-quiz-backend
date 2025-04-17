@@ -120,6 +120,11 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private ?string $os = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\Type('array')]
+    private ?array $timetable = null;
+
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     #[Serializer\Groups(['learner:read'])]
     #[Serializer\MaxDepth(1)]
@@ -434,6 +439,17 @@ class Learner
     public function setOs(?string $os): self
     {
         $this->os = $os;
+        return $this;
+    }
+
+    public function getTimetable(): ?array
+    {
+        return $this->timetable;
+    }
+
+    public function setTimetable(?array $timetable): self
+    {
+        $this->timetable = $timetable;
         return $this;
     }
 
