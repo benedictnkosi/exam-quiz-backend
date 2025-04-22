@@ -74,4 +74,25 @@ class PushNotificationController extends AbstractController
 
         return new JsonResponse($result, $result['status'] === 'OK' ? 200 : 500);
     }
+
+    #[Route('/new-thread', name: 'send_new_thread_notification', methods: ['POST'])]
+    public function sendNewThreadNotification(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['subject_name']) || !isset($data['thread_title']) || !isset($data['uid'])) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Invalid request data. Required fields: subject_name, thread_title, uid'
+            ], 400);
+        }
+
+        $result = $this->pushNotificationService->sendNewThreadNotification(
+            $data['subject_name'],
+            $data['thread_title'],
+            $data['uid']
+        );
+
+        return new JsonResponse($result, $result['status'] === 'OK' ? 200 : 500);
+    }
 }

@@ -1015,7 +1015,7 @@ class LearnMzansiApiController extends AbstractController
     public function getRecordingQuestion(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        
+
         $subjectName = $request->query->get('subjectName');
         $uid = $request->query->get('uid');
         $grade = (int) $request->query->get('grade');
@@ -1038,7 +1038,7 @@ class LearnMzansiApiController extends AbstractController
     public function removeRecordedQuestions(string $subjectName, int $grade): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        
+
         $response = $this->api->removeRecordedQuestionsBySubject($subjectName, $grade);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
@@ -1049,10 +1049,10 @@ class LearnMzansiApiController extends AbstractController
         ScoreboardService $scoreboardService
     ): JsonResponse {
         $this->logger->info("Starting Method: " . __METHOD__);
-        
+
         $uid = $request->query->get('uid');
         $period = $request->query->get('period', 'weekly');
-        
+
         if (!$uid) {
             return new JsonResponse([
                 'status' => 'NOK',
@@ -1106,6 +1106,14 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->updateLearnerAvatar($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/learner/update-notification-setting', name: 'update_learner_notification_setting', methods: ['PUT'])]
+    public function updateLearnerNewThreadNotification(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->updateLearnerNewThreadNotification($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 

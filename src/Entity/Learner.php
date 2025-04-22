@@ -123,7 +123,13 @@ class Learner
     #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('array')]
+
     private ?array $timetable = null;
+
+    #[ORM\Column(name: 'new_thread_notification', type: Types::BOOLEAN, options: ['default' => true])]
+    #[Serializer\Groups(['learner:read'])]
+    private bool $newThreadNotification = true;
+
 
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     #[Serializer\Groups(['learner:read'])]
@@ -569,6 +575,17 @@ class Learner
             }
         }
 
+        return $this;
+    }
+
+    public function getNewThreadNotification(): bool
+    {
+        return $this->newThreadNotification;
+    }
+
+    public function setNewThreadNotification(bool $newThreadNotification): self
+    {
+        $this->newThreadNotification = $newThreadNotification;
         return $this;
     }
 }

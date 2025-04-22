@@ -13,9 +13,12 @@ php bin/console doctrine:migrations:migrate
 
 php bin/console doctrine:schema:validate
 
+php bin/console doctrine:migrations:diff
+
 php bin/console doctrine:schema:update --force
 
 ## on server
+php bin/console doctrine:migrations:diff
 php bin/console doctrine:migrations:migrate
 
 
@@ -74,3 +77,7 @@ DITOR=nano crontab -e
 ### view cron jobs
 sudo crontab -u www-data -l
 sudo crontab -u www-data -e
+
+### running deepsick
+ollama serve
+ollama run deepseek-llm

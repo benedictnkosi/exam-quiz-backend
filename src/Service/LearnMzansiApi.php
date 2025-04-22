@@ -62,7 +62,7 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Learner not found'
                 );
             }
-            
+
 
             return $learner;
         } catch (\Exception $e) {
@@ -234,7 +234,7 @@ class LearnMzansiApi extends AbstractController
             $question->setType($data['type']);
             $question->setSubject($subject);
             $question->setContext($data['context'] ?? null);
-            if(!empty($data['answer'])){
+            if (!empty($data['answer'])) {
                 $question->setAnswer($data['answer']);
             }
             $question->setOptions($data['options'] ?? null); // Pass the array directly
@@ -259,7 +259,7 @@ class LearnMzansiApi extends AbstractController
             $question->setAnswerImage('');
             $question->setOtherContextImages($data['otherContextImages'] ?? null);
 
-            if(!empty($data['answer_sheet'])){
+            if (!empty($data['answer_sheet'])) {
                 $question->setAnswerSheet(json_encode($data['answer_sheet']));
             }
 
@@ -376,10 +376,10 @@ class LearnMzansiApi extends AbstractController
                 // Get related questions (same context and image path)
                 $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
                 $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
-                if(!empty($relatedQuestionIds)){
+                if (!empty($relatedQuestionIds)) {
                     $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
                 }
-                
+
                 // Set related question IDs on the question object
                 $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
                 $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
@@ -561,10 +561,10 @@ class LearnMzansiApi extends AbstractController
             // Get related questions (same context and image path)
             $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
             $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
-            if(!empty($relatedQuestionIds)){
+            if (!empty($relatedQuestionIds)) {
                 $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
             }
-            
+
             // Set related question IDs on the question object
             $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
             $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
@@ -601,7 +601,7 @@ class LearnMzansiApi extends AbstractController
             // Get already recorded question IDs
             $recordedQuestionIds = $this->em->getRepository(RecordedQuestion::class)
                 ->findRecordedQuestionIds();
-            $recordedQuestionIds = array_map(function($item) {
+            $recordedQuestionIds = array_map(function ($item) {
                 return $item['questionId'];
             }, $recordedQuestionIds);
 
@@ -659,16 +659,16 @@ class LearnMzansiApi extends AbstractController
 
             $query = $qb->getQuery();
             $questions = $query->getResult();
-            
+
             if (!empty($questions)) {
                 // Get a random question
                 $randomQuestion = $questions[array_rand($questions)];
-                
+
                 // Create a new RecordedQuestion entry
                 $recordedQuestion = new RecordedQuestion();
                 $recordedQuestion->setQuestionId($randomQuestion->getId());
                 $recordedQuestion->setSubjectId($randomQuestion->getSubject()->getId());
-                
+
                 $this->em->persist($recordedQuestion);
                 $this->em->flush();
 
@@ -733,7 +733,7 @@ class LearnMzansiApi extends AbstractController
         try {
             $uid = $request->query->get('uid');
             $accounting = $request->query->get('accounting');
-            
+
             if (empty($uid)) {
                 return array(
                     'status' => 'NOK',
@@ -789,7 +789,7 @@ class LearnMzansiApi extends AbstractController
                 $qb->andWhere('q.status = :status');
             }
 
-            if($accounting === null){
+            if ($accounting === null) {
                 $qb->andWhere('s.name NOT LIKE :accounting');
             }
 
@@ -810,7 +810,7 @@ class LearnMzansiApi extends AbstractController
                 $parameters->add(new Parameter('status', 'approved'));
             }
 
-            if($accounting === null){
+            if ($accounting === null) {
                 $parameters->add(new Parameter('accounting', '%Accounting%'));
             }
 
@@ -2349,6 +2349,7 @@ class LearnMzansiApi extends AbstractController
                 $learner->setPoints(0);
                 $learner->setCreated(created: new \DateTime());
                 $learner->setCurriculum(curriculum: "IEB,CAPS");
+                $learner->setNewThreadNotification(1);
                 if ($curriculum == "IEB") {
                     $learner->setPrivateSchool(true);
                 } else {
@@ -2362,7 +2363,7 @@ class LearnMzansiApi extends AbstractController
                 $firstLetter = strtoupper(substr($name, 0, 1));
                 $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
                 $followMeCode = $firstLetter . $randomLetters;
-                
+
                 // Check if code is already in use
                 $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
                 $attempts = 0;
@@ -2372,14 +2373,14 @@ class LearnMzansiApi extends AbstractController
                     $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
                     $attempts++;
                 }
-                
+
                 if ($existingLearner) {
                     return array(
                         'status' => 'NOK',
                         'message' => 'Unable to generate a unique follow code. Please try again.'
                     );
                 }
-                
+
                 $learner->setFollowMeCode($followMeCode);
             } else {
                 //if learner is admin
@@ -2438,7 +2439,8 @@ class LearnMzansiApi extends AbstractController
             $learner->setSchoolLongitude($requestBody['school_longitude']);
             $learner->setAvatar($requestBody['avatar']);
 
-            
+
+
 
             $this->em->persist($learner);
             $this->em->flush();
@@ -3336,6 +3338,7 @@ class LearnMzansiApi extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
             $uid = $request->query->get('uid');
+            $subjectName = $request->query->get('subject_name');
 
             if (empty($uid)) {
                 return [
@@ -3362,19 +3365,7 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // Get subjects the learner has answered
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('DISTINCT s.id')
-                ->from(Result::class, 'r')
-                ->join('r.question', 'q')
-                ->join('q.subject', 's')
-                ->where('r.learner = :learner')
-                ->setParameter('learner', $learner);
-
-            $subjectIds = $qb->getQuery()->getSingleColumnResult();
-
             // Build query for questions with valid AI explanations
-            //ai_explanation should contain text "Key Lesson"
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
                 ->from(Question::class, 'q')
@@ -3393,58 +3384,52 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('curlyBraces', '%{%')
                 ->setParameter('keyLesson', '%Key Lesson%');
 
-            // If learner has answered questions, prioritize those subjects
-            if (!empty($subjectIds)) {
-                $qb->andWhere('s.id IN (:subjectIds)')
-                    ->setParameter('subjectIds', $subjectIds);
+            // If subject ID is provided, filter by that subject
+            if (!empty($subjectName)) {
+                $qb->andWhere('s.name like :subjectName')
+                    ->setParameter('subjectName', '%' . $subjectName . '%');
+            } else {
+                // Get subjects the learner has answered
+                $subjectsQb = $this->em->createQueryBuilder();
+                $subjectsQb->select('DISTINCT s.id')
+                    ->from(Result::class, 'r')
+                    ->join('r.question', 'q')
+                    ->join('q.subject', 's')
+                    ->where('r.learner = :learner')
+                    ->setParameter('learner', $learner);
+
+                $subjectIds = $subjectsQb->getQuery()->getSingleColumnResult();
+
+                // If learner has answered questions, prioritize those subjects
+                if (!empty($subjectIds)) {
+                    $qb->andWhere('s.id IN (:subjectIds)')
+                        ->setParameter('subjectIds', $subjectIds);
+                }
             }
 
             $questions = $qb->getQuery()->getResult();
 
-            // If no questions found from learner's subjects, try any question from their grade
-            //do not include questions where ai explanations contains $ or { sign
-            if (empty($questions)) {
-                $qb = $this->em->createQueryBuilder();
-                $qb->select('q')
-                    ->from(Question::class, 'q')
-                    ->join('q.subject', 's')
-                    ->where('q.aiExplanation IS NOT NULL')
-                    ->andWhere('q.aiExplanation != :emptyString')
-                    ->andWhere('q.aiExplanation != :nullString')
-                    ->andWhere('s.grade = :grade')
-                    ->andWhere('q.aiExplanation NOT LIKE :dollarSign')
-                    ->andWhere('q.aiExplanation NOT LIKE :curlyBraces')
-                    ->andWhere('q.aiExplanation LIKE :keyLesson')
-                    ->setParameter('emptyString', '')
-                    ->setParameter('nullString', 'NULL')
-                    ->setParameter('grade', $grade)
-                    ->setParameter('dollarSign', '%$%')
-                    ->setParameter('curlyBraces', '%{%')
-                    ->setParameter('keyLesson', '%Key Lesson%');
-
-                $questions = $qb->getQuery()->getResult();
-            }
-
             if (empty($questions)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'No questions with AI explanations found for subjects other than Mathematics and Physical Sciences in your grade'
+                    'message' => 'No questions with AI explanations found for the specified criteria'
                 ];
             }
 
             // Get a random question
             $randomQuestion = $questions[array_rand($questions)];
 
-            // Shuffle options if they exist
-            if ($randomQuestion->getOptions()) {
-                $options = $randomQuestion->getOptions();
-                shuffle($options);
-                $randomQuestion->setOptions($options);
-            }
-
             return [
                 'status' => 'OK',
-                'question' => $randomQuestion
+                'question' => [
+                    'id' => $randomQuestion->getId(),
+                    'question' => $randomQuestion->getQuestion(),
+                    'ai_explanation' => $randomQuestion->getAiExplanation(),
+                    'subject' => [
+                        'id' => $randomQuestion->getSubject()->getId(),
+                        'name' => $randomQuestion->getSubject()->getName()
+                    ]
+                ]
             ];
 
         } catch (\Exception $e) {
@@ -3453,7 +3438,6 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error getting random question: ' . $e->getMessage()
             ];
-
         }
     }
 
@@ -3655,8 +3639,8 @@ class LearnMzansiApi extends AbstractController
 
             $qb = $this->em->createQueryBuilder();
             $qb->delete('App\Entity\RecordedQuestion', 'rq')
-               ->where('rq.subjectId = :subjectId')
-               ->setParameter('subjectId', $subject->getId());
+                ->where('rq.subjectId = :subjectId')
+                ->setParameter('subjectId', $subject->getId());
 
             $result = $qb->getQuery()->execute();
 
@@ -3678,7 +3662,7 @@ class LearnMzansiApi extends AbstractController
     {
         try {
             $messages = $this->em->getRepository(Message::class)->findAllOrderedByDate();
-            
+
             return [
                 'success' => true,
                 'data' => array_map(function (Message $message) {
@@ -3788,7 +3772,7 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('nullString', 'NULL');
 
             $results = $qb->getQuery()->getResult();
-            $questionIds = array_map(function($result) {
+            $questionIds = array_map(function ($result) {
                 return $result['id'];
             }, $results);
 
@@ -3888,6 +3872,82 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'NOK',
                 'message' => 'Error updating other context images for question'
             );
+        }
+    }
+
+    public function updateLearnerNewThreadNotification(Request $request): array
+    {
+        $uid = $request->get('uid');
+        $newThreadNotification = $request->get('newThreadNotification');
+
+        if (!$uid) {
+            return ['success' => false, 'message' => 'UID is required'];
+        }
+
+        if (!isset($newThreadNotification)) {
+            return ['success' => false, 'message' => 'newThreadNotification is required'];
+        }
+
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return ['success' => false, 'message' => 'Learner not found'];
+        }
+
+        $learner->setNewThreadNotification((bool) $newThreadNotification);
+        $this->em->persist($learner);
+        $this->em->flush();
+
+        return [
+            'success' => true,
+            'message' => 'Notification setting updated successfully',
+            'newThreadNotification' => $learner->getNewThreadNotification()
+        ];
+    }
+
+    public function updateQuestionTopic(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            // Validate admin access
+            $adminCheck = $this->validateAdminAccess($request);
+            if ($adminCheck['status'] === 'NOK') {
+                return $adminCheck;
+            }
+
+            $requestBody = json_decode($request->getContent(), true);
+            $questionId = $requestBody['question_id'] ?? null;
+            $topic = $requestBody['topic'] ?? null;
+
+            if (empty($questionId)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question ID is required'
+                ];
+            }
+
+            $question = $this->em->getRepository(Question::class)->find($questionId);
+            if (!$question) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
+            $question->setTopic($topic);
+            $question->setUpdated(new \DateTime());
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Successfully updated question topic',
+                'question_id' => $question->getId()
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error updating question topic'
+            ];
         }
     }
 

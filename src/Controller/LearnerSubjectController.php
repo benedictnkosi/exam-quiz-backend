@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\LearnerSubjectService;
+use App\Service\SubjectTopicService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,14 +13,16 @@ use Symfony\Component\Routing\Annotation\Route;
 class LearnerSubjectController extends AbstractController
 {
     public function __construct(
-        private LearnerSubjectService $learnerSubjectService
-    ) {}
+        private LearnerSubjectService $learnerSubjectService,
+        private SubjectTopicService $subjectTopicService
+    ) {
+    }
 
     #[Route('/add-all', methods: ['POST'])]
     public function addAllSubjects(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        
+
         if (!isset($data['uid']) || !isset($data['grade'])) {
             return $this->json([
                 'status' => 'NOK',
@@ -32,7 +35,8 @@ class LearnerSubjectController extends AbstractController
             $data['grade']
         );
 
-        return $this->json($result, 
+        return $this->json(
+            $result,
             $result['status'] === 'OK' ? 200 : 400
         );
     }
@@ -41,12 +45,12 @@ class LearnerSubjectController extends AbstractController
     #[Route('/exam-date/{gradeNumber}/{subjectName}', name: 'get_exam_date', methods: ['GET'])]
     public function getExamDate(string $gradeNumber, string $subjectName): JsonResponse
     {
-        
+
         try {
             $result = $this->learnerSubjectService->getExamDateBySubject($subjectName, $gradeNumber);
-            
+
             return new JsonResponse($result);
-            
+
         } catch (\Exception $e) {
             return new JsonResponse([
                 'status' => 'NOK',
@@ -54,4 +58,28 @@ class LearnerSubjectController extends AbstractController
             ]);
         }
     }
-} 
+
+    #[Route('/topics/create', name: 'create_subject_topics', methods: ['POST'])]
+    public function createSubjectTopics(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['subject_name']) || !isset($data['topics']) || !isset($data['grade'])) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'subject_name, topics, and grade are required'
+            ], 400);
+        }
+
+        $result = $this->subjectTopicService->createTopicsForSubject(
+            $data['subject_name'],
+            $data['topics'],
+            (int) $data['grade']
+        );
+
+        return $this->json(
+            $result,
+            $result['status'] === 'OK' ? 200 : 400
+        );
+    }
+}

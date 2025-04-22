@@ -51,7 +51,7 @@ class PushNotificationService
     {
         // Ensure daysInactive is at least 1
         $daysInactive = max(1, $daysInactive);
-        
+
         // If days inactive is more than the number of messages, use the last message
         $messageIndex = min($daysInactive - 1, count(self::NOTIFICATION_MESSAGES) - 1);
         return self::NOTIFICATION_MESSAGES[$messageIndex];
@@ -106,7 +106,7 @@ class PushNotificationService
             // Add grade filter if gradeId is provided
             if ($gradeId !== null) {
                 $qb->andWhere('l.grade = :gradeId')
-                   ->setParameter('gradeId', $gradeId);
+                    ->setParameter('gradeId', $gradeId);
             }
 
             $inactiveUsers = $qb->getQuery()->getResult();
@@ -581,6 +581,95 @@ class PushNotificationService
             return [
                 'status' => 'NOK',
                 'message' => 'Failed to send quiz weekend notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function sendNewThreadNotification(string $subjectName, string $threadTitle, string $uid): array
+    {
+        try {
+            // Get the learner who created the thread
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Get the grade of the learner
+            $grade = $learner->getGrade();
+            if (!$grade) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner grade not found'
+                ];
+            }
+
+            // Find learners who have answered questions for this subject and grade
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('DISTINCT l')
+                ->from(Learner::class, 'l')
+                ->join('App\Entity\Result', 'r', 'WITH', 'r.learner = l.id')
+                ->join('r.question', 'q')
+                ->join('q.subject', 's')
+                ->where('s.name like :subjectName')
+                ->andWhere('s.grade = :grade')
+                ->andWhere('l.expoPushToken IS NOT NULL')
+                ->andWhere('l.uid != :uid') // Exclude the thread creator
+                ->andWhere('l.newThreadNotification = :true') // Only learners who have enabled thread notifications
+                ->setParameter('subjectName', '%' . $subjectName . '%')
+                ->setParameter('grade', $grade)
+                ->setParameter('uid', $uid)
+                ->setParameter('true', true);
+
+            $learners = $qb->getQuery()->getResult();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($learners as $targetLearner) {
+                $pushToken = $targetLearner->getExpoPushToken();
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => '💬 New Thread in ' . $subjectName,
+                    'body' => $threadTitle,
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'new_thread',
+                        'subjectName' => $subjectName,
+                        'threadTitle' => $threadTitle,
+                        'creatorUid' => $uid,
+                        'creatorName' => $learner->getName()
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'learnerUid' => $targetLearner->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalLearners' => count($learners),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending new thread notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send new thread notifications',
                 'error' => $e->getMessage()
             ];
         }

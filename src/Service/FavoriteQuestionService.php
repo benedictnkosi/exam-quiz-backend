@@ -50,20 +50,37 @@ class FavoriteQuestionService
 
             $favorites = $this->entityManager->getRepository(Favorites::class)
                 ->createQueryBuilder('f')
-                ->select('f.id', 'f.createdAt', 'q.id as questionId', 'q.question', 'q.aiExplanation', 'IDENTITY(q.subject) as subjectId', 'q.context')
+                ->select('f.id', 'f.createdAt', 'q.id as questionId', 'q.question', 'q.aiExplanation', 'IDENTITY(q.subject) as subjectId', 'q.context', 'COUNT(f.id) as favoriteCount')
                 ->innerJoin('f.question', 'q')
                 ->where('f.learner = :learner')
                 ->andWhere('q.subject IN (:subjects)')
                 ->setParameter('learner', $learner)
                 ->setParameter('subjects', $subjectIds)
+                ->groupBy('f.id, q.id')
                 ->orderBy('f.createdAt', 'DESC')
+                ->getQuery()
+                ->getResult();
+
+            // Get top 5 most favorited questions for the subject, excluding user's own favorites
+            $popularQuestions = $this->entityManager->getRepository(Favorites::class)
+                ->createQueryBuilder('f')
+                ->select('f.id', 'f.createdAt', 'q.id as questionId', 'q.question', 'q.aiExplanation', 'IDENTITY(q.subject) as subjectId', 'q.context', 'COUNT(f.id) as favoriteCount')
+                ->innerJoin('f.question', 'q')
+                ->where('q.subject IN (:subjects)')
+                ->andWhere('f.learner != :learner')  // Exclude user's own favorites
+                ->setParameter('subjects', $subjectIds)
+                ->setParameter('learner', $learner)
+                ->groupBy('f.id, q.id')
+                ->orderBy('favoriteCount', 'DESC')
+                ->setMaxResults(5)
                 ->getQuery()
                 ->getResult();
 
             return [
                 'status' => 'OK',
                 'message' => 'Favorite questions retrieved successfully',
-                'data' => $favorites
+                'data' => $favorites,
+                'popular' => $popularQuestions
             ];
 
         } catch (\Exception $e) {

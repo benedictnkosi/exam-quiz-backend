@@ -99,6 +99,9 @@ class Question
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $relatedQuestionIds = null;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $topic = null;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -426,6 +429,17 @@ class Question
     public function setOtherContextImages(?array $otherContextImages): static
     {
         $this->otherContextImages = $otherContextImages;
+        return $this;
+    }
+
+    public function getTopic(): ?string
+    {
+        return $this->topic;
+    }
+
+    public function setTopic(?string $topic): static
+    {
+        $this->topic = $topic;
         return $this;
     }
 }
