@@ -3954,4 +3954,19 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    public function getFirstUnpostedQuestion(): ?Question
+    {
+        return $this->em->getRepository(Question::class)
+            ->createQueryBuilder('q')
+            ->where('q.posted = :posted')
+            ->andWhere('q.aiExplanation IS NOT NULL')
+            ->andWhere('q.aiExplanation != :empty')
+            ->setParameter('posted', false)
+            ->setParameter('empty', '')
+            ->orderBy('q.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
 }
