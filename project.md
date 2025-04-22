@@ -21,7 +21,7 @@ php bin/console doctrine:schema:update --force
 php bin/console doctrine:migrations:diff
 php bin/console doctrine:migrations:migrate
 
-
+FK_5AF0C879FEF0481D
 
 2. Then you can use the make:entity command to update your entity:
 

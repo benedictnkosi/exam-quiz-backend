@@ -50,7 +50,7 @@ class TodoRepository extends ServiceEntityRepository
     public function findFutureTodosByLearner(int $learnerId): array
     {
         $now = new \DateTimeImmutable();
-        
+
         return $this->createQueryBuilder('t')
             ->andWhere('t.learner = :learnerId')
             ->andWhere('t.dueDate > :now')
@@ -64,7 +64,7 @@ class TodoRepository extends ServiceEntityRepository
     public function findFutureTodosByLearnerAndSubject(int $learnerId, string $subjectName): array
     {
         $now = new \DateTimeImmutable();
-        
+
         return $this->createQueryBuilder('t')
             ->andWhere('t.learner = :learnerId')
             ->andWhere('t.subjectName = :subjectName')
@@ -81,7 +81,7 @@ class TodoRepository extends ServiceEntityRepository
     {
         $now = new \DateTimeImmutable();
         $thirtyDaysAgo = $now->modify('-30 days');
-        
+
         return $this->createQueryBuilder('t')
             ->andWhere('t.learner = :learnerId')
             ->andWhere('t.subjectName = :subjectName')
@@ -98,7 +98,7 @@ class TodoRepository extends ServiceEntityRepository
     {
         $startOfDay = clone $dueDate;
         $startOfDay->setTime(0, 0, 0);
-        
+
         $endOfDay = clone $dueDate;
         $endOfDay->setTime(23, 59, 59);
 
@@ -119,6 +119,11 @@ class TodoRepository extends ServiceEntityRepository
         $todo = new Todo();
         $todo->setLearner($learner);
         $todo->setTitle($title);
+
+        if ($dueDate !== null) {
+            $timezone = new \DateTimeZone('Africa/Johannesburg');
+            $dueDate = $dueDate->setTimezone($timezone);
+        }
         $todo->setDueDate($dueDate);
 
         $this->getEntityManager()->persist($todo);
@@ -126,4 +131,4 @@ class TodoRepository extends ServiceEntityRepository
 
         return $todo;
     }
-} 
+}

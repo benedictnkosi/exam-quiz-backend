@@ -2321,11 +2321,11 @@ class LearnMzansiApi extends AbstractController
             $grade = $requestBody['grade'];
             $terms = $requestBody['terms'];
             $curriculum = $requestBody['curriculum'];
-            $schoolName = $requestBody['school_name'];
-            $schoolAddress = $requestBody['school_address'];
+            $schoolName = $requestBody['school_name'] ?? null;
+            $schoolAddress = $requestBody['school_address'] ?? null;
             $email = $requestBody['email'];
 
-            if (empty($uid) || empty($terms) || empty($curriculum) || empty($schoolName) || empty($schoolAddress)) {
+            if (empty($uid) || empty($terms) || empty($curriculum)) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'Mandatory values missing'
@@ -2429,15 +2429,18 @@ class LearnMzansiApi extends AbstractController
             $learner->setNotificationHour(18);
             $learner->setTerms($cleanTerms);
 
-            $learner->setSchoolName($requestBody['school_name'] ? substr($requestBody['school_name'], 0, 255) : '');
+            // Handle optional school details
+            if ($schoolName) {
+                $learner->setSchoolName(substr($schoolName, 0, 255));
+            }
 
-            // Truncate school address to 255 characters to prevent "Data too long" error
-            $schoolAddress = $requestBody['school_address'] ?? '';
-            $learner->setSchoolAddress(substr($schoolAddress, 0, 255));
+            if ($schoolAddress) {
+                $learner->setSchoolAddress(substr($schoolAddress, 0, 255));
+            }
 
-            $learner->setSchoolLatitude($requestBody['school_latitude']);
-            $learner->setSchoolLongitude($requestBody['school_longitude']);
-            $learner->setAvatar($requestBody['avatar']);
+            $learner->setSchoolLatitude($requestBody['school_latitude'] ?? null);
+            $learner->setSchoolLongitude($requestBody['school_longitude'] ?? null);
+            $learner->setAvatar($requestBody['avatar'] ?? null);
 
 
 
