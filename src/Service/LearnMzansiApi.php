@@ -3954,9 +3954,9 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getFirstUnpostedQuestion(): ?Question
+    public function getAndMarkFirstUnpostedQuestion(): ?Question
     {
-        return $this->em->getRepository(Question::class)
+        $question = $this->em->getRepository(Question::class)
             ->createQueryBuilder('q')
             ->where('q.posted = :posted')
             ->andWhere('q.aiExplanation IS NOT NULL')
@@ -3967,6 +3967,14 @@ class LearnMzansiApi extends AbstractController
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        if ($question) {
+            $question->setPosted(true);
+            $this->em->persist($question);
+            $this->em->flush();
+        }
+
+        return $question;
     }
 
 }

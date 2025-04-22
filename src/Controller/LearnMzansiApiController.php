@@ -1120,7 +1120,7 @@ class LearnMzansiApiController extends AbstractController
     #[Route('/learn/questions/first-unposted', name: 'get_first_unposted_question', methods: ['GET'])]
     public function getFirstUnpostedQuestion(): JsonResponse
     {
-        $question = $this->api->getFirstUnpostedQuestion();
+        $question = $this->api->getAndMarkFirstUnpostedQuestion();
 
         if (!$question) {
             return new JsonResponse([
