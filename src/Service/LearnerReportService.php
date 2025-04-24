@@ -18,22 +18,54 @@ class LearnerReportService
 
     public function getSubjectPerformance(Learner $learner): array
     {
+        // Get learner's terms and curriculum
+        $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+            return trim(str_replace('"', '', $term));
+        }, explode(',', $learner->getTerms())) : [];
+
+        $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+            return trim(str_replace('"', '', $curr));
+        }, explode(',', $learner->getCurriculum())) : [];
+
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
-                's.name as subject_name',
-                'COUNT(r.id) as total_answers',
-                's.id as subject_id',
-                'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
-                'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
-            ])
+            's.name as subject_name',
+            'COUNT(r.id) as total_answers',
+            's.id as subject_id',
+            'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
+            'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
+        ])
             ->from(Result::class, 'r')
             ->join('r.question', 'q')
             ->join('q.subject', 's')
             ->where('r.learner = :learner')
-            ->groupBy('s.id')
+            ->andWhere('q.active = :active')
+            ->andWhere('q.status = :status');
+
+        // Add term condition if learner has terms specified
+        if (!empty($learnerTerms)) {
+            $qb->andWhere('q.term IN (:terms)');
+        }
+
+        // Add curriculum condition if learner has curriculum specified
+        if (!empty($learnerCurriculum)) {
+            $qb->andWhere('q.curriculum IN (:curriculum)');
+        }
+
+        $qb->groupBy('s.id')
             ->setParameter('learner', $learner)
             ->setParameter('correct', 'correct')
-            ->setParameter('incorrect', 'incorrect');
+            ->setParameter('incorrect', 'incorrect')
+            ->setParameter('active', true)
+            ->setParameter('status', 'approved');
+
+        if (!empty($learnerTerms)) {
+            $qb->setParameter('terms', $learnerTerms);
+        }
+
+        if (!empty($learnerCurriculum)) {
+            $qb->setParameter('curriculum', $learnerCurriculum);
+        }
 
         $results = $qb->getQuery()->getResult();
 
@@ -42,7 +74,7 @@ class LearnerReportService
             $total = $result['total_answers'];
             $correct = $result['correct_answers'];
             $percentage = $total > 0 ? ($correct / $total) * 100 : 0;
-            
+
             $report[] = [
                 'subject' => $result['subject_name'],
                 'subjectId' => $result['subject_id'],
@@ -66,11 +98,11 @@ class LearnerReportService
 
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
-                'SUBSTRING(r.created, 1, 10) as date',
-                'COUNT(r.id) as count',
-                'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct',
-                'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect'
-            ])
+            'SUBSTRING(r.created, 1, 10) as date',
+            'COUNT(r.id) as count',
+            'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct',
+            'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect'
+        ])
             ->from(Result::class, 'r')
             ->where('r.learner = :learner')
             ->andWhere('r.created >= :startDate')
@@ -83,9 +115,9 @@ class LearnerReportService
 
         if ($subjectId !== null) {
             $qb->join('r.question', 'q')
-               ->join('q.subject', 's')
-               ->andWhere('s.id = :subjectId')
-               ->setParameter('subjectId', $subjectId);
+                ->join('q.subject', 's')
+                ->andWhere('s.id = :subjectId')
+                ->setParameter('subjectId', $subjectId);
         }
 
         $results = $qb->getQuery()->getResult();
@@ -95,9 +127,9 @@ class LearnerReportService
         foreach ($results as $result) {
             $formattedResults[] = [
                 'date' => $result['date'],
-                'count' => (int)$result['count'],
-                'correct' => (int)$result['correct'],
-                'incorrect' => (int)$result['incorrect']
+                'count' => (int) $result['count'],
+                'correct' => (int) $result['correct'],
+                'incorrect' => (int) $result['incorrect']
             ];
         }
 
@@ -112,14 +144,14 @@ class LearnerReportService
 
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
-                'SUBSTRING(r.created, 1, 4) as year',
-                'SUBSTRING(r.created, 6, 2) as month',
-                'SUBSTRING(r.created, 9, 2) as day',
-                'MIN(SUBSTRING(r.created, 1, 10)) as first_date',
-                'COUNT(r.id) as total_answers',
-                'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
-                'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
-            ])
+            'SUBSTRING(r.created, 1, 4) as year',
+            'SUBSTRING(r.created, 6, 2) as month',
+            'SUBSTRING(r.created, 9, 2) as day',
+            'MIN(SUBSTRING(r.created, 1, 10)) as first_date',
+            'COUNT(r.id) as total_answers',
+            'SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers',
+            'SUM(CASE WHEN r.outcome = :incorrect THEN 1 ELSE 0 END) as incorrect_answers'
+        ])
             ->from(Result::class, 'r')
             ->where('r.learner = :learner')
             ->andWhere('r.created >= :startDate')
@@ -134,9 +166,9 @@ class LearnerReportService
 
         if ($subjectId !== null) {
             $qb->join('r.question', 'q')
-               ->join('q.subject', 's')
-               ->andWhere('s.id = :subjectId')
-               ->setParameter('subjectId', $subjectId);
+                ->join('q.subject', 's')
+                ->andWhere('s.id = :subjectId')
+                ->setParameter('subjectId', $subjectId);
         }
 
         $results = $qb->getQuery()->getResult();
@@ -145,7 +177,7 @@ class LearnerReportService
         $weeklyResults = [];
         foreach ($results as $result) {
             $date = new \DateTime($result['first_date']);
-            $weekNumber = (int)$date->format('W');
+            $weekNumber = (int) $date->format('W');
             $year = $result['year'];
             $weekKey = $year . '-' . $weekNumber;
 
@@ -164,9 +196,9 @@ class LearnerReportService
                 ];
             }
 
-            $weeklyResults[$weekKey]['totalAnswers'] += (int)$result['total_answers'];
-            $weeklyResults[$weekKey]['correctAnswers'] += (int)$result['correct_answers'];
-            $weeklyResults[$weekKey]['incorrectAnswers'] += (int)$result['incorrect_answers'];
+            $weeklyResults[$weekKey]['totalAnswers'] += (int) $result['total_answers'];
+            $weeklyResults[$weekKey]['correctAnswers'] += (int) $result['correct_answers'];
+            $weeklyResults[$weekKey]['incorrectAnswers'] += (int) $result['incorrect_answers'];
         }
 
         // Calculate percentages and grades for each week
@@ -175,7 +207,7 @@ class LearnerReportService
             $total = $weekData['totalAnswers'];
             $correct = $weekData['correctAnswers'];
             $percentage = $total > 0 ? ($correct / $total) * 100 : 0;
-            
+
             $report[] = [
                 'week' => $weekData['week'],
                 'weekStart' => $weekData['weekStart'],
@@ -189,7 +221,7 @@ class LearnerReportService
         }
 
         // Sort by week in descending order
-        usort($report, function($a, $b) {
+        usort($report, function ($a, $b) {
             return strcmp($b['week'], $a['week']);
         });
 
@@ -198,23 +230,35 @@ class LearnerReportService
 
     private function calculateGrade(float $percentage): int
     {
-        if ($percentage >= 80) return 7;
-        if ($percentage >= 70) return 6;
-        if ($percentage >= 60) return 5;
-        if ($percentage >= 50) return 4;
-        if ($percentage >= 40) return 3;
-        if ($percentage >= 30) return 2;
+        if ($percentage >= 80)
+            return 7;
+        if ($percentage >= 70)
+            return 6;
+        if ($percentage >= 60)
+            return 5;
+        if ($percentage >= 50)
+            return 4;
+        if ($percentage >= 40)
+            return 3;
+        if ($percentage >= 30)
+            return 2;
         return 1;
     }
 
     private function getGradeDescription(float $percentage): string
     {
-        if ($percentage >= 80) return 'Outstanding achievement';
-        if ($percentage >= 70) return 'Meritorious achievement';
-        if ($percentage >= 60) return 'Substantial achievement';
-        if ($percentage >= 50) return 'Adequate achievement';
-        if ($percentage >= 40) return 'Moderate achievement';
-        if ($percentage >= 30) return 'Elementary achievement';
+        if ($percentage >= 80)
+            return 'Outstanding achievement';
+        if ($percentage >= 70)
+            return 'Meritorious achievement';
+        if ($percentage >= 60)
+            return 'Substantial achievement';
+        if ($percentage >= 50)
+            return 'Adequate achievement';
+        if ($percentage >= 40)
+            return 'Moderate achievement';
+        if ($percentage >= 30)
+            return 'Elementary achievement';
         return 'Not achieved';
     }
-} 
+}
