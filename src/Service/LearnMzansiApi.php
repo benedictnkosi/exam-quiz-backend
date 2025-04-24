@@ -3775,6 +3775,8 @@ class LearnMzansiApi extends AbstractController
             $context = $question->getContext();
             $imagePath = $question->getImagePath();
             $subject = $question->getSubject();
+            $year = $question->getYear();
+            $term = $question->getTerm();
 
             if (!$context && !$imagePath) {
                 return [
@@ -3791,17 +3793,25 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.active = :active')
                 ->andWhere('q.context IS NOT NULL')
                 ->andWhere('q.context = :context')
-                ->andWhere('q.imagePath IS NOT NULL')
-                ->andWhere('q.imagePath != :emptyString')
-                ->andWhere('q.imagePath != :nullString')
-                ->andWhere('q.imagePath = :imagePath')
-                ->orderBy('q.id', 'ASC')
+                ->andWhere('q.year = :year')
+                ->andWhere('q.term = :term')
                 ->setParameter('subject', $subject)
                 ->setParameter('active', true)
                 ->setParameter('context', $context)
-                ->setParameter('imagePath', $imagePath)
-                ->setParameter('emptyString', '')
-                ->setParameter('nullString', 'NULL');
+                ->setParameter('year', $year)
+                ->setParameter('term', $term);
+
+            if ($imagePath) {
+                $qb->andWhere('q.imagePath IS NOT NULL')
+                    ->andWhere('q.imagePath != :emptyString')
+                    ->andWhere('q.imagePath != :nullString')
+                    ->andWhere('q.imagePath = :imagePath')
+                    ->setParameter('emptyString', '')
+                    ->setParameter('nullString', 'null')
+                    ->setParameter('imagePath', $imagePath);
+            }
+
+            $qb->orderBy('q.id', 'ASC');
 
             $results = $qb->getQuery()->getResult();
             $questionIds = array_map(function ($result) {
