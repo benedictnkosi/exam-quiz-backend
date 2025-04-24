@@ -54,12 +54,46 @@ class LearnerSubjectStatsService
                 ->join('r.question', 'q')
                 ->where('r.learner = :learner')
                 ->andWhere('q.subject = :subject')
-                ->setParameters(new ArrayCollection([
-                    new Parameter('learner', $learner),
-                    new Parameter('subject', $subject),
-                    new Parameter('correct', 'correct'),
-                    new Parameter('incorrect', 'incorrect')
-                ]));
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status');
+
+            // Get learner's terms and curriculum
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
+
+            // Add term condition if learner has terms specified
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)');
+            }
+
+            // Add curriculum condition if learner has curriculum specified
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere('q.curriculum IN (:curriculum)');
+            }
+
+            $parameters = new ArrayCollection([
+                new Parameter('learner', $learner),
+                new Parameter('subject', $subject),
+                new Parameter('correct', 'correct'),
+                new Parameter('incorrect', 'incorrect'),
+                new Parameter('active', true),
+                new Parameter('status', 'approved')
+            ]);
+
+            if (!empty($learnerTerms)) {
+                $parameters->add(new Parameter('terms', $learnerTerms));
+            }
+
+            if (!empty($learnerCurriculum)) {
+                $parameters->add(new Parameter('curriculum', $learnerCurriculum));
+            }
+
+            $qb->setParameters($parameters);
 
             $result = $qb->getQuery()->getSingleResult();
 
