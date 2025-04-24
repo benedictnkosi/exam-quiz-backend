@@ -330,7 +330,6 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Learner role: " . $learner->getRole());
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
-
                 $this->logger->info("Getting admin questions");
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
@@ -339,7 +338,8 @@ class LearnMzansiApi extends AbstractController
                     ->where('s.name = :subjectName')
                     ->andWhere('q.active = :active')
                     ->andWhere('q.status = :status')
-                    ->andWhere('q.capturer = :capturer');
+                    ->andWhere('q.capturer = :capturer')
+                    ->orderBy('q.created', 'DESC');
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
@@ -353,8 +353,7 @@ class LearnMzansiApi extends AbstractController
                 $query = $qb->getQuery();
                 $questions = $query->getResult();
                 if (!empty($questions)) {
-                    shuffle($questions);
-                    $randomQuestion = $questions[0]; // Get the first random question
+                    $randomQuestion = $questions[0]; // Get the most recent new question
                 } else {
                     return array(
                         'status' => 'NOK',
