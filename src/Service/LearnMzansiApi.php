@@ -392,7 +392,7 @@ class LearnMzansiApi extends AbstractController
                     $randomQuestion->getSubject()->setCapturer(null);
                 }
                 $this->logger->info("Returning admin question: " . $randomQuestion->getId());
-
+                $this->logger->info("Returning admin question: " . $randomQuestion->getStatus());
                 return $randomQuestion;
             }
 
