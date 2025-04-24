@@ -149,7 +149,7 @@ class LearnMzansiApi extends AbstractController
 
             //return an error if the capturer has more than 50 new questions
             $newQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $user->getId(), 'status' => 'new']);
-            if (count($newQuestions) >= 50 && $questionId == 0) {
+            if (count($newQuestions) >= 200 && $questionId == 0) {
                 return array(
                     'status' => 'NOK',
                     'message' => 'You have more than 50 new questions - Please approve your new questions'
