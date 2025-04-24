@@ -330,13 +330,12 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Learner role: " . $learner->getRole());
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
-                $this->logger->info("Getting admin questions");
+                $this->logger->info("Getting admin questions for subject: " . $subjectName . ' ' . $paperName);
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
                     ->from('App\Entity\Question', 'q')
-                    ->join('q.subject', 's')
-                    ->where('s.name = :subjectName')
-                    ->andWhere('q.active = :active')
+                    ->innerJoin('q.subject', 's', 'WITH', 's.name = :subjectName')
+                    ->where('q.active = :active')
                     ->andWhere('q.status = :status')
                     ->andWhere('q.capturer = :capturer')
                     ->orderBy('q.created', 'DESC');
@@ -352,8 +351,23 @@ class LearnMzansiApi extends AbstractController
 
                 $query = $qb->getQuery();
                 $questions = $query->getResult();
+
+                $this->logger->info("Found " . count($questions) . " new questions");
+
                 if (!empty($questions)) {
                     $randomQuestion = $questions[0]; // Get the most recent new question
+                    $this->logger->info("Selected question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
+
+                    // Double check the status
+                    if ($randomQuestion->getStatus() !== 'new') {
+                        $this->logger->error("Unexpected question status: " . $randomQuestion->getStatus() . " for question ID: " . $randomQuestion->getId());
+                        return array(
+                            'status' => 'NOK',
+                            'message' => 'Invalid question status',
+                            'context' => '',
+                            'image_path' => ''
+                        );
+                    }
                 } else {
                     return array(
                         'status' => 'NOK',
@@ -374,11 +388,24 @@ class LearnMzansiApi extends AbstractController
                     $randomQuestion->setAnswer(null);
                 }
 
-                // Get related questions (same context and image path)
+                // Get related questions (same context and image path) that are also new
                 $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
                 $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
                 if (!empty($relatedQuestionIds)) {
-                    $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
+                    $relatedQb = $this->em->createQueryBuilder();
+                    $relatedQb->select('q')
+                        ->from('App\Entity\Question', 'q')
+                        ->where('q.id IN (:ids)')
+                        ->andWhere('q.status = :status')
+                        ->setParameter('ids', $relatedQuestionIds)
+                        ->setParameter('status', 'new')
+                        ->setMaxResults(1);
+
+                    $relatedQuestion = $relatedQb->getQuery()->getOneOrNullResult();
+                    if ($relatedQuestion) {
+                        $randomQuestion = $relatedQuestion;
+                        $this->logger->info("Using related question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
+                    }
                 }
 
                 // Set related question IDs on the question object
@@ -391,8 +418,8 @@ class LearnMzansiApi extends AbstractController
                 if ($randomQuestion->getSubject()) {
                     $randomQuestion->getSubject()->setCapturer(null);
                 }
-                $this->logger->info("Returning admin question: " . $randomQuestion->getId());
-                $this->logger->info("Returning admin question: " . $randomQuestion->getStatus());
+                $this->logger->info("Final question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
+
                 return $randomQuestion;
             }
 
