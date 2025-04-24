@@ -26,4 +26,18 @@ class LearnerTimetableService
 
         return $learner;
     }
+
+    public function updateEvents(string $learnerUid, array $events): Learner
+    {
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
+
+        if (!$learner) {
+            throw new NotFoundHttpException('Learner not found');
+        }
+
+        $learner->setEvents($events);
+        $this->entityManager->flush();
+
+        return $learner;
+    }
 }

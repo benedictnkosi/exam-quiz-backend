@@ -35,4 +35,21 @@ class LearnerTimetableController extends AbstractController
             'message' => 'Timetable updated successfully'
         ], 200);
     }
+
+    #[Route('/{uid}/events', name: 'learner_events_update', methods: ['PUT'])]
+    public function updateEvents(string $uid, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['events']) || !is_array($data['events'])) {
+            return new JsonResponse(['error' => 'Invalid events data'], 400);
+        }
+
+        $this->learnerTimetableService->updateEvents($uid, $data['events']);
+
+        return new JsonResponse([
+            'status' => 'OK',
+            'message' => 'Events updated successfully'
+        ], 200);
+    }
 }

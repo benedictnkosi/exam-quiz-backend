@@ -35,7 +35,7 @@ class TodoController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $learnerUid = $data['learnerUid'] ?? null;
         $title = $data['title'] ?? null;
-        $dueDate = isset($data['dueDate']) 
+        $dueDate = isset($data['dueDate'])
             ? new \DateTimeImmutable($data['dueDate'])
             : null;
         $subjectName = $data['subjectName'] ?? null;
@@ -46,7 +46,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $response = $this->todoService->create($learnerUid, $title,$subjectName,  $dueDate);
+        $response = $this->todoService->create($learnerUid, $title, $subjectName, $dueDate);
         $context = SerializationContext::create()->enableMaxDepthChecks()->setGroups(['todo']);
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, Response::HTTP_CREATED, [], true);
@@ -56,7 +56,7 @@ class TodoController extends AbstractController
     public function update(int $id, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        
+
         if (!isset($data['learnerUid'])) {
             return new JsonResponse(['error' => 'learnerUid is required'], Response::HTTP_BAD_REQUEST);
         }
@@ -87,7 +87,7 @@ class TodoController extends AbstractController
     public function delete(int $id, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        
+
         if (!isset($data['learnerUid'])) {
             return new JsonResponse(['error' => 'learnerUid is required'], Response::HTTP_BAD_REQUEST);
         }
@@ -110,7 +110,7 @@ class TodoController extends AbstractController
     public function list(Request $request): JsonResponse
     {
         $this->logger->info('Listing todos');
-        
+
         $learnerUid = $request->query->get('learnerUid');
         if (!$learnerUid) {
             return new JsonResponse(['error' => 'learnerUid is required'], Response::HTTP_BAD_REQUEST);
@@ -127,7 +127,7 @@ class TodoController extends AbstractController
             : $this->todoService->getLearnerTodos($learner->getId());
 
         $this->logger->info('Todos: ' . json_encode($todos));
-            $context = SerializationContext::create()->enableMaxDepthChecks();
+        $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($todos, 'json', $context);
         return new JsonResponse($jsonContent, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*'], true);
     }
@@ -154,4 +154,4 @@ class TodoController extends AbstractController
 
         return new JsonResponse($jsonContent, Response::HTTP_OK, ['Access-Control-Allow-Origin' => '*'], true);
     }
-} 
+}

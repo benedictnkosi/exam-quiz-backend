@@ -56,3 +56,8 @@ services:
 
     App\Service\WhatsAppService:
         arguments: []
+
+    App\Service\LearnerEventService:
+        arguments:
+            $entityManager: "@doctrine.orm.entity_manager"
+            $logger: "@monolog.logger.api"

@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Controller;
+
+use App\Service\LearnerEventService;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Annotation\Route;
+
+#[Route('/api/learner')]
+class LearnerEventController extends AbstractController
+{
+    public function __construct(
+        private LearnerEventService $learnerEventService
+    ) {
+    }
+
+    #[Route('/{uid}/upcoming-events', name: 'learner_upcoming_events', methods: ['GET'])]
+    public function getUpcomingEvents(string $uid): JsonResponse
+    {
+        $result = $this->learnerEventService->getUpcomingEventsWithReminders($uid);
+
+        if ($result['status'] === 'NOK') {
+            return new JsonResponse($result, 404);
+        }
+
+        return new JsonResponse($result);
+    }
+}

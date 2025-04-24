@@ -126,6 +126,12 @@ class Learner
 
     private ?array $timetable = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\Type('array')]
+
+    private ?array $events = null;
+
     #[ORM\Column(name: 'new_thread_notification', type: Types::BOOLEAN, options: ['default' => true])]
     #[Serializer\Groups(['learner:read'])]
     private bool $newThreadNotification = true;
@@ -586,6 +592,17 @@ class Learner
     public function setNewThreadNotification(bool $newThreadNotification): self
     {
         $this->newThreadNotification = $newThreadNotification;
+        return $this;
+    }
+
+    public function getEvents(): ?array
+    {
+        return $this->events;
+    }
+
+    public function setEvents(?array $events): self
+    {
+        $this->events = $events;
         return $this;
     }
 }
