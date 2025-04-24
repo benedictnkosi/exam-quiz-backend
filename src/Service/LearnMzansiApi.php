@@ -331,6 +331,7 @@ class LearnMzansiApi extends AbstractController
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
 
+                $this->logger->info("Getting admin questions");
                 $qb = $this->em->createQueryBuilder();
                 $qb->select('q')
                     ->from('App\Entity\Question', 'q')
@@ -391,6 +392,7 @@ class LearnMzansiApi extends AbstractController
                 if ($randomQuestion->getSubject()) {
                     $randomQuestion->getSubject()->setCapturer(null);
                 }
+                $this->logger->info("Returning admin question: " . $randomQuestion->getId());
 
                 return $randomQuestion;
             }
