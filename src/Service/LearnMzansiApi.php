@@ -327,6 +327,7 @@ class LearnMzansiApi extends AbstractController
             }, explode(',', $learner->getCurriculum())) : [];
 
             // Check if learner is admin
+            $this->logger->info("Learner role: " . $learner->getRole());
             if ($learner->getRole() === 'admin') {
                 // For admin, get their captured questions with 'new' status
 
