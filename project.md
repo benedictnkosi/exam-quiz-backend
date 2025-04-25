@@ -81,3 +81,5 @@ sudo crontab -u www-data -e
 ### running deepsick
 ollama serve
 ollama run deepseek-llm
+
+ollama run deepseek-r1

@@ -24,6 +24,9 @@ class Subject
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $examDate = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $topics = null;
+
     #[ORM\ManyToOne(targetEntity: Grade::class)]
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
     private ?Grade $grade = null;
@@ -93,6 +96,18 @@ class Subject
     public function setExamDate(?\DateTimeInterface $examDate): static
     {
         $this->examDate = $examDate;
+
+        return $this;
+    }
+
+    public function getTopics(): ?array
+    {
+        return $this->topics;
+    }
+
+    public function setTopics(?array $topics): static
+    {
+        $this->topics = $topics;
 
         return $this;
     }

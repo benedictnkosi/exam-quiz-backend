@@ -99,7 +99,7 @@ class Question
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $relatedQuestionIds = null;
 
-    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $topic = null;
 
     public function __construct()
