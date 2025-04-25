@@ -13,7 +13,8 @@ class QuestionTopicService
 
     public function __construct(
         private HttpClientInterface $httpClient,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private EntityManagerInterface $entityManager
     ) {
     }
 
@@ -218,6 +219,30 @@ RULES:
                 'id' => $questionId,
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+
+    public function getNextQuestionWithNoTopic(): ?Question
+    {
+        try {
+            $question = $this->entityManager->getRepository(Question::class)
+                ->findOneBy(['topic' => null, 'grade' => 1], ['id' => 'ASC']);
+
+            if (!$question) {
+                $this->logger->info('No questions found with null topic');
+                return null;
+            }
+
+            $this->logger->info('Found next question with no topic: {id}', [
+                'id' => $question->getId()
+            ]);
+
+            return $question;
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting next question with no topic: {error}', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
         }
     }
 }
