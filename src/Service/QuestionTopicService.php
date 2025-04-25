@@ -12,7 +12,6 @@ class QuestionTopicService
     private const DEEPSEEK_API_URL = 'http://localhost:11434/api/generate';
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger
     ) {
@@ -25,16 +24,7 @@ class QuestionTopicService
             $data = json_decode($response->getContent(), true);
 
             if ($data['status'] === 'OK' && isset($data['question'])) {
-                $question = $this->entityManager->getRepository(Question::class)
-                    ->find($data['question']['id']);
-
-                if ($question) {
-                    $this->generateAndSetTopic($question);
-                } else {
-                    $this->logger->error('Question not found in database: {id}', [
-                        'id' => $data['question']['id']
-                    ]);
-                }
+                $this->generateAndSetTopic($data['question']);
             } else {
                 $this->logger->info('No questions found with null topic');
             }
@@ -45,23 +35,17 @@ class QuestionTopicService
         }
     }
 
-    private function generateAndSetTopic(Question $question): void
+    private function generateAndSetTopic(array $questionData): void
     {
-        if (!$question->getSubject() || !$question->getSubject()->getTopics()) {
-            $this->logger->info('Skipping question {id} - no subject or topics found', ['id' => $question->getId()]);
+        if (!isset($questionData['subject_id'])) {
+            $this->logger->info('Skipping question {id} - no subject found', ['id' => $questionData['id']]);
             return;
         }
-
-        $subjectTopics = $question->getSubject()->getTopics();
-        if (empty($subjectTopics)) {
-            $this->logger->info('Skipping question {id} - empty topics array', ['id' => $question->getId()]);
-            return;
-        }
-
-        $prompt = $this->buildPrompt($question, $subjectTopics);
 
         try {
-            $this->logger->info('Processing question {id}', ['id' => $question->getId()]);
+            $this->logger->info('Processing question {id}', ['id' => $questionData['id']]);
+
+            $prompt = $this->buildPrompt($questionData);
 
             $this->logger->info($prompt);
 
@@ -77,78 +61,35 @@ class QuestionTopicService
             $topic = $this->cleanResponse(trim($data['response'] ?? ''));
 
             $this->logger->info('Deepseek response for question {id}: {response}', [
-                'id' => $question->getId(),
+                'id' => $questionData['id'],
                 'response' => $topic
             ]);
 
             // If the AI returns 'NO MATCH', set it as the topic
             if ($topic === 'NO MATCH') {
-                $this->updateQuestionTopic($question->getId(), 'NO MATCH');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH');
                 return;
             }
 
             // Try to find the best matching topic
-            $matchedSubtopic = $this->findBestMatchingSubtopic($topic, $subjectTopics);
+            $matchedSubtopic = $this->findBestMatchingSubtopic($topic, $questionData['subject_topics'] ?? []);
 
             if ($matchedSubtopic) {
-                $this->updateQuestionTopic($question->getId(), $matchedSubtopic);
+                $this->updateQuestionTopic($questionData['id'], $matchedSubtopic);
             } else {
-                $this->updateQuestionTopic($question->getId(), 'NO MATCH');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH');
             }
         } catch (\Exception $e) {
             $this->logger->error('Error processing question {id}: {error}', [
-                'id' => $question->getId(),
+                'id' => $questionData['id'],
                 'error' => $e->getMessage()
             ]);
         }
     }
 
-    private function updateQuestionTopic(int $questionId, string $topic): void
+    private function buildPrompt(array $questionData): string
     {
-        try {
-            $response = $this->httpClient->request('PUT', 'https://examquiz.dedicated.co.za/api/question-topics/update/' . $questionId, [
-                'json' => ['topic' => $topic]
-            ]);
-
-            $result = json_decode($response->getContent(), true);
-
-            if ($result['status'] === 'OK') {
-                $this->logger->info('Successfully updated topic for question {id} to {topic}', [
-                    'id' => $questionId,
-                    'topic' => $topic
-                ]);
-            } else {
-                $this->logger->error('Failed to update topic for question {id}: {message}', [
-                    'id' => $questionId,
-                    'message' => $result['message'] ?? 'Unknown error'
-                ]);
-            }
-        } catch (\Exception $e) {
-            $this->logger->error('Error calling update endpoint for question {id}: {error}', [
-                'id' => $questionId,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    private function formatTopicsForPrompt(array $subjectTopics): string
-    {
-        $formattedTopics = [];
-        foreach ($subjectTopics as $subtopics) {
-            if (is_array($subtopics)) {
-                foreach ($subtopics as $subtopic) {
-                    $formattedTopics[] = "- " . $subtopic;
-                }
-            } else {
-                $formattedTopics[] = "- " . $subtopics;
-            }
-        }
-        return implode("\n", $formattedTopics);
-    }
-
-    private function buildPrompt(Question $question, array $subjectTopics): string
-    {
-        $topicsList = $this->formatTopicsForPrompt($subjectTopics);
+        $topicsList = $this->formatTopicsForPrompt($questionData['subject_topics'] ?? []);
 
         return sprintf(
             "You are a topic classifier. Your ONLY task is to return an EXACT topic from the list below. Do not think, analyze, or explain. Just return the topic.
@@ -164,11 +105,26 @@ RULES:
 1. Return ONLY the exact topic text
 2. Do not include any other text
 3. If no match, return 'NO MATCH'",
-            $question->getQuestion() ?? '',
-            $question->getContext() ?? '',
-            $question->getAnswer() ?? '',
+            $questionData['question'] ?? '',
+            $questionData['context'] ?? '',
+            $questionData['answer'] ?? '',
             $topicsList
         );
+    }
+
+    private function formatTopicsForPrompt(array $subjectTopics): string
+    {
+        $formattedTopics = [];
+        foreach ($subjectTopics as $subtopics) {
+            if (is_array($subtopics)) {
+                foreach ($subtopics as $subtopic) {
+                    $formattedTopics[] = "- " . $subtopic;
+                }
+            } else {
+                $formattedTopics[] = "- " . $subtopics;
+            }
+        }
+        return implode("\n", $formattedTopics);
     }
 
     private function cleanResponse(string $response): string
@@ -237,27 +193,31 @@ RULES:
         return null;
     }
 
-    public function getNextQuestionWithNoTopic(): ?Question
+    private function updateQuestionTopic(int $questionId, string $topic): void
     {
         try {
-            $question = $this->entityManager->getRepository(Question::class)
-                ->findOneBy(['topic' => null], ['id' => 'ASC']);
-
-            if (!$question) {
-                $this->logger->info('No questions found with null topic');
-                return null;
-            }
-
-            $this->logger->info('Found next question with no topic: {id}', [
-                'id' => $question->getId()
+            $response = $this->httpClient->request('PUT', 'https://examquiz.dedicated.co.za/api/question-topics/update/' . $questionId, [
+                'json' => ['topic' => $topic]
             ]);
 
-            return $question;
+            $result = json_decode($response->getContent(), true);
+
+            if ($result['status'] === 'OK') {
+                $this->logger->info('Successfully updated topic for question {id} to {topic}', [
+                    'id' => $questionId,
+                    'topic' => $topic
+                ]);
+            } else {
+                $this->logger->error('Failed to update topic for question {id}: {message}', [
+                    'id' => $questionId,
+                    'message' => $result['message'] ?? 'Unknown error'
+                ]);
+            }
         } catch (\Exception $e) {
-            $this->logger->error('Error getting next question with no topic: {error}', [
+            $this->logger->error('Error calling update endpoint for question {id}: {error}', [
+                'id' => $questionId,
                 'error' => $e->getMessage()
             ]);
-            return null;
         }
     }
 }

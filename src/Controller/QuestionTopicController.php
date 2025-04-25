@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Service\QuestionTopicService;
 use App\Service\QuestionTopicUpdateService;
+use App\Entity\Subject;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,7 +16,8 @@ class QuestionTopicController extends AbstractController
 {
     public function __construct(
         private QuestionTopicService $questionTopicService,
-        private QuestionTopicUpdateService $questionTopicUpdateService
+        private QuestionTopicUpdateService $questionTopicUpdateService,
+        private EntityManagerInterface $entityManager
     ) {
     }
 
@@ -30,6 +33,9 @@ class QuestionTopicController extends AbstractController
             ], 404);
         }
 
+        $subject = $this->entityManager->getRepository(Subject::class)->find($question->getSubject()?->getId());
+        $subjectTopics = $subject ? $subject->getTopics() : [];
+
         return $this->json([
             'status' => 'OK',
             'question' => [
@@ -37,7 +43,8 @@ class QuestionTopicController extends AbstractController
                 'question' => $question->getQuestion(),
                 'context' => $question->getContext(),
                 'answer' => $question->getAnswer(),
-                'subject_id' => $question->getSubject()?->getId()
+                'subject_id' => $question->getSubject()?->getId(),
+                'subject_topics' => $subjectTopics
             ]
         ]);
     }
