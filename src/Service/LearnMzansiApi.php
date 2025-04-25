@@ -3773,17 +3773,9 @@ class LearnMzansiApi extends AbstractController
             }
 
             $context = $question->getContext();
-            $imagePath = $question->getImagePath();
             $subject = $question->getSubject();
             $year = $question->getYear();
             $term = $question->getTerm();
-
-            if (!$context && !$imagePath) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Question does not have a context or image path'
-                ];
-            }
 
             // Find questions with the same context or image path and same subject
             $qb = $this->em->createQueryBuilder();
@@ -3800,16 +3792,6 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('context', $context)
                 ->setParameter('year', $year)
                 ->setParameter('term', $term);
-
-            if ($imagePath) {
-                $qb->andWhere('q.imagePath IS NOT NULL')
-                    ->andWhere('q.imagePath != :emptyString')
-                    ->andWhere('q.imagePath != :nullString')
-                    ->andWhere('q.imagePath = :imagePath')
-                    ->setParameter('emptyString', '')
-                    ->setParameter('nullString', 'null')
-                    ->setParameter('imagePath', $imagePath);
-            }
 
             $qb->orderBy('q.id', 'ASC');
 
