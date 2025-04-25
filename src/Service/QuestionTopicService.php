@@ -20,15 +20,29 @@ class QuestionTopicService
 
     public function generateTopicsForNullQuestions(): void
     {
-        //limit to 2 questions
-        $questions = $this->entityManager->getRepository(Question::class)
-            ->findBy(['topic' => null, 'subject' => 5], null, 1);
+        try {
+            $response = $this->httpClient->request('GET', 'https://examquiz.dedicated.co.za/api/question-topics/next');
+            $data = json_decode($response->getContent(), true);
 
-        foreach ($questions as $question) {
-            $this->generateAndSetTopic($question);
+            if ($data['status'] === 'OK' && isset($data['question'])) {
+                $question = $this->entityManager->getRepository(Question::class)
+                    ->find($data['question']['id']);
+
+                if ($question) {
+                    $this->generateAndSetTopic($question);
+                } else {
+                    $this->logger->error('Question not found in database: {id}', [
+                        'id' => $data['question']['id']
+                    ]);
+                }
+            } else {
+                $this->logger->info('No questions found with null topic');
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting next question: {error}', [
+                'error' => $e->getMessage()
+            ]);
         }
-
-        $this->entityManager->flush();
     }
 
     private function generateAndSetTopic(Question $question): void
@@ -221,5 +235,29 @@ RULES:
         }
 
         return null;
+    }
+
+    public function getNextQuestionWithNoTopic(): ?Question
+    {
+        try {
+            $question = $this->entityManager->getRepository(Question::class)
+                ->findOneBy(['topic' => null], ['id' => 'ASC']);
+
+            if (!$question) {
+                $this->logger->info('No questions found with null topic');
+                return null;
+            }
+
+            $this->logger->info('Found next question with no topic: {id}', [
+                'id' => $question->getId()
+            ]);
+
+            return $question;
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting next question with no topic: {error}', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 }
