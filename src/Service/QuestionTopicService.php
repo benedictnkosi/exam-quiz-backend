@@ -226,10 +226,18 @@ RULES:
     {
         try {
             $question = $this->entityManager->getRepository(Question::class)
-                ->findOneBy(['topic' => null, 'grade' => 1], ['id' => 'ASC']);
+                ->createQueryBuilder('q')
+                ->join('q.subject', 's')
+                ->where('q.topic IS NULL')
+                ->andWhere('s.grade = :grade')
+                ->setParameter('grade', 1)
+                ->orderBy('q.id', 'ASC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
 
             if (!$question) {
-                $this->logger->info('No questions found with null topic');
+                $this->logger->info('No questions found with null topic for grade 1');
                 return null;
             }
 
