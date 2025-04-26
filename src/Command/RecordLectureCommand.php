@@ -13,7 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:record-lecture',
-    description: 'Record lecture for the first topic that has a lecture but no recording',
+    description: 'Record lectures for topics that have a lecture but no recording (processes 100 at a time)',
 )]
 class RecordLectureCommand extends Command
 {
@@ -32,43 +32,59 @@ class RecordLectureCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        $processedCount = 0;
+        $successCount = 0;
+        $failureCount = 0;
 
         try {
-            // Find the first topic with a lecture but no recording
-            $topic = $this->entityManager->getRepository(Topic::class)
+            // Find topics with a lecture but no recording (limit to 100)
+            $topics = $this->entityManager->getRepository(Topic::class)
                 ->createQueryBuilder('t')
                 ->where('t.lecture IS NOT NULL')
                 ->andWhere('t.recordingFileName IS NULL')
-                ->setMaxResults(1)
+                ->setMaxResults(100)
                 ->getQuery()
-                ->getOneOrNullResult();
+                ->getResult();
 
-            if (!$topic) {
+            if (empty($topics)) {
                 $io->success('No topics found with lectures but no recordings!');
                 return Command::SUCCESS;
             }
 
-            $io->info('Found topic to process:');
-            $io->text('Main Topic: ' . $topic->getName());
-            $io->text('Sub Topic: ' . $topic->getSubTopic());
-            $io->text('Subject: ' . $topic->getSubject()->getName());
+            $io->info(sprintf('Found %d topics to process', count($topics)));
 
-            // Generate shorter filename with timestamp
-            $subjectName = strtolower(str_replace(' ', '_', $topic->getSubject()->getName()));
-            $timestamp = date('YmdHis');
-            $filename = sprintf('%s_%s', $subjectName, $timestamp);
+            foreach ($topics as $topic) {
+                $processedCount++;
+                $io->text(sprintf('Processing topic %d/%d:', $processedCount, count($topics)));
+                $io->text('Main Topic: ' . $topic->getName());
+                $io->text('Sub Topic: ' . $topic->getSubTopic());
+                $io->text('Subject: ' . $topic->getSubject()->getName());
 
-            // Convert lecture to speech
-            $filePath = $this->textToSpeechService->convertToSpeech($topic->getLecture(), $filename);
+                // Generate shorter filename with timestamp
+                $subjectName = strtolower(str_replace(' ', '_', $topic->getSubject()->getName()));
+                $timestamp = date('YmdHis');
+                $filename = sprintf('%s_%s', $subjectName, $timestamp);
 
-            if ($filePath) {
-                $topic->setRecordingFileName($filename . '.opus');
-                $this->entityManager->flush();
-                $io->success('Recording generated successfully!');
-                $io->text('File saved at: ' . $filePath);
-            } else {
-                $io->warning('Failed to generate recording for the topic.');
+                // Convert lecture to speech
+                $filePath = $this->textToSpeechService->convertToSpeech($topic->getLecture(), $filename);
+
+                if ($filePath) {
+                    $topic->setRecordingFileName($filename . '.opus');
+                    $this->entityManager->flush();
+                    $successCount++;
+                    $io->success('Recording generated successfully!');
+                    $io->text('File saved at: ' . $filePath);
+                } else {
+                    $failureCount++;
+                    $io->warning('Failed to generate recording for the topic.');
+                }
             }
+
+            $io->success(sprintf(
+                'Processing complete! Successfully generated %d recordings, failed to generate %d recordings.',
+                $successCount,
+                $failureCount
+            ));
 
             return Command::SUCCESS;
         } catch (\Exception $e) {

@@ -13,7 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:generate-lecture',
-    description: 'Generate lecture for the first topic that has no lecture',
+    description: 'Generate lectures for topics that have no lecture (processes 100 at a time)',
 )]
 class GenerateLectureCommand extends Command
 {
@@ -32,34 +32,53 @@ class GenerateLectureCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        $processedCount = 0;
+        $successCount = 0;
+        $failureCount = 0;
 
         try {
-            // Find the first topic with null lecture
-            $topic = $this->entityManager->getRepository(Topic::class)
+            // Find topics with null lecture (limit to 100)
+            $topics = $this->entityManager->getRepository(Topic::class)
                 ->createQueryBuilder('t')
                 ->where('t.lecture IS NULL')
-                ->setMaxResults(1)
+                ->setMaxResults(100)
                 ->getQuery()
-                ->getOneOrNullResult();
+                ->getResult();
 
-            if (!$topic) {
+            if (empty($topics)) {
                 $io->success('No topics found with null lectures!');
                 return Command::SUCCESS;
             }
 
-            $io->info('Found topic to process:');
-            $io->text('Main Topic: ' . $topic->getName());
-            $io->text('Sub Topic: ' . $topic->getSubTopic());
-            $io->text('Subject: ' . $topic->getSubject()->getName());
+            $io->info(sprintf('Found %d topics to process', count($topics)));
 
-            // Update the lecture for this topic
-            $success = $this->topicPopulationService->updateTopicLecture($topic);
+            foreach ($topics as $topic) {
+                $processedCount++;
+                $io->text(sprintf('Processing topic %d/%d:', $processedCount, count($topics)));
+                $io->text('Main Topic: ' . $topic->getName());
+                $io->text('Sub Topic: ' . $topic->getSubTopic());
+                $io->text('Subject: ' . $topic->getSubject()->getName());
 
-            if ($success) {
-                $io->success('Lecture generated successfully!');
-            } else {
-                $io->warning('Failed to generate lecture for the topic.');
+                // Update the lecture for this topic
+                $success = $this->topicPopulationService->updateTopicLecture($topic);
+
+                if ($success) {
+                    $successCount++;
+                    $io->success('Lecture generated successfully!');
+                } else {
+                    $failureCount++;
+                    $io->warning('Failed to generate lecture for the topic.');
+                }
+
+                // Flush after each topic to ensure progress is saved
+                $this->entityManager->flush();
             }
+
+            $io->success(sprintf(
+                'Processing complete! Successfully generated %d lectures, failed to generate %d lectures.',
+                $successCount,
+                $failureCount
+            ));
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
