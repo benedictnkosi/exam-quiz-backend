@@ -83,3 +83,16 @@ ollama serve
 ollama run deepseek-llm
 
 ollama run deepseek-r1
+
+### After deploting changes
+First, clear the cache:
+php bin/console cache:clear
+
+php bin/console cache:warmup
+
+php bin/console doctrine:migrations:migrate
+
+mkdir -p public/assets/lectures
+chmod 777 public/assets/lectures
+
+php bin/console list
