@@ -9,28 +9,34 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class QuestionTopicService
 {
-    private const DEEPSEEK_API_URL = 'http://localhost:11434/api/generate';
+    private const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+    private $openAiKey;
 
     public function __construct(
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        string $openAiKey
     ) {
+        $this->openAiKey = $openAiKey;
     }
 
     public function generateTopicsForNullQuestions(): void
     {
         try {
-            $response = $this->httpClient->request('GET', 'https://examquiz.dedicated.co.za/api/question-topics/next');
-            $data = json_decode($response->getContent(), true);
+            for ($i = 0; $i < 1000; $i++) {
+                $response = $this->httpClient->request('GET', 'https://examquiz.dedicated.co.za/api/question-topics/next');
+                $data = json_decode($response->getContent(), true);
 
-            if ($data['status'] === 'OK' && isset($data['question'])) {
-                $this->generateAndSetTopic($data['question']);
-            } else {
-                $this->logger->info('No questions found with null topic');
+                if ($data['status'] === 'OK' && isset($data['question'])) {
+                    $this->generateAndSetTopic($data['question']);
+                } else {
+                    $this->logger->info('No more questions found with null topic');
+                    break;
+                }
             }
         } catch (\Exception $e) {
-            $this->logger->error('Error getting next question: {error}', [
+            $this->logger->error('Error processing questions: {error}', [
                 'error' => $e->getMessage()
             ]);
         }
@@ -50,18 +56,26 @@ class QuestionTopicService
 
             $this->logger->info($prompt);
 
-            $response = $this->httpClient->request('POST', self::DEEPSEEK_API_URL, [
+            $response = $this->httpClient->request('POST', self::OPENAI_API_URL, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->openAiKey,
+                    'Content-Type' => 'application/json',
+                ],
                 'json' => [
-                    'model' => 'deepseek-r1:7b',
-                    'prompt' => $prompt,
-                    'stream' => false
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a topic classifier. Your task is to return an exact topic from the provided list.'],
+                        ['role' => 'user', 'content' => $prompt]
+                    ],
+                    'temperature' => 0.1,
+                    'max_tokens' => 50
                 ]
             ]);
 
             $data = json_decode($response->getContent(), true);
-            $topic = $this->cleanResponse(trim($data['response'] ?? ''));
+            $topic = $this->cleanResponse(trim($data['choices'][0]['message']['content'] ?? ''));
 
-            $this->logger->info('Deepseek response for question {id}: {response}', [
+            $this->logger->info('OpenAI response for question {id}: {response}', [
                 'id' => $questionData['id'],
                 'response' => $topic
             ]);
@@ -98,14 +112,15 @@ class QuestionTopicService
 QUESTION: %s
 CONTEXT: %s
 ANSWER: %s
-
 TOPICS:
 %s
 
 RULES:
 1. Return ONLY the exact topic text
 2. Do not include any other text
-3. If no match, return 'NO MATCH'",
+3. If no match, return 'NO MATCH'
+4. DO NOT return the answer or any part of the answer
+5. Focus only on the question and context to determine the topic",
             $questionData['question'] ?? '',
             $questionData['context'] ?? '',
             $questionData['answer'] ?? '',
@@ -143,48 +158,10 @@ RULES:
     {
         $topic = strtolower(trim($topic));
 
-        // First try exact matches
         foreach ($subjectTopics as $mainTopic => $subtopics) {
             if (is_array($subtopics)) {
                 foreach ($subtopics as $subtopic) {
                     if ($topic === strtolower($subtopic)) {
-                        return $subtopic;
-                    }
-                }
-            }
-        }
-
-        // Then try partial matches with different strategies
-        foreach ($subjectTopics as $mainTopic => $subtopics) {
-            if (is_array($subtopics)) {
-                foreach ($subtopics as $subtopic) {
-                    $subtopicLower = strtolower($subtopic);
-
-                    // Strategy 1: Check if all words in the topic are in the subtopic
-                    $topicWords = explode(' ', $topic);
-                    $subtopicWords = explode(' ', $subtopicLower);
-
-                    $allWordsFound = true;
-                    foreach ($topicWords as $word) {
-                        $wordFound = false;
-                        foreach ($subtopicWords as $subtopicWord) {
-                            if (strpos($subtopicWord, $word) !== false) {
-                                $wordFound = true;
-                                break;
-                            }
-                        }
-                        if (!$wordFound) {
-                            $allWordsFound = false;
-                            break;
-                        }
-                    }
-
-                    if ($allWordsFound) {
-                        return $subtopic;
-                    }
-
-                    // Strategy 2: Check if the topic is a significant part of the subtopic
-                    if (strpos($subtopicLower, $topic) !== false && strlen($topic) > 5) {
                         return $subtopic;
                     }
                 }
@@ -197,6 +174,11 @@ RULES:
     private function updateQuestionTopic(int $questionId, string $topic): void
     {
         try {
+            $this->logger->info('Updating topic for question {id} to {topic}', [
+                'id' => $questionId,
+                'topic' => $topic
+            ]);
+
             $response = $this->httpClient->request('PUT', 'https://examquiz.dedicated.co.za/api/question-topics/update/' . $questionId, [
                 'json' => ['topic' => $topic]
             ]);
@@ -239,6 +221,15 @@ RULES:
             if (!$question) {
                 $this->logger->info('No questions found with null topic for grade 1');
                 return null;
+            }
+
+            // Ensure topics is an array
+            $subject = $question->getSubject();
+            if ($subject) {
+                $topics = $subject->getTopics();
+                if (!is_array($topics)) {
+                    $subject->setTopics([]);
+                }
             }
 
             $this->logger->info('Found next question with no topic: {id}', [

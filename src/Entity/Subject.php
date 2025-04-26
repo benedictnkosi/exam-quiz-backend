@@ -4,35 +4,44 @@ namespace App\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'subject')]
 #[ORM\Index(name: 'subject_grade_idx', columns: ['grade'])]
+#[Serializer\ExclusionPolicy('none')]
 class Subject
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: Types::INTEGER)]
+    #[Serializer\Type('integer')]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[Serializer\Type('string')]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::BOOLEAN, nullable: true, options: ['default' => true])]
+    #[Serializer\Type('boolean')]
     private ?bool $active = true;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Serializer\Type('DateTime')]
     private ?\DateTimeInterface $examDate = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Serializer\Type('array')]
     private ?array $topics = null;
 
     #[ORM\ManyToOne(targetEntity: Grade::class)]
     #[ORM\JoinColumn(name: 'grade', referencedColumnName: 'id')]
+    #[Serializer\MaxDepth(1)]
     private ?Grade $grade = null;
 
     #[ORM\ManyToOne(targetEntity: Learner::class)]
     #[ORM\JoinColumn(name: 'capturer', referencedColumnName: 'id')]
+    #[Serializer\MaxDepth(1)]
     private ?Learner $capturer = null;
 
     public function getId(): ?int
