@@ -22,10 +22,22 @@ class TextToSpeechService
         }
     }
 
+    private function cleanLectureText(string $text): string
+    {
+        // Remove image search text
+        $text = preg_replace('/\[Image Search:.*?\]/', '', $text);
+        // Remove any extra whitespace
+        $text = preg_replace('/\s+/', ' ', $text);
+        return trim($text);
+    }
+
     public function convertToSpeech(string $text, string $filename): ?string
     {
         try {
             $client = HttpClient::create();
+
+            // Clean the text before sending to OpenAI
+            $cleanText = $this->cleanLectureText($text);
 
             $response = $client->request('POST', 'https://api.openai.com/v1/audio/speech', [
                 'headers' => [
@@ -34,7 +46,7 @@ class TextToSpeechService
                 ],
                 'json' => [
                     'model' => 'tts-1',
-                    'input' => $text,
+                    'input' => $cleanText,
                     'voice' => 'alloy',
                     'response_format' => 'opus',
                     'speed' => 1.0
