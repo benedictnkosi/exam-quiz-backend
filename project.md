@@ -96,3 +96,9 @@ mkdir -p public/assets/lectures
 chmod 777 public/assets/lectures
 
 php bin/console list
+
+
+### Podcast
+php bin/console app:generate-lecture
+
+php bin/console app:record-lecture
