@@ -303,6 +303,8 @@ class LearnerReportService
             $correctAnswers = (int) $row['correct_answers'];
             $incorrectAnswers = (int) $row['incorrect_answers'];
             $successRate = $totalAttempts > 0 ? round(($correctAnswers / $totalAttempts) * 100, 2) : 0;
+            $grade = $this->calculateGrade($successRate);
+            $gradeDescription = $this->getGradeDescription($successRate);
 
             if (!isset($groupedResults[$mainTopic])) {
                 $groupedResults[$mainTopic] = [
@@ -319,7 +321,9 @@ class LearnerReportService
                 'totalAttempts' => $totalAttempts,
                 'correctAnswers' => $correctAnswers,
                 'incorrectAnswers' => $incorrectAnswers,
-                'successRate' => $successRate
+                'successRate' => $successRate,
+                'grade' => $grade,
+                'gradeDescription' => $gradeDescription
             ];
 
             // Update main topic totals
@@ -328,11 +332,13 @@ class LearnerReportService
             $groupedResults[$mainTopic]['incorrectAnswers'] += $incorrectAnswers;
         }
 
-        // Calculate success rates for main topics
+        // Calculate success rates and grades for main topics
         foreach ($groupedResults as &$mainTopic) {
             $mainTopic['successRate'] = $mainTopic['totalAttempts'] > 0
                 ? round(($mainTopic['correctAnswers'] / $mainTopic['totalAttempts']) * 100, 2)
                 : 0;
+            $mainTopic['grade'] = $this->calculateGrade($mainTopic['successRate']);
+            $mainTopic['gradeDescription'] = $this->getGradeDescription($mainTopic['successRate']);
         }
 
         // Convert to indexed array and sort by main topic name
