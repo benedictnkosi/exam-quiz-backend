@@ -42,6 +42,10 @@ class Topic
     #[Serializer\Type('string')]
     private ?string $lecture = null;
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Serializer\Type('string')]
+    private ?string $imageFileName = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -115,6 +119,18 @@ class Topic
     public function setLecture(?string $lecture): static
     {
         $this->lecture = $lecture;
+
+        return $this;
+    }
+
+    public function getImageFileName(): ?string
+    {
+        return $this->imageFileName;
+    }
+
+    public function setImageFileName(?string $imageFileName): static
+    {
+        $this->imageFileName = $imageFileName;
 
         return $this;
     }
