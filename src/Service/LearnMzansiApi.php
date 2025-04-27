@@ -535,7 +535,9 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.status = :status');
 
             if ($topic) {
-                $qb->andWhere('q.topic = :topic');
+                // Join with Topic entity to filter by main topic
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                    ->andWhere('t.name = :mainTopic');
             }
 
             // Exclude mastered questions if any exist
@@ -562,7 +564,7 @@ class LearnMzansiApi extends AbstractController
 
 
             if ($topic) {
-                $parameters->add(new Parameter('topic', $topic));
+                $parameters->add(new Parameter('mainTopic', $topic));
                 $parameters->add(new Parameter('subjectName', '%' . $subjectName . '%'));
             } else {
                 $parameters->add(new Parameter('subjectName', '%' . $subjectName . ' ' . $paperName . '%'));
