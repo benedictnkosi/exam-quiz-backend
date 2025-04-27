@@ -25,7 +25,8 @@ class TopicRecordingController extends AbstractController
             return [
                 'recordingFileName' => $topic->getRecordingFileName(),
                 'lecture_name' => $topic->getSubTopic(),
-                'image' => $topic->getImageFileName()
+                'image' => $topic->getImageFileName(),
+                'main_topic' => $topic->getName()
             ];
         }, $topics);
 
@@ -52,6 +53,7 @@ class TopicRecordingController extends AbstractController
             'data' => [
                 'recordingFileName' => $topic->getRecordingFileName(),
                 'lecture_name' => $topic->getSubTopic(),
+                'main_topic' => $topic->getName(),
                 'image' => $topic->getImageFileName()
             ]
         ]);
