@@ -19,6 +19,7 @@ use App\Entity\Subscription;
 use App\Entity\ReportedMessages;
 use App\Entity\RecordedQuestion;
 use App\Entity\Message;
+use App\Entity\Topic;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -1146,6 +1147,77 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'File successfully uploaded',
                 'fileName' => $newFilename,
                 'filePath' => '/assets/chat/' . $newFilename
+            );
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return array(
+                'status' => 'NOK',
+                'message' => 'Error uploading file: ' . $e->getMessage()
+            );
+        }
+    }
+    public function uploadLectureImage(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $file = $request->files->get('file');
+            $topicId = $request->request->get('topic_id');
+
+            if (!$file) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'No file provided'
+                );
+            }
+
+            if (!$topicId) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Topic ID is required'
+                );
+            }
+
+            // Validate file size (5MB limit)
+            $maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
+            if ($file->getSize() > $maxFileSize) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'File size exceeds the maximum limit of 5MB'
+                );
+            }
+
+            // Create upload directory if it doesn't exist
+            $uploadDir = $this->projectDir . '/public/assets/images/lectures';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            // Generate unique filename
+            $newFilename = uniqid() . '.' . $file->guessExtension();
+            $this->logger->info("Attempting to upload file: $newFilename");
+
+            // Move file to upload directory
+            $file->move($uploadDir, $newFilename);
+            $this->logger->info("File successfully uploaded: $newFilename");
+
+            // Update topic image file name
+            $topic = $this->em->getRepository(Topic::class)->find($topicId);
+            if (!$topic) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Topic not found'
+                );
+            }
+
+            $topic->setImageFileName($newFilename);
+            $this->em->persist($topic);
+            $this->em->flush();
+
+            return array(
+                'status' => 'OK',
+                'message' => 'File successfully uploaded and topic image updated',
+                'fileName' => $newFilename,
+                'filePath' => '/assets/images/lectures/' . $newFilename
             );
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
