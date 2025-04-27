@@ -24,7 +24,8 @@ class TopicRecordingController extends AbstractController
         $response = array_map(function ($topic) {
             return [
                 'recordingFileName' => $topic->getRecordingFileName(),
-                'lecture_name' => $topic->getSubTopic()
+                'lecture_name' => $topic->getSubTopic(),
+                'image' => $topic->getImageFileName()
             ];
         }, $topics);
 
@@ -50,7 +51,8 @@ class TopicRecordingController extends AbstractController
             'status' => 'success',
             'data' => [
                 'recordingFileName' => $topic->getRecordingFileName(),
-                'lecture_name' => $topic->getSubTopic()
+                'lecture_name' => $topic->getSubTopic(),
+                'image' => $topic->getImageFileName()
             ]
         ]);
     }
