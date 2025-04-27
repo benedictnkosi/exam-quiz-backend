@@ -293,8 +293,14 @@ class LearnMzansiApi extends AbstractController
     }
 
 
-    public function getRandomQuestionBySubjectName(string $subjectName, string $paperName, string $uid, int $questionId, string $platform = 'app')
-    {
+    public function getRandomQuestionBySubjectName(
+        string $subjectName,
+        string $paperName,
+        string $uid,
+        int $questionId,
+        string $platform = 'app',
+        ?string $topic = null
+    ) {
         try {
             // Get the learner first
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
@@ -523,10 +529,14 @@ class LearnMzansiApi extends AbstractController
             $qb->select('q')
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
-                ->where('s.name = :subjectName')
+                ->where('s.name like :subjectName')
                 ->andWhere('s.grade = :grade')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
+
+            if ($topic) {
+                $qb->andWhere('q.topic = :topic');
+            }
 
             // Exclude mastered questions if any exist
             if (!empty($masteredQuestionIds)) {
@@ -545,11 +555,18 @@ class LearnMzansiApi extends AbstractController
 
             // Set parameters
             $parameters = new ArrayCollection([
-                new Parameter('subjectName', $subjectName . ' ' . $paperName),
                 new Parameter('grade', $grade),
                 new Parameter('active', true),
                 new Parameter('status', 'approved')
             ]);
+
+
+            if ($topic) {
+                $parameters->add(new Parameter('topic', $topic));
+                $parameters->add(new Parameter('subjectName', '%' . $subjectName . '%'));
+            } else {
+                $parameters->add(new Parameter('subjectName', '%' . $subjectName . ' ' . $paperName . '%'));
+            }
 
             if (!empty($masteredQuestionIds)) {
                 $parameters->add(new Parameter('masteredIds', $masteredQuestionIds));
@@ -4072,6 +4089,93 @@ class LearnMzansiApi extends AbstractController
         }
 
         return $question;
+    }
+
+    public function getUniqueTopicsForSubject(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $subjectName = $request->query->get('subject_name');
+            $uid = $request->query->get('uid');
+
+            if (empty($subjectName) || empty($uid)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject name and user ID are required'
+                ];
+            }
+
+            // Get the learner
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Get subjects by name and grade
+            $subjects = $this->em->getRepository(Subject::class)
+                ->createQueryBuilder('s')
+                ->where('s.name LIKE :subjectName')
+                ->andWhere('s.grade = :grade')
+                ->setParameter('subjectName', '%' . $subjectName . '%')
+                ->setParameter('grade', $learner->getGrade())
+                ->getQuery()
+                ->getResult();
+
+            if (empty($subjects)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                ];
+            }
+
+            $subjectIds = array_map(function ($subject) {
+                return $subject->getId();
+            }, $subjects);
+
+            // Get unique topics for all matching subjects
+            $topics = $this->em->getRepository(Question::class)
+                ->createQueryBuilder('q')
+                ->select('DISTINCT q.topic')
+                ->where('q.subject IN (:subjects)')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.topic IS NOT NULL')
+                ->setParameter('subjects', $subjectIds)
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved')
+                ->orderBy('q.topic', 'ASC')
+                ->getQuery()
+                ->getSingleColumnResult();
+
+            // Filter out null values and empty strings
+            $topics = array_filter($topics, function ($topic) {
+                return !empty($topic);
+            });
+
+            // Sort topics alphabetically
+            sort($topics);
+
+            return [
+                'status' => 'OK',
+                'topics' => array_values($topics),
+                'subjects' => array_map(function ($subject) {
+                    return [
+                        'id' => $subject->getId(),
+                        'name' => $subject->getName()
+                    ];
+                }, $subjects)
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting topics'
+            ];
+        }
     }
 
 }

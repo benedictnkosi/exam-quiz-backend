@@ -105,7 +105,8 @@ class LearnMzansiApiController extends AbstractController
         $uid = $request->query->get('uid');
         $questionId = $request->query->get('question_id') ?? 0;
         $platform = $request->query->get('platform') ?? 'app';
-        $response = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform);
+        $topic = $request->query->get('topic');
+        $response = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
@@ -1167,5 +1168,13 @@ class LearnMzansiApiController extends AbstractController
             'active' => $question->isActive(),
             'higherGrade' => $question->getHigherGrade()
         ]);
+    }
+
+    #[Route('/learn/question/topics', name: 'get_subject_topics', methods: ['GET'])]
+    public function getSubjectTopics(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->getUniqueTopicsForSubject($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 }
