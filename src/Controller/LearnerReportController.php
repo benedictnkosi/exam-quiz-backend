@@ -39,7 +39,7 @@ class LearnerReportController extends AbstractController
         }
 
         $subjectId = $request->query->get('subject_id');
-        $report = $this->reportService->getDailyActivity($learner, $subjectId ? (int)$subjectId : null);
+        $report = $this->reportService->getDailyActivity($learner, $subjectId ? (int) $subjectId : null);
         return new JsonResponse(['data' => $report]);
     }
 
@@ -52,7 +52,27 @@ class LearnerReportController extends AbstractController
         }
 
         $subjectId = $request->query->get('subject_id');
-        $report = $this->reportService->getWeeklyProgress($learner, $subjectId ? (int)$subjectId : null);
+        $report = $this->reportService->getWeeklyProgress($learner, $subjectId ? (int) $subjectId : null);
         return new JsonResponse(['data' => $report]);
     }
-} 
+
+    #[Route('/api/learner/{uid}/report', name: 'learner_report', methods: ['GET'])]
+    public function getLearnerReport(string $uid, Request $request): JsonResponse
+    {
+        $subjectName = $request->query->get('subject');
+
+        if (!$subjectName) {
+            return new JsonResponse([
+                'error' => 'Subject name is required'
+            ], 400);
+        }
+
+        $report = $this->reportService->getLearnerReport($uid, $subjectName);
+
+        return new JsonResponse([
+            'uid' => $uid,
+            'subject' => $subjectName,
+            'report' => $report
+        ]);
+    }
+}

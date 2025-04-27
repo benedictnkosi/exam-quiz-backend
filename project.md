@@ -102,3 +102,5 @@ php bin/console list
 php bin/console app:generate-lecture
 
 php bin/console app:record-lecture
+
+php bin/console app:generate-question-topics

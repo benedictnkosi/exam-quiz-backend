@@ -7,12 +7,15 @@ use App\Entity\Result;
 use App\Entity\Subject;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Entity\Question;
+use App\Repository\ResultRepository;
 
 class LearnerReportService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private readonly ResultRepository $resultRepository
     ) {
     }
 
@@ -260,5 +263,44 @@ class LearnerReportService
         if ($percentage >= 30)
             return 'Elementary achievement';
         return 'Not achieved';
+    }
+
+    public function getLearnerReport(string $uid, string $subjectName): array
+    {
+        $qb = $this->entityManager->createQueryBuilder();
+
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            throw new \Exception('Learner not found');
+        }
+
+        $qb->select([
+            'q.topic',
+            'COUNT(r.id) as total_attempts',
+            'SUM(CASE WHEN r.outcome = \'correct\' THEN 1 ELSE 0 END) as correct_answers',
+            'SUM(CASE WHEN r.outcome = \'incorrect\' THEN 1 ELSE 0 END) as incorrect_answers'
+        ])
+            ->from(Result::class, 'r')
+            ->join('r.question', 'q')
+            ->join('q.subject', 's')
+            ->where('r.learner = :learner')
+            ->andWhere('s.name like :subjectName')
+            ->groupBy('q.topic')
+            ->setParameter('learner', $learner)
+            ->setParameter('subjectName', '%' . $subjectName . '%');
+
+        $results = $qb->getQuery()->getResult();
+
+        return array_map(function ($row) {
+            return [
+                'topic' => $row['topic'],
+                'total_attempts' => (int) $row['total_attempts'],
+                'correct_answers' => (int) $row['correct_answers'],
+                'incorrect_answers' => (int) $row['incorrect_answers'],
+                'accuracy' => $row['total_attempts'] > 0
+                    ? round(($row['correct_answers'] / $row['total_attempts']) * 100, 2)
+                    : 0
+            ];
+        }, $results);
     }
 }
