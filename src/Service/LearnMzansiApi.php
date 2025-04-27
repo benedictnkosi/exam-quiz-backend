@@ -4174,10 +4174,10 @@ class LearnMzansiApi extends AbstractController
                 return $subject->getId();
             }, $subjects);
 
-            // Get unique topics with their main topics
+            // Get unique topics with their main topics and question counts
             $qb = $this->em->getRepository(Question::class)
                 ->createQueryBuilder('q')
-                ->select('DISTINCT q.topic, t.name as mainTopic')
+                ->select('DISTINCT q.topic, t.name as mainTopic, COUNT(q.id) as questionCount')
                 ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject IN (:subjects)')
                 ->where('q.subject IN (:subjects)')
                 ->andWhere('q.active = :active')
@@ -4185,7 +4185,8 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.topic IS NOT NULL')
                 ->setParameter('subjects', $subjectIds)
                 ->setParameter('active', true)
-                ->setParameter('status', 'approved');
+                ->setParameter('status', 'approved')
+                ->groupBy('q.topic, t.name');
 
             // Add term filter if learner has terms specified
             if (!empty($learnerTerms)) {
@@ -4212,13 +4213,18 @@ class LearnMzansiApi extends AbstractController
                     $groupedTopics[$mainTopic] = [];
                 }
                 if (!empty($topic['topic'])) {
-                    $groupedTopics[$mainTopic][] = $topic['topic'];
+                    $groupedTopics[$mainTopic][] = [
+                        'name' => $topic['topic'],
+                        'questionCount' => (int) $topic['questionCount']
+                    ];
                 }
             }
 
-            // Sort topics within each main topic
+            // Sort topics within each main topic by name
             foreach ($groupedTopics as &$subtopics) {
-                sort($subtopics);
+                usort($subtopics, function ($a, $b) {
+                    return strcmp($a['name'], $b['name']);
+                });
             }
 
             return [
