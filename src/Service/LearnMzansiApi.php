@@ -3370,6 +3370,7 @@ class LearnMzansiApi extends AbstractController
             $paperName = $request->query->get('paper_name');
             $uid = $request->query->get('uid');
             $isRevision = $request->query->get('revision', false);
+            $topic = $request->query->get('topic');
 
             if (empty($subjectName) || empty($uid)) {
                 return [
@@ -3396,9 +3397,26 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // Get subject
-            $subject = $this->em->getRepository(Subject::class)->findOneBy(['name' => $subjectName . ' ' . $paperName, 'grade' => $grade]);
-            if (!$subject) {
+            // Get subjects
+            $subjectQuery = $this->em->createQueryBuilder();
+            $subjectQuery->select('s')
+                ->from('App\Entity\Subject', 's')
+                ->where('s.grade = :grade');
+
+            if ($topic) {
+                // If topic is provided, use LIKE for subject name search
+                $subjectQuery->andWhere('s.name LIKE :subjectName')
+                    ->setParameter('subjectName', '%' . $subjectName . '%');
+            } else {
+                // If no topic, use exact match
+                $subjectQuery->andWhere('s.name = :subjectName')
+                    ->setParameter('subjectName', $subjectName . ' ' . $paperName);
+            }
+
+            $subjectQuery->setParameter('grade', $grade);
+            $subjects = $subjectQuery->getQuery()->getResult();
+
+            if (empty($subjects)) {
                 return [
                     'status' => 'NOK',
                     'message' => 'Subject not found'
@@ -3409,13 +3427,18 @@ class LearnMzansiApi extends AbstractController
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
                 ->from('App\Entity\Question', 'q')
-                ->where('q.subject = :subject')
+                ->where('q.subject IN (:subjects)')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
+            // Add topic filter if provided
+            if ($topic) {
+                $qb->andWhere('q.topic = :topic')
+                    ->setParameter('topic', $topic);
+            }
 
             // Set common parameters
-            $qb->setParameter('subject', $subject)
+            $qb->setParameter('subjects', $subjects)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved');
 
@@ -3445,6 +3468,13 @@ class LearnMzansiApi extends AbstractController
                     $randomQuestion->setAiExplanation($aiExplanationResult['explanation']);
                     $this->em->flush();
                 }
+            }
+
+            $randomQuestion->setCapturer(null);
+            $randomQuestion->setReviewer(null);
+            if ($randomQuestion->getSubject()) {
+                $randomQuestion->getSubject()->setCapturer(null);
+                $randomQuestion->getSubject()->setTopics(null);
             }
 
             return $randomQuestion;
@@ -4135,10 +4165,11 @@ class LearnMzansiApi extends AbstractController
                 return $subject->getId();
             }, $subjects);
 
-            // Get unique topics for all matching subjects
+            // Get unique topics with their main topics
             $topics = $this->em->getRepository(Question::class)
                 ->createQueryBuilder('q')
-                ->select('DISTINCT q.topic')
+                ->select('DISTINCT q.topic, t.name as mainTopic')
+                ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject IN (:subjects)')
                 ->where('q.subject IN (:subjects)')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status')
@@ -4146,21 +4177,31 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('subjects', $subjectIds)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved')
-                ->orderBy('q.topic', 'ASC')
+                ->orderBy('t.name', 'ASC')
+                ->addOrderBy('q.topic', 'ASC')
                 ->getQuery()
-                ->getSingleColumnResult();
+                ->getResult();
 
-            // Filter out null values and empty strings
-            $topics = array_filter($topics, function ($topic) {
-                return !empty($topic);
-            });
+            // Group topics by main topic
+            $groupedTopics = [];
+            foreach ($topics as $topic) {
+                $mainTopic = $topic['mainTopic'] ?? 'Uncategorized';
+                if (!isset($groupedTopics[$mainTopic])) {
+                    $groupedTopics[$mainTopic] = [];
+                }
+                if (!empty($topic['topic'])) {
+                    $groupedTopics[$mainTopic][] = $topic['topic'];
+                }
+            }
 
-            // Sort topics alphabetically
-            sort($topics);
+            // Sort topics within each main topic
+            foreach ($groupedTopics as &$subtopics) {
+                sort($subtopics);
+            }
 
             return [
                 'status' => 'OK',
-                'topics' => array_values($topics),
+                'topics' => $groupedTopics,
                 'subjects' => array_map(function ($subject) {
                     return [
                         'id' => $subject->getId(),
