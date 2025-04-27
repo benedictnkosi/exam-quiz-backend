@@ -6,6 +6,7 @@ use App\Entity\Learner;
 use App\Entity\Question;
 use App\Entity\Result;
 use App\Entity\SubjectPoints;
+use App\Entity\Topic;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -43,6 +44,22 @@ class CheckAnswerService
                 ];
             }
 
+            // Get topic information
+            $topic = null;
+            $recordingFileName = null;
+            if ($question->getTopic()) {
+                $topicEntity = $this->entityManager->getRepository(Topic::class)
+                    ->findOneBy([
+                        'subTopic' => $question->getTopic(),
+                        'subject' => $question->getSubject()
+                    ]);
+
+                if ($topicEntity) {
+                    $topic = $topicEntity->getName();
+                    $recordingFileName = $topicEntity->getRecordingFileName();
+                }
+            }
+
             // Check if the question is favorited by the learner
             $isFavorited = $this->entityManager->getRepository('App\Entity\Favorites')
                 ->findOneBy([
@@ -51,13 +68,13 @@ class CheckAnswerService
                 ]);
 
             // Check the answer
-            
-            if($question->getAnswerSheet() === null){
+
+            if ($question->getAnswerSheet() === null) {
                 $this->logger->info("Question {$questionId} has no answer sheet");
                 $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
-            }else{
+            } else {
                 $this->logger->info("Question {$questionId} has an answer sheet");
-                $isCorrect = $this->validateAccountingAnswer($sheetCell , $answer, $question->getAnswerSheet());
+                $isCorrect = $this->validateAccountingAnswer($sheetCell, $answer, $question->getAnswerSheet());
             }
 
             //if is learner is admin return the results without recording or awarding points
@@ -73,7 +90,9 @@ class CheckAnswerService
                     'streak' => $learner->getStreak(),
                     'streakUpdated' => false,
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
-                    'is_favorited' => false
+                    'is_favorited' => false,
+                    'topic' => $topic,
+                    'recordingFileName' => $recordingFileName
                 ];
             }
             // If the question is favorited, return the result without recording or awarding points
@@ -90,7 +109,9 @@ class CheckAnswerService
                     'streak' => $learner->getStreak(),
                     'streakUpdated' => false,
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
-                    'is_favorited' => true
+                    'is_favorited' => true,
+                    'topic' => $topic,
+                    'recordingFileName' => $recordingFileName
                 ];
             }
 
@@ -107,7 +128,9 @@ class CheckAnswerService
                     'streak' => $learner->getStreak(),
                     'streakUpdated' => false,
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
-                    'is_favorited' => false
+                    'is_favorited' => false,
+                    'topic' => $topic,
+                    'recordingFileName' => $recordingFileName
                 ];
             }
 
@@ -187,7 +210,7 @@ class CheckAnswerService
                         $streakUpdated = true;
                         $learner->setStreak($currentStreak)
                             ->setStreakLastUpdated(new \DateTime());
-                        
+
                         // Send streak notification to followers
                         $this->pushNotificationService->sendStreakNotification($learner, $currentStreak);
                     }
@@ -211,7 +234,9 @@ class CheckAnswerService
                 'streak' => $currentStreak,
                 'streakUpdated' => $streakUpdated,
                 'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
-                'is_favorited' => false
+                'is_favorited' => false,
+                'topic' => $topic,
+                'recordingFileName' => $recordingFileName
             ];
 
         } catch (\Exception $e) {
@@ -264,7 +289,7 @@ class CheckAnswerService
         try {
             $this->logger->info("Validating accounting answer for cell: {$sheetCell}");
             $this->logger->info("Submitted answer: {$submittedAnswer}");
-            
+
             $answerSheetData = json_decode($answerSheet, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->error('Invalid answer sheet JSON format');
@@ -298,13 +323,13 @@ class CheckAnswerService
             if (is_array($cellData) && isset($cellData['correct'])) {
                 $correctAnswer = $cellData['correct'];
                 $this->logger->info("Correct answer from cell: {$correctAnswer}");
-                
+
                 $normalizedSubmitted = $this->normalizeAccountingValue($submittedAnswer);
                 $normalizedCorrect = $this->normalizeAccountingValue($correctAnswer);
-                
+
                 $this->logger->info("Normalized submitted: {$normalizedSubmitted}");
                 $this->logger->info("Normalized correct: {$normalizedCorrect}");
-                
+
                 return $normalizedSubmitted === $normalizedCorrect;
             }
 
@@ -326,13 +351,13 @@ class CheckAnswerService
     {
         // Remove all spaces
         $value = preg_replace('/\s+/', '', $value);
-        
+
         // Convert to lowercase
         $value = strtolower($value);
-        
+
         // Remove any currency symbols or other special characters
         $value = preg_replace('/[^a-z0-9\-\(\)\.]/', '', $value);
-        
+
         return $value;
     }
 }

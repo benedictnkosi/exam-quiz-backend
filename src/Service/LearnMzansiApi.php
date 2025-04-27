@@ -418,6 +418,8 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->setReviewer(null);
                 if ($randomQuestion->getSubject()) {
                     $randomQuestion->getSubject()->setCapturer(null);
+                    // Set topics to null to exclude them from the response
+                    $randomQuestion->getSubject()->setTopics(null);
                 }
                 $this->logger->info("Final question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
 
@@ -604,6 +606,8 @@ class LearnMzansiApi extends AbstractController
             $randomQuestion->setReviewer(null);
             if ($randomQuestion->getSubject()) {
                 $randomQuestion->getSubject()->setCapturer(null);
+                // Set topics to null to exclude them from the response
+                $randomQuestion->getSubject()->setTopics(null);
             }
 
             return $randomQuestion;
