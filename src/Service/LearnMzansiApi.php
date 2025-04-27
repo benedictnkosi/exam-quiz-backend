@@ -4144,6 +4144,15 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Get learner's terms and curriculum
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
+
             // Get subjects by name and grade
             $subjects = $this->em->getRepository(Subject::class)
                 ->createQueryBuilder('s')
@@ -4166,7 +4175,7 @@ class LearnMzansiApi extends AbstractController
             }, $subjects);
 
             // Get unique topics with their main topics
-            $topics = $this->em->getRepository(Question::class)
+            $qb = $this->em->getRepository(Question::class)
                 ->createQueryBuilder('q')
                 ->select('DISTINCT q.topic, t.name as mainTopic')
                 ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject IN (:subjects)')
@@ -4176,8 +4185,21 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.topic IS NOT NULL')
                 ->setParameter('subjects', $subjectIds)
                 ->setParameter('active', true)
-                ->setParameter('status', 'approved')
-                ->orderBy('t.name', 'ASC')
+                ->setParameter('status', 'approved');
+
+            // Add term filter if learner has terms specified
+            if (!empty($learnerTerms)) {
+                $qb->andWhere($qb->expr()->in('q.term', ':terms'))
+                    ->setParameter('terms', $learnerTerms);
+            }
+
+            // Add curriculum filter if learner has curriculum specified
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'))
+                    ->setParameter('curriculum', $learnerCurriculum);
+            }
+
+            $topics = $qb->orderBy('t.name', 'ASC')
                 ->addOrderBy('q.topic', 'ASC')
                 ->getQuery()
                 ->getResult();

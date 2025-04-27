@@ -84,7 +84,7 @@ ollama run deepseek-llm
 
 ollama run deepseek-r1
 
-### After deploting changes
+### After deploying changes
 First, clear the cache:
 php bin/console cache:clear
 
@@ -104,3 +104,7 @@ php bin/console app:generate-lecture
 php bin/console app:record-lecture
 
 php bin/console app:generate-question-topics
+
+convert opus to m4a
+cd public/assets/lectures/
+./convert-opus-to-m4a.sh
