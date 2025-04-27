@@ -292,14 +292,17 @@ class LearnerReportService
         $results = $qb->getQuery()->getResult();
 
         return array_map(function ($row) {
+            $accuracy = $row['total_attempts'] > 0
+                ? round(($row['correct_answers'] / $row['total_attempts']) * 100, 2)
+                : 0;
+
             return [
                 'topic' => $row['topic'],
                 'total_attempts' => (int) $row['total_attempts'],
                 'correct_answers' => (int) $row['correct_answers'],
                 'incorrect_answers' => (int) $row['incorrect_answers'],
-                'accuracy' => $row['total_attempts'] > 0
-                    ? round(($row['correct_answers'] / $row['total_attempts']) * 100, 2)
-                    : 0
+                'accuracy' => $accuracy,
+                'grade' => $this->calculateGrade($accuracy)
             ];
         }, $results);
     }
