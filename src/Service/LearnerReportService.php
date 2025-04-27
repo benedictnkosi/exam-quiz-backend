@@ -275,7 +275,8 @@ class LearnerReportService
         }
 
         $qb->select([
-            'q.topic',
+            'q.topic as subTopic',
+            't.name as mainTopic',
             'COUNT(r.id) as total_attempts',
             'SUM(CASE WHEN r.outcome = \'correct\' THEN 1 ELSE 0 END) as correct_answers',
             'SUM(CASE WHEN r.outcome = \'incorrect\' THEN 1 ELSE 0 END) as incorrect_answers'
@@ -283,27 +284,63 @@ class LearnerReportService
             ->from(Result::class, 'r')
             ->join('r.question', 'q')
             ->join('q.subject', 's')
+            ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
             ->where('r.learner = :learner')
             ->andWhere('s.name like :subjectName')
-            ->groupBy('q.topic')
+            ->andWhere('q.topic IS NOT NULL')
+            ->groupBy('t.name, q.topic')
             ->setParameter('learner', $learner)
             ->setParameter('subjectName', '%' . $subjectName . '%');
 
         $results = $qb->getQuery()->getResult();
 
-        return array_map(function ($row) {
-            $accuracy = $row['total_attempts'] > 0
-                ? round(($row['correct_answers'] / $row['total_attempts']) * 100, 2)
-                : 0;
+        // Group results by main topic
+        $groupedResults = [];
+        foreach ($results as $row) {
+            $mainTopic = $row['mainTopic'] ?? 'Uncategorized';
+            $subTopic = $row['subTopic'];
+            $totalAttempts = (int) $row['total_attempts'];
+            $correctAnswers = (int) $row['correct_answers'];
+            $incorrectAnswers = (int) $row['incorrect_answers'];
+            $successRate = $totalAttempts > 0 ? round(($correctAnswers / $totalAttempts) * 100, 2) : 0;
 
-            return [
-                'topic' => $row['topic'],
-                'total_attempts' => (int) $row['total_attempts'],
-                'correct_answers' => (int) $row['correct_answers'],
-                'incorrect_answers' => (int) $row['incorrect_answers'],
-                'accuracy' => $accuracy,
-                'grade' => $this->calculateGrade($accuracy)
+            if (!isset($groupedResults[$mainTopic])) {
+                $groupedResults[$mainTopic] = [
+                    'mainTopic' => $mainTopic,
+                    'subTopics' => [],
+                    'totalAttempts' => 0,
+                    'correctAnswers' => 0,
+                    'incorrectAnswers' => 0
+                ];
+            }
+
+            $groupedResults[$mainTopic]['subTopics'][] = [
+                'name' => $subTopic,
+                'totalAttempts' => $totalAttempts,
+                'correctAnswers' => $correctAnswers,
+                'incorrectAnswers' => $incorrectAnswers,
+                'successRate' => $successRate
             ];
-        }, $results);
+
+            // Update main topic totals
+            $groupedResults[$mainTopic]['totalAttempts'] += $totalAttempts;
+            $groupedResults[$mainTopic]['correctAnswers'] += $correctAnswers;
+            $groupedResults[$mainTopic]['incorrectAnswers'] += $incorrectAnswers;
+        }
+
+        // Calculate success rates for main topics
+        foreach ($groupedResults as &$mainTopic) {
+            $mainTopic['successRate'] = $mainTopic['totalAttempts'] > 0
+                ? round(($mainTopic['correctAnswers'] / $mainTopic['totalAttempts']) * 100, 2)
+                : 0;
+        }
+
+        // Convert to indexed array and sort by main topic name
+        $groupedResults = array_values($groupedResults);
+        usort($groupedResults, function ($a, $b) {
+            return strcmp($a['mainTopic'], $b['mainTopic']);
+        });
+
+        return $groupedResults;
     }
 }
