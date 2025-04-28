@@ -619,6 +619,27 @@ class LearnMzansiApi extends AbstractController
                 shuffle($questions);
                 $randomQuestion = $questions[0]; // Get the first random question
             } else {
+                // If no questions found and topic is set, reset the topic_lessons_tracker and try again
+                if ($topic && !in_array($learner->getRole(), ['admin', 'reviewer'])) {
+                    $topicLessonsTracker = $learner->getTopicLessonsTracker();
+                    if ($topicLessonsTracker && isset($topicLessonsTracker[$topic])) {
+                        // Reset the tracker for this topic
+                        $topicLessonsTracker[$topic] = [];
+                        $learner->setTopicLessonsTracker($topicLessonsTracker);
+                        $this->em->flush();
+
+                        // Try again with the reset tracker
+                        return $this->getRandomQuestionBySubjectName(
+                            $subjectName,
+                            $paperName,
+                            $uid,
+                            $questionId,
+                            $platform,
+                            $topic
+                        );
+                    }
+                }
+
                 return array(
                     'status' => 'NOK',
                     'message' => 'No more questions available',
