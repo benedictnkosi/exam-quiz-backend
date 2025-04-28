@@ -3381,7 +3381,7 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // Get the learner
+            // Get the learner with a single query
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 return [
@@ -3399,62 +3399,56 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // Get subjects
-            $subjectQuery = $this->em->createQueryBuilder();
-            $subjectQuery->select('s')
-                ->from('App\Entity\Subject', 's')
-                ->where('s.grade = :grade');
-
-            if ($topic) {
-                // If topic is provided, use LIKE for subject name search
-                $subjectQuery->andWhere('s.name LIKE :subjectName')
-                    ->setParameter('subjectName', '%' . $subjectName . '%');
-            } else {
-                // If no topic, use exact match
-                $subjectQuery->andWhere('s.name = :subjectName')
-                    ->setParameter('subjectName', $subjectName . ' ' . $paperName);
-            }
-
-            $subjectQuery->setParameter('grade', $grade);
-            $subjects = $subjectQuery->getQuery()->getResult();
-
-            if (empty($subjects)) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
-                ];
-            }
-
-            // Build base query
+            // Build optimized query to get a random question
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
                 ->from('App\Entity\Question', 'q')
-                ->where('q.subject IN (:subjects)')
+                ->innerJoin('q.subject', 's')
+                ->where('s.grade = :grade')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status');
 
-            // Add topic filter if provided
             if ($topic) {
-                $qb->andWhere('q.topic = :topic')
-                    ->setParameter('topic', $topic);
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                    ->andWhere('t.name = :mainTopic')
+                    ->andWhere('s.name LIKE :subjectName')
+                    ->setParameter('mainTopic', $topic)
+                    ->setParameter('subjectName', '%' . $subjectName . '%');
+            } else {
+                $qb->andWhere('s.name = :subjectName')
+                    ->setParameter('subjectName', $subjectName . ' ' . $paperName);
             }
 
-            // Set common parameters
-            $qb->setParameter('subjects', $subjects)
+            $qb->setParameter('grade', $grade)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved');
 
-            // Get random question
-            $questions = $qb->getQuery()->getResult();
-            if (empty($questions)) {
+            // Get count of matching questions
+            $countQb = clone $qb;
+            $count = $countQb->select('COUNT(q.id)')->getQuery()->getSingleScalarResult();
+
+            if ($count === 0) {
                 return [
                     'status' => 'NOK',
                     'message' => 'No questions available'
                 ];
             }
 
-            // Get random question
-            $randomQuestion = $questions[array_rand($questions)];
+            // Get random offset
+            $offset = random_int(0, $count - 1);
+
+            // Get single random question
+            $randomQuestion = $qb->setFirstResult($offset)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            if (!$randomQuestion) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Failed to get random question'
+                ];
+            }
 
             // Shuffle options if they exist
             $options = $randomQuestion->getOptions();
@@ -3472,6 +3466,7 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
+            // Clear unnecessary relations
             $randomQuestion->setCapturer(null);
             $randomQuestion->setReviewer(null);
             if ($randomQuestion->getSubject()) {
