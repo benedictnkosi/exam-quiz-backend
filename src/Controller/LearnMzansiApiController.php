@@ -1177,4 +1177,12 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->getUniqueTopicsForSubject($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
+
+    #[Route('/learn/topic/progress', name: 'get_topic_progress', methods: ['GET'])]
+    public function getTopicProgress(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->getTopicProgress($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
 }

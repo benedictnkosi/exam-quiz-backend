@@ -4333,4 +4333,64 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
+    public function getTopicProgress(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $uid = $request->query->get('uid');
+            $topic = $request->query->get('topic');
+            $subjectName = $request->query->get('subject_name');
+
+            if (empty($uid) || empty($topic) || empty($subjectName)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'User ID, topic, and subject name are required'
+                ];
+            }
+
+            // Get the learner
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Get total questions for this topic and subject
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('COUNT(q.id)')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.subject', 's')
+                ->where('q.topic = :topic')
+                ->andWhere('s.name LIKE :subjectName')
+                ->andWhere('q.active = true')
+                ->setParameter('topic', $topic)
+                ->setParameter('subjectName', '%' . $subjectName . '%');
+
+            $totalQuestions = $qb->getQuery()->getSingleScalarResult();
+
+            // Get viewed questions from topic tracker
+            $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
+            $viewedQuestions = $topicLessonsTracker[$topic] ?? [];
+            $viewedCount = count($viewedQuestions);
+
+            $progressPercentage = $totalQuestions > 0 ? round(($viewedCount / $totalQuestions) * 100) : 0;
+
+            return [
+                'status' => 'OK',
+                'total_questions' => (int) $totalQuestions,
+                'viewed_questions' => $viewedCount,
+                'progress_percentage' => $progressPercentage
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting topic progress'
+            ];
+        }
+    }
+
 }
