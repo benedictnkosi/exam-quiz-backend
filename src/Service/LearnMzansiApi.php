@@ -493,6 +493,26 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+
+            // Skip topic tracking for admin and reviewer roles
+            $excludedQuestionIds = [];
+            if (!in_array($learner->getRole(), ['admin', 'reviewer'])) {
+                // Handle topic tracking
+                $topicLessonsTracker = $learner->getTopicLessonsTracker();
+                if ($topic && $topicLessonsTracker) {
+                    // Check if the topic exists in the tracker
+                    if (isset($topicLessonsTracker[$topic])) {
+                        // Get all question IDs for this topic
+                        $excludedQuestionIds = $topicLessonsTracker[$topic];
+                    } else {
+                        // If topic doesn't exist, reset the tracker
+                        $topicLessonsTracker = [];
+                        $learner->setTopicLessonsTracker($topicLessonsTracker);
+                        $this->em->flush();
+                    }
+                }
+            }
+
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
             $masteredQuestionsQb = $this->em->createQueryBuilder();
             $masteredQuestionsQb->select('DISTINCT IDENTITY(r1.question) as questionId')
@@ -540,6 +560,11 @@ class LearnMzansiApi extends AbstractController
                     ->andWhere('t.name = :mainTopic');
             }
 
+            // Exclude previously viewed questions if any
+            if (!empty($excludedQuestionIds)) {
+                $qb->andWhere('q.id NOT IN (:excludedIds)');
+            }
+
             // Exclude mastered questions if any exist
             if (!empty($masteredQuestionIds)) {
                 $qb->andWhere('q.id NOT IN (:masteredIds)');
@@ -580,6 +605,10 @@ class LearnMzansiApi extends AbstractController
 
             if (!empty($learnerCurriculum)) {
                 $parameters->add(new Parameter('curriculum', $learnerCurriculum));
+            }
+
+            if (!empty($excludedQuestionIds)) {
+                $parameters->add(new Parameter('excludedIds', $excludedQuestionIds));
             }
 
             $qb->setParameters($parameters);
@@ -628,12 +657,23 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->getSubject()->setTopics(null);
             }
 
+            // Update topic tracker for non-admin/reviewer users
+            if (!in_array($learner->getRole(), ['admin', 'reviewer']) && $topic) {
+                $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
+                if (!isset($topicLessonsTracker[$topic])) {
+                    $topicLessonsTracker[$topic] = [];
+                }
+                $topicLessonsTracker[$topic][] = $randomQuestion->getId();
+                $learner->setTopicLessonsTracker($topicLessonsTracker);
+                $this->em->flush();
+            }
+
             return $randomQuestion;
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
                 'status' => 'NOK',
-                'message' => 'Error getting random question'
+                'message' => 'Error getting random question ' . $e->getMessage()
             );
         }
     }
