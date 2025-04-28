@@ -302,6 +302,44 @@ class LearnMzansiApiController extends AbstractController
         }
     }
 
+    #[Route('/learn/learner/get-lecture-image', name: 'get_lecture_image', methods: ['GET'])]
+    public function getLectureImage(Request $request): Response
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $imageName = $request->query->get('image');
+        if (!$imageName) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Image parameter is required'
+            ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        $uploadDir = __DIR__ . '/../../public/assets/images/lectures/';
+        $imagePath = $uploadDir . $imageName;
+
+        if (!file_exists($imagePath)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Image not found'
+            ], Response::HTTP_NOT_FOUND, ['Access-Control-Allow-Origin' => '*']);
+        }
+
+        try {
+            return new BinaryFileResponse($imagePath, Response::HTTP_OK, [
+                'Access-Control-Allow-Origin' => '*',
+                'Content-Type' => mime_content_type($imagePath)
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error in getImage: ' . $e->getMessage());
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error retrieving image'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR, ['Access-Control-Allow-Origin' => '*']);
+        }
+    }
+
+
     #[Route('/learn/question/set-image-path', name: 'set_image_path', methods: ['POST'])]
     public function setImagePathForQuestion(Request $request): JsonResponse
     {
