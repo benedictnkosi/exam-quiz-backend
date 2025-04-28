@@ -4211,6 +4211,7 @@ class LearnMzansiApi extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {
+            $this->logger->info("Request: test 1");
             $subjectName = $request->query->get('subject_name');
             $uid = $request->query->get('uid');
 
@@ -4229,6 +4230,9 @@ class LearnMzansiApi extends AbstractController
                     'message' => 'Learner not found'
                 ];
             }
+
+            $this->logger->info("Learner: " . json_encode($learner));
+
 
             // Get learner's terms and curriculum
             $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
@@ -4256,9 +4260,13 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+
+
             $subjectIds = array_map(function ($subject) {
                 return $subject->getId();
             }, $subjects);
+
+            $this->logger->info("Subjects: " . json_encode($subjectIds));
 
             // Get unique topics with their main topics and question counts
             $qb = $this->em->getRepository(Question::class)
@@ -4357,17 +4365,40 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Get subjects by name and grade
+            $subjects = $this->em->getRepository(Subject::class)
+                ->createQueryBuilder('s')
+                ->where('s.name LIKE :subjectName')
+                ->andWhere('s.grade = :grade')
+                ->setParameter('subjectName', '%' . $subjectName . '%')
+                ->setParameter('grade', $learner->getGrade())
+                ->getQuery()
+                ->getResult();
+
+            if (empty($subjects)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                ];
+            }
+
+            $subjectIds = array_map(function ($subject) {
+                return $subject->getId();
+            }, $subjects);
+
             // Get total questions for this topic and subject
             $qb = $this->em->createQueryBuilder();
             $qb->select('COUNT(q.id)')
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
-                ->join('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                ->join('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic')
                 ->where('t.name = :topic')
-                ->andWhere('s.name LIKE :subjectName')
+                ->andWhere('q.subject IN (:subjects)')
                 ->andWhere('q.active = true')
+                ->andWhere('q.status = :status')
                 ->setParameter('topic', $topic)
-                ->setParameter('subjectName', '%' . $subjectName . '%');
+                ->setParameter('subjects', $subjectIds)
+                ->setParameter('status', 'approved');
 
             $totalQuestions = $qb->getQuery()->getSingleScalarResult();
 
@@ -4389,7 +4420,7 @@ class LearnMzansiApi extends AbstractController
             $this->logger->error($e->getMessage());
             return [
                 'status' => 'NOK',
-                'message' => 'Error getting topic progress'
+                'message' => 'Error getting topic progress ' . $e->getMessage()
             ];
         }
     }
