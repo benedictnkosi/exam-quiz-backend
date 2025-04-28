@@ -3885,7 +3885,7 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getQuestionsWithSameContext(int $questionId): array
+    public function getQuestionsWithSameContext(int $questionId, ?string $topic = null): array
     {
         try {
             // Get the question to find its context and subject
@@ -3917,6 +3917,16 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('context', $context)
                 ->setParameter('year', $year)
                 ->setParameter('term', $term);
+
+            // If topic is provided, add it to the query
+
+            if ($topic) {
+                // Join with Topic entity to filter by main topic
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                    ->andWhere('t.name = :mainTopic')
+                    ->setParameter('mainTopic', $topic);
+            }
+
 
             $qb->orderBy('q.id', 'ASC');
 

@@ -108,3 +108,4 @@ php bin/console app:generate-question-topics
 convert opus to m4a
 cd public/assets/lectures/
 ./convert-opus-to-m4a.sh
+mv converted_m4a/* .
