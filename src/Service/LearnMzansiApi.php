@@ -610,7 +610,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Get related questions (same context and image path)
-            $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
+            $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId(), $topic);
             $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
             if (!empty($relatedQuestionIds)) {
                 $randomQuestion = $this->em->getRepository(Question::class)->find($relatedQuestionIds[0]);
