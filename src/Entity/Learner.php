@@ -123,14 +123,17 @@ class Learner
     #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('array')]
-
     private ?array $timetable = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Serializer\Groups(['learner:read'])]
     #[Serializer\Type('array')]
-
     private ?array $events = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\Type('array')]
+    private ?array $topicLessonsTracker = null;
 
     #[ORM\Column(name: 'new_thread_notification', type: Types::BOOLEAN, options: ['default' => true])]
     #[Serializer\Groups(['learner:read'])]
@@ -603,6 +606,17 @@ class Learner
     public function setEvents(?array $events): self
     {
         $this->events = $events;
+        return $this;
+    }
+
+    public function getTopicLessonsTracker(): ?array
+    {
+        return $this->topicLessonsTracker;
+    }
+
+    public function setTopicLessonsTracker(?array $topicLessonsTracker): self
+    {
+        $this->topicLessonsTracker = $topicLessonsTracker;
         return $this;
     }
 }

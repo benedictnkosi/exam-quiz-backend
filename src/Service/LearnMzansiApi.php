@@ -625,7 +625,6 @@ class LearnMzansiApi extends AbstractController
             $randomQuestion->setReviewer(null);
             if ($randomQuestion->getSubject()) {
                 $randomQuestion->getSubject()->setCapturer(null);
-                // Set topics to null to exclude them from the response
                 $randomQuestion->getSubject()->setTopics(null);
             }
 
@@ -3399,6 +3398,23 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Handle topic tracking
+            $excludedQuestionIds = [];
+            $topicLessonsTracker = $learner->getTopicLessonsTracker();
+
+            if ($topic && $topicLessonsTracker) {
+                // Check if the topic exists in the tracker
+                if (isset($topicLessonsTracker[$topic])) {
+                    // Get all question IDs for this topic
+                    $excludedQuestionIds = $topicLessonsTracker[$topic];
+                } else {
+                    // If topic doesn't exist, reset the tracker
+                    $topicLessonsTracker = [];
+                    $learner->setTopicLessonsTracker($topicLessonsTracker);
+                    $this->em->flush();
+                }
+            }
+
             // Build optimized query to get a random question
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
@@ -3419,6 +3435,12 @@ class LearnMzansiApi extends AbstractController
                     ->setParameter('subjectName', $subjectName . ' ' . $paperName);
             }
 
+            // Exclude previously viewed questions if any
+            if (!empty($excludedQuestionIds)) {
+                $qb->andWhere('q.id NOT IN (:excludedIds)')
+                    ->setParameter('excludedIds', $excludedQuestionIds);
+            }
+
             $qb->setParameter('grade', $grade)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved');
@@ -3428,10 +3450,53 @@ class LearnMzansiApi extends AbstractController
             $count = $countQb->select('COUNT(q.id)')->getQuery()->getSingleScalarResult();
 
             if ($count === 0) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'No questions available'
-                ];
+                // If we have excluded questions and found nothing, reset the tracker and try again
+                if (!empty($excludedQuestionIds) && $topic) {
+                    $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
+                    $topicLessonsTracker[$topic] = [];
+                    $learner->setTopicLessonsTracker($topicLessonsTracker);
+                    $this->em->flush();
+
+                    // Try the query again without exclusions
+                    $qb = $this->em->createQueryBuilder();
+                    $qb->select('q')
+                        ->from('App\Entity\Question', 'q')
+                        ->innerJoin('q.subject', 's')
+                        ->where('s.grade = :grade')
+                        ->andWhere('q.active = :active')
+                        ->andWhere('q.status = :status');
+
+                    if ($topic) {
+                        $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                            ->andWhere('t.name = :mainTopic')
+                            ->andWhere('s.name LIKE :subjectName')
+                            ->setParameter('mainTopic', $topic)
+                            ->setParameter('subjectName', '%' . $subjectName . '%');
+                    } else {
+                        $qb->andWhere('s.name = :subjectName')
+                            ->setParameter('subjectName', $subjectName . ' ' . $paperName);
+                    }
+
+                    $qb->setParameter('grade', $grade)
+                        ->setParameter('active', true)
+                        ->setParameter('status', 'approved');
+
+                    // Get count again
+                    $countQb = clone $qb;
+                    $count = $countQb->select('COUNT(q.id)')->getQuery()->getSingleScalarResult();
+
+                    if ($count === 0) {
+                        return [
+                            'status' => 'NOK',
+                            'message' => 'No questions available'
+                        ];
+                    }
+                } else {
+                    return [
+                        'status' => 'NOK',
+                        'message' => 'No questions available'
+                    ];
+                }
             }
 
             // Get random offset
@@ -3448,6 +3513,20 @@ class LearnMzansiApi extends AbstractController
                     'status' => 'NOK',
                     'message' => 'Failed to get random question'
                 ];
+            }
+
+            // Update topic tracker if a topic is specified
+            if ($topic) {
+                $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
+
+                if (!isset($topicLessonsTracker[$topic])) {
+                    $topicLessonsTracker[$topic] = [];
+                }
+
+                // Add the question ID to the tracker
+                $topicLessonsTracker[$topic][] = $randomQuestion->getId();
+                $learner->setTopicLessonsTracker($topicLessonsTracker);
+                $this->em->flush();
             }
 
             // Shuffle options if they exist
