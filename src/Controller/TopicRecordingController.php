@@ -22,12 +22,23 @@ class TopicRecordingController extends AbstractController
         $topics = $this->topicRecordingService->findTopicsWithRecordings($subjectName);
 
         $response = array_map(function ($topic) {
+            $imageSearch = null;
+            $lecture = $topic->getLecture();
+
+            if ($lecture) {
+                // Extract the image search substring
+                if (preg_match('/\[Image Search: (.*?)\]/', $lecture, $matches)) {
+                    $imageSearch = $matches[1];
+                }
+            }
+
             return [
                 'recordingFileName' => $topic->getRecordingFileName(),
                 'lecture_name' => $topic->getSubTopic(),
                 'image' => $topic->getImageFileName(),
                 'main_topic' => $topic->getName(),
-                'id' => $topic->getId()
+                'id' => $topic->getId(),
+                'image_search' => $imageSearch
             ];
         }, $topics);
 
