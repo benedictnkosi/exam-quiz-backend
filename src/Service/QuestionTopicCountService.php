@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Question;
+use App\Entity\Topic;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -27,12 +28,13 @@ class QuestionTopicCountService
 
         try {
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('q.topic, COUNT(q.id) as questionCount')
+            $qb->select('t.name as mainTopic, COUNT(q.id) as questionCount')
                 ->from(Question::class, 'q')
                 ->join('q.subject', alias: 's')
+                ->join(Topic::class, 't', 'WITH', 'q.topic = t.subTopic')
                 ->where('s.name = :subjectName')
                 ->andWhere('q.topic IS NOT NULL')
-                ->groupBy('q.topic')
+                ->groupBy('t.name')
                 ->orderBy('questionCount', 'DESC')
                 ->setParameter('subjectName', $subjectName);
 
@@ -50,7 +52,7 @@ class QuestionTopicCountService
             $noMatchCount = 0;
 
             foreach ($results as $result) {
-                if (strtolower($result['topic']) === 'no match') {
+                if (strtolower($result['mainTopic']) === 'no match') {
                     $noMatchCount += $result['questionCount'];
                 } else {
                     $filteredResults[] = $result;
@@ -67,7 +69,7 @@ class QuestionTopicCountService
 
             foreach ($topTopics as $result) {
                 $percentage = round(($result['questionCount'] / $totalQuestions) * 100, 2);
-                $topicPercentages[$result['topic']] = $percentage;
+                $topicPercentages[$result['mainTopic']] = $percentage;
             }
 
             // Calculate "Other" percentage including remaining topics
