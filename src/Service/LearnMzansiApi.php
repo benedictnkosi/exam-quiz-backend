@@ -3766,15 +3766,17 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('s.grade = :grade')
                 ->andWhere('q.aiExplanation NOT LIKE :dollarSign')
                 ->andWhere('q.aiExplanation NOT LIKE :curlyBraces')
-                ->andWhere('q.aiExplanation NOT LIKE :backslashes')
+                ->andWhere('q.aiExplanation NOT LIKE :backslashFollowedByBrackets')
+                ->andWhere('q.aiExplanation NOT LIKE :backslashBrackets')
                 ->andWhere('q.aiExplanation LIKE :keyLesson')
                 ->setParameter('emptyString', '')
                 ->setParameter('nullString', 'NULL')
                 ->setParameter('grade', $grade)
                 ->setParameter('dollarSign', '%$%')
                 ->setParameter('curlyBraces', '%{%')
-                ->setParameter('keyLesson', '%Key Lesson%')
-                ->setParameter('backslashes', '%\\%');
+                ->setParameter('backslashFollowedByBrackets', '%\\%')
+                ->setParameter('backslashBrackets', '%\\(%')
+                ->setParameter('keyLesson', '%Key Lesson%');
 
             // If subject ID is provided, filter by that subject
             if (!empty($subjectName)) {
