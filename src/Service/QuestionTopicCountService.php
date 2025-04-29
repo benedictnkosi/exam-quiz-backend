@@ -45,21 +45,33 @@ class QuestionTopicCountService
                 ];
             }
 
+            // Filter out "NO MATCH" and "no match" topics and add them to other count
+            $filteredResults = [];
+            $noMatchCount = 0;
+
+            foreach ($results as $result) {
+                if (strtolower($result['topic']) === 'no match') {
+                    $noMatchCount += $result['questionCount'];
+                } else {
+                    $filteredResults[] = $result;
+                }
+            }
+
             // Calculate total questions
-            $totalQuestions = array_sum(array_column($results, 'questionCount'));
+            $totalQuestions = array_sum(array_column($filteredResults, 'questionCount')) + $noMatchCount;
 
             // Process top N topics
-            $topTopics = array_slice($results, 0, $topN);
+            $topTopics = array_slice($filteredResults, 0, $topN);
             $topicPercentages = [];
-            $otherCount = 0;
+            $otherCount = $noMatchCount; // Start with NO MATCH count
 
             foreach ($topTopics as $result) {
                 $percentage = round(($result['questionCount'] / $totalQuestions) * 100, 2);
                 $topicPercentages[$result['topic']] = $percentage;
             }
 
-            // Calculate "Other" percentage
-            $remainingTopics = array_slice($results, $topN);
+            // Calculate "Other" percentage including remaining topics
+            $remainingTopics = array_slice($filteredResults, $topN);
             foreach ($remainingTopics as $result) {
                 $otherCount += $result['questionCount'];
             }
