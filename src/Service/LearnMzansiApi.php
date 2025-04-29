@@ -245,14 +245,16 @@ class LearnMzansiApi extends AbstractController
             $question->setCapturer($user);
             if ($questionId == 0) {
                 $question->setReviewer($user);
-                $question->setCreated(new \DateTime());
+                $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+                $question->setCreated($date);
             }
 
             $question->setActive(true);
             $question->setStatus('new');
             $question->setComment("new");
             $question->setCurriculum($data['curriculum'] ?? "CAPS");
-            $question->setUpdated(new \DateTime());
+            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $question->setUpdated($date);
 
             //reset images
             $question->setImagePath('');
@@ -2531,7 +2533,8 @@ class LearnMzansiApi extends AbstractController
                 $learner = new Learner();
                 $learner->setUid($uid);
                 $learner->setPoints(0);
-                $learner->setCreated(created: new \DateTime());
+                $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+                $learner->setCreated(created: $date);
                 $learner->setCurriculum(curriculum: "IEB,CAPS");
                 $learner->setNewThreadNotification(1);
                 if ($curriculum == "IEB") {
@@ -2580,8 +2583,8 @@ class LearnMzansiApi extends AbstractController
             if ($name) {
                 $learner->setName($name);
             }
-
-            $learner->setLastSeen(new \DateTime());
+            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $learner->setLastSeen($date);
             $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
             if ($grade) {
                 if ($grade !== $learner->getGrade()) {

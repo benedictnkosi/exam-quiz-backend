@@ -135,11 +135,13 @@ class CheckAnswerService
             }
 
             // Record the result
+            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
             $result = new Result();
             $result->setLearner($learner)
                 ->setQuestion($question)
                 ->setOutcome($isCorrect ? 'correct' : 'incorrect')
-                ->setDuration($isCorrect ? $duration : 0);
+                ->setDuration($isCorrect ? $duration : 0)
+                ->setCreated($date);
 
             $this->entityManager->persist($result);
 
@@ -219,7 +221,8 @@ class CheckAnswerService
 
             $this->entityManager->flush();
 
-            $learner->setLastSeen(new \DateTime());
+            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $learner->setLastSeen($date);
             $this->entityManager->persist($learner);
             $this->entityManager->flush();
 
