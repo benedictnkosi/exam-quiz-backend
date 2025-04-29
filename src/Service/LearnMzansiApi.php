@@ -1281,9 +1281,98 @@ class LearnMzansiApi extends AbstractController
             $newFilename = uniqid() . '.' . $file->guessExtension();
             $this->logger->info("Attempting to upload file: $newFilename");
 
-            // Move file to upload directory
-            $file->move($uploadDir, $newFilename);
-            $this->logger->info("File successfully uploaded: $newFilename");
+            // Get temporary file path
+            $tempPath = $file->getPathname();
+
+            // Get image dimensions
+            list($width, $height) = getimagesize($tempPath);
+
+            // Calculate mobile-friendly dimensions (max width 800px while maintaining aspect ratio)
+            $maxWidth = 800;
+            $newWidth = min($width, $maxWidth);
+            $newHeight = ($newWidth / $width) * $height;
+
+            // Create new image for mobile size
+            $mobileImage = imagecreatetruecolor($newWidth, $newHeight);
+
+            // Preserve transparency for PNG
+            if ($file->guessExtension() === 'png') {
+                imagealphablending($mobileImage, false);
+                imagesavealpha($mobileImage, true);
+                $transparent = imagecolorallocatealpha($mobileImage, 255, 255, 255, 127);
+                imagefilledrectangle($mobileImage, 0, 0, $newWidth, $newHeight, $transparent);
+            }
+
+            // Load source image
+            switch ($file->guessExtension()) {
+                case 'jpg':
+                case 'jpeg':
+                    $source = imagecreatefromjpeg($tempPath);
+                    break;
+                case 'png':
+                    $source = imagecreatefrompng($tempPath);
+                    break;
+                case 'gif':
+                    $source = imagecreatefromgif($tempPath);
+                    break;
+                default:
+                    throw new \Exception('Unsupported image format');
+            }
+
+            // Resize image for mobile
+            imagecopyresampled($mobileImage, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+            // Save mobile-sized image
+            $mobilePath = $uploadDir . '/' . $newFilename;
+            switch ($file->guessExtension()) {
+                case 'jpg':
+                case 'jpeg':
+                    imagejpeg($mobileImage, $mobilePath, 85);
+                    break;
+                case 'png':
+                    imagepng($mobileImage, $mobilePath, 8);
+                    break;
+                case 'gif':
+                    imagegif($mobileImage, $mobilePath);
+                    break;
+            }
+
+            // Create thumbnail
+            $thumbnailFilename = 'thumb_' . $newFilename;
+            $thumbnailPath = $uploadDir . '/' . $thumbnailFilename;
+
+            // Create thumbnail image
+            $thumb = imagecreatetruecolor(128, 128);
+
+            // Preserve transparency for PNG
+            if ($file->guessExtension() === 'png') {
+                imagealphablending($thumb, false);
+                imagesavealpha($thumb, true);
+                $transparent = imagecolorallocatealpha($thumb, 255, 255, 255, 127);
+                imagefilledrectangle($thumb, 0, 0, 128, 128, $transparent);
+            }
+
+            // Resize for thumbnail
+            imagecopyresampled($thumb, $mobileImage, 0, 0, 0, 0, 128, 128, $newWidth, $newHeight);
+
+            // Save thumbnail
+            switch ($file->guessExtension()) {
+                case 'jpg':
+                case 'jpeg':
+                    imagejpeg($thumb, $thumbnailPath, 90);
+                    break;
+                case 'png':
+                    imagepng($thumb, $thumbnailPath, 9);
+                    break;
+                case 'gif':
+                    imagegif($thumb, $thumbnailPath);
+                    break;
+            }
+
+            // Free up memory
+            imagedestroy($source);
+            imagedestroy($mobileImage);
+            imagedestroy($thumb);
 
             // Update topic image file name
             $topic = $this->em->getRepository(Topic::class)->find($topicId);
@@ -1302,7 +1391,13 @@ class LearnMzansiApi extends AbstractController
                 'status' => 'OK',
                 'message' => 'File successfully uploaded and topic image updated',
                 'fileName' => $newFilename,
-                'filePath' => '/assets/images/lectures/' . $newFilename
+                'filePath' => '/assets/images/lectures/' . $newFilename,
+                'thumbnailFileName' => $thumbnailFilename,
+                'thumbnailFilePath' => '/assets/images/lectures/' . $thumbnailFilename,
+                'originalWidth' => $width,
+                'originalHeight' => $height,
+                'mobileWidth' => $newWidth,
+                'mobileHeight' => $newHeight
             );
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
