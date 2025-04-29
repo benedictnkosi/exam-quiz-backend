@@ -4373,6 +4373,7 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Request: test 1");
             $subjectName = $request->query->get('subject_name');
             $uid = $request->query->get('uid');
+            $paper = $request->query->get('paper');
 
             if (empty($subjectName) || empty($uid)) {
                 return [
@@ -4403,11 +4404,19 @@ class LearnMzansiApi extends AbstractController
             }, explode(',', $learner->getCurriculum())) : [];
 
             // Get subjects by name and grade
-            $subjects = $this->em->getRepository(Subject::class)
+            $subjectQuery = $this->em->getRepository(Subject::class)
                 ->createQueryBuilder('s')
                 ->where('s.name LIKE :subjectName')
-                ->andWhere('s.grade = :grade')
-                ->setParameter('subjectName', '%' . $subjectName . '%')
+                ->andWhere('s.grade = :grade');
+
+            // If paper is provided, append it to the subject name search
+            $searchSubjectName = $subjectName;
+            if (!empty($paper)) {
+                $searchSubjectName .= ' ' . $paper;
+            }
+
+            $subjects = $subjectQuery
+                ->setParameter('subjectName', '%' . $searchSubjectName . '%')
                 ->setParameter('grade', $learner->getGrade())
                 ->getQuery()
                 ->getResult();
