@@ -27,16 +27,41 @@ class QuestionTopicCountService
         $this->logger->info("Starting Method: " . __METHOD__);
 
         try {
-            $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('t.name as mainTopic, COUNT(q.id) as questionCount')
+            // First, get main topics count
+            $mainTopicsQb = $this->entityManager->createQueryBuilder();
+            $mainTopicsQb->select('COUNT(DISTINCT t.name) as mainTopicCount')
                 ->from(Question::class, 'q')
                 ->join('q.subject', alias: 's')
                 ->join(Topic::class, 't', 'WITH', 'q.topic = t.subTopic')
                 ->where('s.name = :subjectName')
                 ->andWhere('q.topic IS NOT NULL')
-                ->groupBy('t.name')
-                ->orderBy('questionCount', 'DESC')
                 ->setParameter('subjectName', $subjectName);
+
+            $mainTopicsCount = (int) $mainTopicsQb->getQuery()->getSingleScalarResult();
+
+            // If less than 5 main topics, use subtopics instead
+            if ($mainTopicsCount < 5) {
+                $qb = $this->entityManager->createQueryBuilder();
+                $qb->select('q.topic as subTopic, COUNT(q.id) as questionCount')
+                    ->from(Question::class, 'q')
+                    ->join('q.subject', alias: 's')
+                    ->where('s.name = :subjectName')
+                    ->andWhere('q.topic IS NOT NULL')
+                    ->groupBy('q.topic')
+                    ->orderBy('questionCount', 'DESC')
+                    ->setParameter('subjectName', $subjectName);
+            } else {
+                $qb = $this->entityManager->createQueryBuilder();
+                $qb->select('t.name as mainTopic, COUNT(q.id) as questionCount')
+                    ->from(Question::class, 'q')
+                    ->join('q.subject', alias: 's')
+                    ->join(Topic::class, 't', 'WITH', 'q.topic = t.subTopic')
+                    ->where('s.name = :subjectName')
+                    ->andWhere('q.topic IS NOT NULL')
+                    ->groupBy('t.name')
+                    ->orderBy('questionCount', 'DESC')
+                    ->setParameter('subjectName', $subjectName);
+            }
 
             $results = $qb->getQuery()->getResult();
 
@@ -52,7 +77,8 @@ class QuestionTopicCountService
             $noMatchCount = 0;
 
             foreach ($results as $result) {
-                if (strtolower($result['mainTopic']) === 'no match') {
+                $topicName = $mainTopicsCount < 5 ? $result['subTopic'] : $result['mainTopic'];
+                if (strtolower($topicName) === 'no match') {
                     $noMatchCount += $result['questionCount'];
                 } else {
                     $filteredResults[] = $result;
@@ -68,8 +94,9 @@ class QuestionTopicCountService
             $otherCount = $noMatchCount; // Start with NO MATCH count
 
             foreach ($topTopics as $result) {
+                $topicName = $mainTopicsCount < 5 ? $result['subTopic'] : $result['mainTopic'];
                 $percentage = round(($result['questionCount'] / $totalQuestions) * 100, 2);
-                $topicPercentages[$result['mainTopic']] = $percentage;
+                $topicPercentages[$topicName] = $percentage;
             }
 
             // Calculate "Other" percentage including remaining topics
@@ -85,7 +112,8 @@ class QuestionTopicCountService
 
             return [
                 'status' => 'OK',
-                'data' => $topicPercentages
+                'data' => $topicPercentages,
+                'topicType' => $mainTopicsCount < 5 ? 'subtopics' : 'main_topics'
             ];
         } catch (\Exception $e) {
             $this->logger->error('Error getting question counts per topic: {error}', [
