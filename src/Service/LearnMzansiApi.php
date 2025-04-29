@@ -2627,11 +2627,11 @@ class LearnMzansiApi extends AbstractController
                 //new user
                 $learner = new Learner();
                 $learner->setUid($uid);
-                $learner->setPoints(0);
                 $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
                 $learner->setCreated(created: $date);
                 $learner->setCurriculum(curriculum: "IEB,CAPS");
                 $learner->setNewThreadNotification(1);
+                $learner->setPoints(10);
                 if ($curriculum == "IEB") {
                     $learner->setPrivateSchool(true);
                 } else {
@@ -2683,13 +2683,16 @@ class LearnMzansiApi extends AbstractController
             $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
             if ($grade) {
                 if ($grade !== $learner->getGrade()) {
-                    $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
-                    foreach ($results as $result) {
-                        $this->em->remove($result);
+                    // Only reset points and results for existing learners, not new registrations
+                    if ($learner->getId()) {
+                        $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
+                        foreach ($results as $result) {
+                            $this->em->remove($result);
+                        }
+                        //reset points
+                        $learner->setPoints(0);
+                        $this->em->flush();
                     }
-                    //reset points
-                    $learner->setPoints(0);
-                    $this->em->flush();
                 }
             } else {
                 return array(
@@ -2723,9 +2726,6 @@ class LearnMzansiApi extends AbstractController
             $learner->setSchoolLatitude($requestBody['school_latitude'] ?? null);
             $learner->setSchoolLongitude($requestBody['school_longitude'] ?? null);
             $learner->setAvatar($requestBody['avatar'] ?? null);
-
-
-
 
             $this->em->persist($learner);
             $this->em->flush();
