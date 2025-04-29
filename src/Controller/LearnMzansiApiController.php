@@ -25,6 +25,9 @@ use App\Service\SmallestImageService;
 use App\Service\MissingImageService;
 use App\Service\LearnerNoteService;
 use App\Service\ScoreboardService;
+use App\Service\LearnerAdTrackingService;
+use App\Entity\Learner;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/public', name: 'api_')]
 class LearnMzansiApiController extends AbstractController
@@ -33,7 +36,8 @@ class LearnMzansiApiController extends AbstractController
 
     public function __construct(
         private LearnMzansiApi $api,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private EntityManagerInterface $em
     ) {
         $this->serializer = SerializerBuilder::create()->build();
     }
@@ -1222,5 +1226,44 @@ class LearnMzansiApiController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->getTopicProgress($request);
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    #[Route('/learn/learner/check-ad', name: 'check_ad', methods: ['GET'])]
+    public function checkAd(
+        Request $request,
+        LearnerAdTrackingService $adTrackingService
+    ): JsonResponse {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $uid = $request->query->get('uid');
+
+            if (empty($uid)) {
+                return new JsonResponse([
+                    'status' => 'NOK',
+                    'message' => 'UID is required'
+                ], 400);
+            }
+
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return new JsonResponse([
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ], 404);
+            }
+
+            $result = $adTrackingService->shouldShowAd($learner);
+
+            return new JsonResponse([
+                'status' => 'OK',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage() . ' - ' . __METHOD__ . ':' . $e->getLine() . ' ' . $e->getTraceAsString());
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error checking ad status'
+            ], 500);
+        }
     }
 }

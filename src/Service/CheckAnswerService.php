@@ -15,7 +15,8 @@ class CheckAnswerService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private PushNotificationService $pushNotificationService
+        private PushNotificationService $pushNotificationService,
+        private LearnerAdTrackingService $adTrackingService
     ) {
     }
 
@@ -199,6 +200,9 @@ class CheckAnswerService
             }
 
             $this->entityManager->flush();
+
+            // Update ad tracking for questions answered
+            $this->adTrackingService->incrementQuestionsAnswered($learner);
 
             $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
             $learner->setLastSeen($date);
