@@ -145,43 +145,22 @@ class CheckAnswerService
 
             $this->entityManager->persist($result);
 
-            // Get last 3 answers
-            $lastAnswers = $this->entityManager->getRepository(Result::class)
+            // Check if this is the learner's first answer
+            $previousResults = $this->entityManager->getRepository(Result::class)
                 ->createQueryBuilder('r')
                 ->where('r.learner = :learner')
                 ->setParameter('learner', $learner)
-                ->orderBy('r.created', 'DESC')
-                ->setMaxResults(3)
                 ->getQuery()
                 ->getResult();
 
-            $lastThreeCorrect = count($lastAnswers) === 3 &&
-                array_reduce($lastAnswers, fn($carry, $item) => $carry && $item->getOutcome() === 'correct', true);
+            $this->logger->info("previousResults: " . count($previousResults));
 
-            // Calculate points change - simplified to 1 point for correct, -1 for incorrect
-            $pointsChange = $isCorrect ? 1 : -1;
+            $isFirstAnswer = count(value: $previousResults) === 0; // Current result is already persisted but not flushed
+
+            // Calculate points change - 10 points for first answer, otherwise normal scoring
+            $pointsChange = $isFirstAnswer ? 10 : ($isCorrect ? 1 : -1);
             $newPoints = max(0, $learner->getPoints() + $pointsChange);
             $learner->setPoints($newPoints);
-
-            // Update subject points
-            if ($question->getSubject()) {
-                $subjectPoints = $this->entityManager->getRepository(SubjectPoints::class)
-                    ->findOneBy([
-                        'learner' => $learner,
-                        'subject' => $question->getSubject()
-                    ]);
-
-                if (!$subjectPoints) {
-                    $subjectPoints = new SubjectPoints();
-                    $subjectPoints->setLearner($learner)
-                        ->setSubject($question->getSubject())
-                        ->setPoints(max(0, $pointsChange));
-                    $this->entityManager->persist($subjectPoints);
-                } else {
-                    $newSubjectPoints = max(0, $subjectPoints->getPoints() + $pointsChange);
-                    $subjectPoints->setPoints($newSubjectPoints);
-                }
-            }
 
             // Update streak
             $currentStreak = $learner->getStreak();
@@ -233,7 +212,7 @@ class CheckAnswerService
                 'correctAnswer' => $question->getAnswer(),
                 'points' => $newPoints,
                 'message' => $isCorrect ? 'Correct answer!' : 'Incorrect answer',
-                'lastThreeCorrect' => $lastThreeCorrect,
+                'lastThreeCorrect' => false,
                 'streak' => $currentStreak,
                 'streakUpdated' => $streakUpdated,
                 'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
