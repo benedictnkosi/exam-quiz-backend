@@ -2575,7 +2575,7 @@ class LearnMzansiApi extends AbstractController
                 if ($learner->getRole() == 'admin') {
                     return array(
                         'status' => 'OK',
-                        'message' => 'Successfully created learner'
+                        'message' => 'Successfully created learner for admin'
                     );
                 }
             }
@@ -2611,8 +2611,10 @@ class LearnMzansiApi extends AbstractController
             $learner->setSchoolAddress($schoolAddress);
             $learner->setSchoolLatitude($schoolLatitude);
             $learner->setSchoolLongitude($schoolLongitude);
-            $learner->setCreated(new \DateTime());
-            $learner->setLastSeen(new \DateTime());
+            //jhb timezone
+            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $learner->setCreated($date);
+            $learner->setLastSeen($date);
             $learner->setRole('learner');
             $learner->setPoints(0);
             $learner->setStreak(0);

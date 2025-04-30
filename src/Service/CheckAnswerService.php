@@ -136,7 +136,7 @@ class CheckAnswerService
             }
 
             // Record the result
-            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $date = new \DateTime('now', timezone: new \DateTimeZone('Africa/Johannesburg'));
             $result = new Result();
             $result->setLearner($learner)
                 ->setQuestion($question)
