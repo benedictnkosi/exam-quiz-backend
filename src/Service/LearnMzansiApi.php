@@ -458,12 +458,12 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Check if learner can answer more questions
-            if (!$learner->canAnswerMoreQuestions()) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Daily question limit reached.'
-                );
-            }
+            // if (!$learner->canAnswerMoreQuestions()) {
+            //     return array(
+            //         'status' => 'NOK',
+            //         'message' => 'Daily question limit reached.'
+            //     );
+            // }
 
             // For non-admin learners, continue with existing logic
             // Get learner's grade
