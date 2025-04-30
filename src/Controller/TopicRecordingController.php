@@ -6,20 +6,26 @@ use App\Service\TopicRecordingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 class TopicRecordingController extends AbstractController
 {
     private TopicRecordingService $topicRecordingService;
+    private LoggerInterface $logger;
 
-    public function __construct(TopicRecordingService $topicRecordingService)
+    public function __construct(TopicRecordingService $topicRecordingService, LoggerInterface $logger)
     {
         $this->topicRecordingService = $topicRecordingService;
+        $this->logger = $logger;
     }
 
     #[Route('/api/topics/recordings/{subjectName}', name: 'get_topics_with_recordings', methods: ['GET'])]
-    public function getTopicsWithRecordings(string $subjectName): JsonResponse
+    public function getTopicsWithRecordings(string $subjectName, Request $request): JsonResponse
     {
-        $topics = $this->topicRecordingService->findTopicsWithRecordings($subjectName);
+        $uid = $request->query->get('uid');
+        $this->logger->info("uid: " . $uid);
+        $topics = $this->topicRecordingService->findTopicsWithRecordings($uid ?? 'default', $subjectName);
 
         $response = array_map(function ($topic) {
             $imageSearch = null;
