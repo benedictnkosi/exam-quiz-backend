@@ -63,13 +63,13 @@ class LearnerAdTrackingService
         $tracking = $this->getOrCreateTracking($learner);
         $questionsAnswered = $tracking->getQuestionsAnswered();
 
-        // Check if we've answered a multiple of 20 questions
-        $shouldShowAd = $questionsAnswered > 0 && $questionsAnswered % 20 === 0;
+        // Check if we've answered a multiple of 10 questions
+        $shouldShowAd = $questionsAnswered > 0 && $questionsAnswered % 10 === 0;
 
         return [
             'should_show_ad' => $shouldShowAd,
             'questions_answered' => $questionsAnswered,
-            'next_ad_at' => $shouldShowAd ? 0 : (20 - ($questionsAnswered % 20))
+            'next_ad_at' => $shouldShowAd ? 0 : (10 - ($questionsAnswered % 10))
         ];
     }
 }
