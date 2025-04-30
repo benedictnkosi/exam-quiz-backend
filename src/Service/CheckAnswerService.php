@@ -146,6 +146,10 @@ class CheckAnswerService
 
             $this->entityManager->persist($result);
 
+            // Increment daily questions answered
+            $learner->incrementDailyQuestionsAnswered();
+            $learner->setLastQuestionDate(new \DateTime());
+
             // Check if this is the learner's first answer
             $previousResults = $this->entityManager->getRepository(Result::class)
                 ->createQueryBuilder('r')

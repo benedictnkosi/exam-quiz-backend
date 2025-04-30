@@ -313,6 +313,8 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+
+
             if ($questionId !== 0) {
                 $question = $this->em->getRepository(Question::class)->find($questionId);
                 if (!$question) {
@@ -392,45 +394,15 @@ class LearnMzansiApi extends AbstractController
                     shuffle($options);
                     $randomQuestion->setOptions($options);
                 }
-                // Remove answer before returning if platform is web
-                if ($platform === 'web') {
-                    $randomQuestion->setAnswer(null);
-                }
 
-                // Get related questions (same context and image path) that are also new
-                $relatedQuestions = $this->getQuestionsWithSameContext($randomQuestion->getId());
-                $relatedQuestionIds = $relatedQuestions['status'] === 'OK' ? $relatedQuestions['question_ids'] : [];
-                if (!empty($relatedQuestionIds)) {
-                    $relatedQb = $this->em->createQueryBuilder();
-                    $relatedQb->select('q')
-                        ->from('App\Entity\Question', 'q')
-                        ->where('q.id IN (:ids)')
-                        ->andWhere('q.status = :status')
-                        ->setParameter('ids', $relatedQuestionIds)
-                        ->setParameter('status', 'new')
-                        ->setMaxResults(1);
+                // Increment daily questions answered
+                $learner->incrementDailyQuestionsAnswered();
+                $learner->setLastQuestionDate(new \DateTime());
+                $this->em->persist($learner);
+                $this->em->flush();
 
-                    $relatedQuestion = $relatedQb->getQuery()->getOneOrNullResult();
-                    if ($relatedQuestion) {
-                        $randomQuestion = $relatedQuestion;
-                        $this->logger->info("Using related question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
-                    }
-                }
-
-                // Set related question IDs on the question object
-                $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
-                $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
-
-                // Remove capturer, reviewer, and subject.capturer information
-                $randomQuestion->setCapturer(null);
-                $randomQuestion->setReviewer(null);
-                if ($randomQuestion->getSubject()) {
-                    $randomQuestion->getSubject()->setCapturer(null);
-                    // Set topics to null to exclude them from the response
-                    $randomQuestion->getSubject()->setTopics(null);
-                }
-                $this->logger->info("Final question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
-
+                // Remove answer before returning
+                $randomQuestion->setAnswer(null);
                 return $randomQuestion;
             }
 
@@ -483,6 +455,14 @@ class LearnMzansiApi extends AbstractController
                         'image_path' => ''
                     );
                 }
+            }
+
+            // Check if learner can answer more questions
+            if (!$learner->canAnswerMoreQuestions()) {
+                return array(
+                    'status' => 'NOK',
+                    'message' => 'Daily question limit reached.'
+                );
             }
 
             // For non-admin learners, continue with existing logic
@@ -656,6 +636,7 @@ class LearnMzansiApi extends AbstractController
                 shuffle($options);
                 $randomQuestion->setOptions($options);
             }
+
             // Remove answer before returning if platform is web
             if ($platform === 'web') {
                 $randomQuestion->setAnswer(null);
@@ -2602,145 +2583,66 @@ class LearnMzansiApi extends AbstractController
             $grade = $requestBody['grade'];
             $terms = $requestBody['terms'];
             $curriculum = $requestBody['curriculum'];
+            $privateSchool = $requestBody['private_school'] ?? false;
             $schoolName = $requestBody['school_name'] ?? null;
             $schoolAddress = $requestBody['school_address'] ?? null;
-            $email = $requestBody['email'];
+            $schoolLatitude = $requestBody['school_latitude'] ?? null;
+            $schoolLongitude = $requestBody['school_longitude'] ?? null;
+            $referralCode = $requestBody['referral_code'] ?? null;
 
-            if (empty($uid) || empty($terms) || empty($curriculum)) {
-                return array(
+            // Fetch the Grade entity
+            $gradeEntity = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
+            if (!$gradeEntity) {
+                return [
                     'status' => 'NOK',
-                    'message' => 'Mandatory values missing'
-                );
+                    'message' => 'Invalid grade'
+                ];
             }
 
-            $cleanCurriculum = '';
-            if (!empty($requestBody['curriculum'])) {
-                // Remove quotes and clean the string
-                $curriculum = str_replace(['"', "'"], '', $requestBody['curriculum']);
-                $curriculumArray = array_map('trim', explode(',', $curriculum));
-                $cleanCurriculum = implode(',', $curriculumArray);
-            }
-
-
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                //new user
-                $learner = new Learner();
-                $learner->setUid($uid);
-                $learner->setPoints(0);
-                $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
-                $learner->setCreated(created: $date);
-                $learner->setCurriculum(curriculum: "IEB,CAPS");
-                $learner->setNewThreadNotification(1);
-                
-                if ($curriculum == "IEB") {
-                    $learner->setPrivateSchool(true);
-                } else {
-                    $learner->setPrivateSchool(false);
-                }
-                if (!empty($email)) {
-                    $learner->setEmail($email);
-                }
-
-                // Generate random 4-letter code starting with first letter of name
-                $firstLetter = strtoupper(substr($name, 0, 1));
-                $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
-                $followMeCode = $firstLetter . $randomLetters;
-
-                // Check if code is already in use
-                $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
-                $attempts = 0;
-                while ($existingLearner && $attempts < 10) {
-                    $randomLetters = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3);
-                    $followMeCode = $firstLetter . $randomLetters;
-                    $existingLearner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $followMeCode]);
-                    $attempts++;
-                }
-
-                if ($existingLearner) {
-                    return array(
-                        'status' => 'NOK',
-                        'message' => 'Unable to generate a unique follow code. Please try again.'
-                    );
-                }
-
-                $learner->setFollowMeCode($followMeCode);
-            } else {
-                //if learner is admin
-                if ($learner->getRole() == 'admin') {
-                    return array(
-                        'status' => 'OK',
-                        'message' => 'Successfully created learner'
-                    );
-                }
-                $learner->setCurriculum($cleanCurriculum);
-            }
-
-            if ($name) {
-                $learner->setName($name);
-            }
-            $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
-            $learner->setLastSeen($date);
-            $grade = $this->em->getRepository(Grade::class)->findOneBy(['number' => $grade]);
-            if ($grade) {
-                if ($grade !== $learner->getGrade()) {
-                    $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner]);
-                    foreach ($results as $result) {
-                        $this->em->remove($result);
-                    }
-                    //reset points
-                    $learner->setPoints(0);
-                    $this->em->flush();
-                }
-            } else {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Grade not found'
-                );
-            }
-
-            // Clean and format terms and curriculum
-            $cleanTerms = '';
-            if (!empty($requestBody['terms'])) {
-                // Remove quotes and clean the string
-                $terms = str_replace(['"', "'"], '', $requestBody['terms']);
-                $termsArray = array_map('trim', explode(',', $terms));
-                $cleanTerms = implode(',', $termsArray);
-            }
-
-            $learner->setGrade($grade);
-            $learner->setNotificationHour(18);
-            $learner->setTerms($cleanTerms);
-
-            // Handle optional school details
-            if ($schoolName) {
-                $learner->setSchoolName(substr($schoolName, 0, 255));
-            }
-
-            if ($schoolAddress) {
-                $learner->setSchoolAddress(substr($schoolAddress, 0, 255));
-            }
-
-            $learner->setSchoolLatitude($requestBody['school_latitude'] ?? null);
-            $learner->setSchoolLongitude($requestBody['school_longitude'] ?? null);
-            $learner->setAvatar($requestBody['avatar'] ?? null);
-
-
-
+            // Create new learner
+            $learner = new Learner();
+            $learner->setUid($uid);
+            $learner->setName($name);
+            $learner->setGrade($gradeEntity);
+            $learner->setTerms($terms);
+            $learner->setCurriculum($curriculum);
+            $learner->setPrivateSchool($privateSchool);
+            $learner->setSchoolName($schoolName);
+            $learner->setSchoolAddress($schoolAddress);
+            $learner->setSchoolLatitude($schoolLatitude);
+            $learner->setSchoolLongitude($schoolLongitude);
+            $learner->setCreated(new \DateTime());
+            $learner->setLastSeen(new \DateTime());
+            $learner->setRole('learner');
+            $learner->setPoints(0);
+            $learner->setStreak(0);
+            $learner->setStreakLastUpdated(new \DateTime());
+            $learner->setDailyQuestionsAnswered(0);
+            $learner->setLastQuestionDate(new \DateTime());
+            $learner->setReferralBonusDays(0);
+            $learner->setReferralBonusStartDate(null);
+            $learner->setNewThreadNotification(true);
 
             $this->em->persist($learner);
             $this->em->flush();
+
+            // Handle referral if provided
+            if ($referralCode) {
+                $result = $this->useReferralCode($uid, $referralCode);
+                if ($result['status'] === 'NOK') {
+                    return $result;
+                }
+            }
 
             return array(
                 'status' => 'OK',
                 'message' => 'Successfully created learner'
             );
-
         } catch (\Exception $e) {
             $this->logger->error($e->getMessage());
             return array(
                 'status' => 'NOK',
-                'message' => 'Error creating learner ' . $e->getMessage()
+                'message' => 'Error creating learner: ' . $e->getMessage()
             );
         }
     }
@@ -4587,6 +4489,49 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'Error getting topic progress ' . $e->getMessage()
             ];
         }
+    }
+
+    public function handleReferral(string $referrerUid, string $newLearnerUid): array
+    {
+        $referrer = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $referrerUid]);
+        $newLearner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $newLearnerUid]);
+
+        if (!$referrer || !$newLearner) {
+            return ['status' => 'NOK', 'message' => 'Invalid learner(s)'];
+        }
+
+
+
+        // Grant 20 days of unlimited questions to the referrer
+        $referrer->setReferralBonusDays(20);
+        $referrer->setReferralBonusStartDate(new \DateTime());
+
+        $this->em->persist($referrer);
+        $this->em->flush();
+
+        return ['status' => 'OK', 'message' => 'Referral processed successfully'];
+    }
+
+    public function useReferralCode(string $learnerUid, string $referralCode): array
+    {
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
+        if (!$learner) {
+            return ['status' => 'NOK', 'message' => 'Learner not found'];
+        }
+
+        // Find the referrer by their followMeCode
+        $referrer = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $referralCode]);
+        if (!$referrer) {
+            return ['status' => 'NOK', 'message' => 'Invalid referral code'];
+        }
+
+        // Set the followMeCode for the new learner
+        $learner->setFollowMeCode($referralCode);
+        $this->em->persist($learner);
+        $this->em->flush();
+
+        // Process the referral
+        return $this->handleReferral($referrer->getUid(), $learnerUid);
     }
 
 }
