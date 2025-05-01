@@ -109,3 +109,5 @@ convert opus to m4a
 cd public/assets/lectures/
 ./convert-opus-to-m4a.sh
 mv converted_m4a/* .
+
+php bin/console app:generate-question-topics 1  # For grade 1

@@ -16,27 +16,42 @@ class QuestionTopicService
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
         private EntityManagerInterface $entityManager,
+        private QuestionTopicUpdateService $questionTopicUpdateService,
         string $openAiKey
     ) {
         $this->openAiKey = $openAiKey;
     }
 
-    public function generateTopicsForNullQuestions(): void
+    public function generateTopicsForNullQuestions(int $grade): void
     {
         try {
             for ($i = 0; $i < 1000; $i++) {
-                $response = $this->httpClient->request('GET', 'https://examquiz.dedicated.co.za/api/question-topics/next');
-                $data = json_decode($response->getContent(), true);
+                $question = $this->getNextQuestionWithNoTopic($grade);
 
-                if ($data['status'] === 'OK' && isset($data['question'])) {
-                    $this->generateAndSetTopic($data['question']);
+                if ($question) {
+                    $subject = $question->getSubject();
+                    $subjectTopics = $subject ? $subject->getTopics() : [];
+
+                    $questionData = [
+                        'id' => $question->getId(),
+                        'question' => $question->getQuestion(),
+                        'context' => $question->getContext(),
+                        'answer' => $question->getAnswer(),
+                        'subject_id' => $subject ? $subject->getId() : null,
+                        'subject_topics' => $subjectTopics
+                    ];
+
+                    $this->generateAndSetTopic($questionData);
                 } else {
-                    $this->logger->info('No more questions found with null topic');
+                    $this->logger->info('No more questions found with null topic for grade {grade}', [
+                        'grade' => $grade
+                    ]);
                     break;
                 }
             }
         } catch (\Exception $e) {
-            $this->logger->error('Error processing questions: {error}', [
+            $this->logger->error('Error processing questions for grade {grade}: {error}', [
+                'grade' => $grade,
                 'error' => $e->getMessage()
             ]);
         }
@@ -179,11 +194,7 @@ RULES:
                 'topic' => $topic
             ]);
 
-            $response = $this->httpClient->request('PUT', 'https://examquiz.dedicated.co.za/api/question-topics/update/' . $questionId, [
-                'json' => ['topic' => $topic]
-            ]);
-
-            $result = json_decode($response->getContent(), true);
+            $result = $this->questionTopicUpdateService->updateQuestionTopic($questionId, $topic);
 
             if ($result['status'] === 'OK') {
                 $this->logger->info('Successfully updated topic for question {id} to {topic}', [
@@ -197,14 +208,14 @@ RULES:
                 ]);
             }
         } catch (\Exception $e) {
-            $this->logger->error('Error calling update endpoint for question {id}: {error}', [
+            $this->logger->error('Error updating topic for question {id}: {error}', [
                 'id' => $questionId,
                 'error' => $e->getMessage()
             ]);
         }
     }
 
-    public function getNextQuestionWithNoTopic(): ?Question
+    public function getNextQuestionWithNoTopic(int $grade): ?Question
     {
         try {
             $question = $this->entityManager->getRepository(Question::class)
@@ -212,14 +223,16 @@ RULES:
                 ->join('q.subject', 's')
                 ->where('q.topic IS NULL')
                 ->andWhere('s.grade = :grade')
-                ->setParameter('grade', 1)
+                ->setParameter('grade', $grade)
                 ->orderBy('q.id', 'ASC')
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
 
             if (!$question) {
-                $this->logger->info('No questions found with null topic for grade 1');
+                $this->logger->info('No questions found with null topic for grade {grade}', [
+                    'grade' => $grade
+                ]);
                 return null;
             }
 
@@ -232,13 +245,15 @@ RULES:
                 }
             }
 
-            $this->logger->info('Found next question with no topic: {id}', [
-                'id' => $question->getId()
+            $this->logger->info('Found next question with no topic: {id} for grade {grade}', [
+                'id' => $question->getId(),
+                'grade' => $grade
             ]);
 
             return $question;
         } catch (\Exception $e) {
-            $this->logger->error('Error getting next question with no topic: {error}', [
+            $this->logger->error('Error getting next question with no topic for grade {grade}: {error}', [
+                'grade' => $grade,
                 'error' => $e->getMessage()
             ]);
             return null;
