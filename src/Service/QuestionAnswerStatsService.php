@@ -26,7 +26,7 @@ class QuestionAnswerStatsService
             $sql = "
                 SELECT 
                     DATE(r.created) as date,
-                    COUNT(r.id) as count
+                    COUNT(DISTINCT r.id) as count
                 FROM result r
                 JOIN learner l ON r.learner = l.id
                 WHERE r.created >= :startDate
@@ -36,6 +36,13 @@ class QuestionAnswerStatsService
                 ORDER BY date ASC
             ";
 
+            $this->logger->info('Executing SQL query: ' . $sql);
+            $this->logger->info('Parameters: ', [
+                'startDate' => $startDate->format('Y-m-d H:i:s'),
+                'endDate' => $endDate->format('Y-m-d H:i:s'),
+                'testEmail' => '%test%'
+            ]);
+
             $stmt = $this->em->getConnection()->prepare($sql);
             $result = $stmt->executeQuery([
                 'startDate' => $startDate->format('Y-m-d H:i:s'),
@@ -44,6 +51,7 @@ class QuestionAnswerStatsService
             ]);
 
             $results = $result->fetchAllAssociative();
+            $this->logger->info('Query results: ', $results);
 
             // Format the results
             $stats = [];
