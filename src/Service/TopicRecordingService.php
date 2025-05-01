@@ -58,7 +58,7 @@ class TopicRecordingService
 
     public function findRecordingBySubTopic(string $subjectName, string $subTopic): ?Topic
     {
-        return $this->entityManager->getRepository(Topic::class)
+        $results = $this->entityManager->getRepository(Topic::class)
             ->createQueryBuilder('t')
             ->join('t.subject', 's')
             ->where('s.name LIKE :subjectName')
@@ -67,6 +67,8 @@ class TopicRecordingService
             ->setParameter('subjectName', $subjectName . '%')
             ->setParameter('subTopic', $subTopic)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getResult();
+
+        return $results[0] ?? null;
     }
 }
