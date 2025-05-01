@@ -23,22 +23,27 @@ class QuestionAnswerStatsService
             $endDate = new \DateTime();
             $startDate = (new \DateTime())->modify('-30 days');
 
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('SUBSTRING(r.created, 1, 10) as date, COUNT(r.id) as count')
-                ->from('App\\Entity\\Result', 'r')
-                ->join('r.learner', 'l')
-                ->where('r.created >= :startDate')
-                ->andWhere('r.created <= :endDate')
-                ->andWhere('l.email NOT LIKE :testEmail')
-                ->andWhere('r.created >= CONCAT(SUBSTRING(r.created, 1, 10), \' 00:00:00\')')
-                ->andWhere('r.created <= CONCAT(SUBSTRING(r.created, 1, 10), \' 23:59:59\')')
-                ->groupBy('date')
-                ->orderBy('date', 'ASC')
-                ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate)
-                ->setParameter('testEmail', '%test%');
+            $sql = "
+                SELECT 
+                    DATE(r.created) as date,
+                    COUNT(r.id) as count
+                FROM result r
+                JOIN learner l ON r.learner = l.id
+                WHERE r.created >= :startDate
+                AND r.created <= :endDate
+                AND l.email NOT LIKE :testEmail
+                GROUP BY DATE(r.created)
+                ORDER BY date ASC
+            ";
 
-            $results = $qb->getQuery()->getResult();
+            $stmt = $this->em->getConnection()->prepare($sql);
+            $result = $stmt->executeQuery([
+                'startDate' => $startDate->format('Y-m-d H:i:s'),
+                'endDate' => $endDate->format('Y-m-d H:i:s'),
+                'testEmail' => '%test%'
+            ]);
+
+            $results = $result->fetchAllAssociative();
 
             // Format the results
             $stats = [];
