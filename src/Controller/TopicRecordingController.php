@@ -73,7 +73,8 @@ class TopicRecordingController extends AbstractController
                 'recordingFileName' => $topic->getRecordingFileName(),
                 'lecture_name' => $topic->getSubTopic(),
                 'main_topic' => $topic->getName(),
-                'image' => $topic->getImageFileName()
+                'image' => $topic->getImageFileName(),
+                'id' => $topic->getId(),
             ]
         ]);
     }
@@ -96,7 +97,32 @@ class TopicRecordingController extends AbstractController
                 'recordingFileName' => $topic->getRecordingFileName(),
                 'lecture_name' => $topic->getSubTopic(),
                 'main_topic' => $topic->getName(),
-                'image' => $topic->getImageFileName()
+                'image' => $topic->getImageFileName(),
+                'id' => $topic->getId(),
+            ]
+        ]);
+    }
+
+    #[Route('/api/topics/recording/question/{questionId}', name: 'get_recording_by_question_id', methods: ['GET'])]
+    public function getRecordingByQuestionId(int $questionId): JsonResponse
+    {
+        $topic = $this->topicRecordingService->findRecordingByQuestionId($questionId);
+
+        if (!$topic) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'No recording found for the specified question ID'
+            ], 404);
+        }
+
+        return $this->json([
+            'status' => 'success',
+            'data' => [
+                'recordingFileName' => $topic->getRecordingFileName(),
+                'lecture_name' => $topic->getSubTopic(),
+                'main_topic' => $topic->getName(),
+                'image' => $topic->getImageFileName(),
+                'id' => $topic->getId(),
             ]
         ]);
     }

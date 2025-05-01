@@ -87,4 +87,25 @@ class TopicRecordingService
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    public function findRecordingByQuestionId(int $questionId): ?Topic
+    {
+        $question = $this->entityManager->getRepository('App\Entity\Question')
+            ->find($questionId);
+
+        if (!$question || !$question->getTopic() || !$question->getSubject()) {
+            return null;
+        }
+
+        return $this->entityManager->getRepository(Topic::class)
+            ->createQueryBuilder('t')
+            ->join('t.subject', 's')
+            ->where('s.id = :subjectId')
+            ->andWhere('t.subTopic = :subTopic')
+            ->andWhere('t.recordingFileName IS NOT NULL')
+            ->setParameter('subjectId', $question->getSubject()->getId())
+            ->setParameter('subTopic', $question->getTopic())
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }
