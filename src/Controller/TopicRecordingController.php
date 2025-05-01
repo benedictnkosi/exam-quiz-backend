@@ -55,14 +55,38 @@ class TopicRecordingController extends AbstractController
     }
 
     #[Route('/api/topics/recordings/{subjectName}/{subTopic}', name: 'get_recording_by_subtopic', methods: ['GET'])]
-    public function getRecordingBySubTopic(string $subjectName, string $subTopic): JsonResponse
+    public function getRecordingBySubTopic(string $subjectName, string $subTopic, Request $request): JsonResponse
     {
-        $topic = $this->topicRecordingService->findRecordingBySubTopic($subjectName, $subTopic);
+        $grade = $request->query->get('grade');
+        $topic = $this->topicRecordingService->findRecordingBySubTopic($subjectName, $subTopic, $grade);
 
         if (!$topic) {
             return $this->json([
                 'status' => 'error',
                 'message' => 'No recording found for the specified subject and subtopic'
+            ], 404);
+        }
+
+        return $this->json([
+            'status' => 'success',
+            'data' => [
+                'recordingFileName' => $topic->getRecordingFileName(),
+                'lecture_name' => $topic->getSubTopic(),
+                'main_topic' => $topic->getName(),
+                'image' => $topic->getImageFileName()
+            ]
+        ]);
+    }
+
+    #[Route('/api/topics/recording/{topicId}', name: 'get_recording_by_topic_id', methods: ['GET'])]
+    public function getRecordingByTopicId(int $topicId): JsonResponse
+    {
+        $topic = $this->topicRecordingService->findRecordingByTopicId($topicId);
+
+        if (!$topic) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'No recording found for the specified topic ID'
             ], 404);
         }
 

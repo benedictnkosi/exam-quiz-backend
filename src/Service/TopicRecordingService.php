@@ -56,19 +56,35 @@ class TopicRecordingService
             ->getResult();
     }
 
-    public function findRecordingBySubTopic(string $subjectName, string $subTopic): ?Topic
+    public function findRecordingBySubTopic(string $subjectName, string $subTopic, ?int $grade = null): ?Topic
     {
-        $results = $this->entityManager->getRepository(Topic::class)
+        $qb = $this->entityManager->getRepository(Topic::class)
             ->createQueryBuilder('t')
             ->join('t.subject', 's')
             ->where('s.name LIKE :subjectName')
             ->andWhere('t.subTopic = :subTopic')
             ->andWhere('t.recordingFileName IS NOT NULL')
             ->setParameter('subjectName', $subjectName . '%')
-            ->setParameter('subTopic', $subTopic)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('subTopic', $subTopic);
+
+        if ($grade !== null) {
+            $qb->andWhere('s.grade = :grade')
+                ->setParameter('grade', $grade);
+        }
+
+        $results = $qb->getQuery()->getResult();
 
         return $results[0] ?? null;
+    }
+
+    public function findRecordingByTopicId(int $topicId): ?Topic
+    {
+        return $this->entityManager->getRepository(Topic::class)
+            ->createQueryBuilder('t')
+            ->where('t.id = :topicId')
+            ->andWhere('t.recordingFileName IS NOT NULL')
+            ->setParameter('topicId', $topicId)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }
