@@ -167,6 +167,9 @@ class BadgeService
 
             foreach ($learnerBadges as $learnerBadge) {
                 $badge = $learnerBadge->getBadge();
+                if ($badge === null) {
+                    continue; // Skip if badge is null
+                }
                 $badges[] = [
                     'id' => $badge->getId(),
                     'name' => $badge->getName(),

@@ -135,22 +135,6 @@ class Learner
     #[Serializer\Type('array')]
     private ?array $topicLessonsTracker = null;
 
-    #[ORM\Column(name: 'daily_questions_answered', type: Types::INTEGER, options: ['default' => 0])]
-    #[Serializer\Groups(['learner:read'])]
-    private int $dailyQuestionsAnswered = 0;
-
-    #[ORM\Column(name: 'last_question_date', type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Serializer\Groups(['learner:read'])]
-    private ?\DateTime $lastQuestionDate = null;
-
-    #[ORM\Column(name: 'referral_bonus_days', type: Types::INTEGER, options: ['default' => 0])]
-    #[Serializer\Groups(['learner:read'])]
-    private int $referralBonusDays = 0;
-
-    #[ORM\Column(name: 'referral_bonus_start_date', type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Serializer\Groups(['learner:read'])]
-    private ?\DateTime $referralBonusStartDate = null;
-
     #[ORM\Column(name: 'new_thread_notification', type: Types::BOOLEAN, options: ['default' => true])]
     #[Serializer\Groups(['learner:read'])]
     private bool $newThreadNotification = true;
@@ -634,87 +618,5 @@ class Learner
     {
         $this->topicLessonsTracker = $topicLessonsTracker;
         return $this;
-    }
-
-    public function getDailyQuestionsAnswered(): int
-    {
-        return $this->dailyQuestionsAnswered;
-    }
-
-    public function setDailyQuestionsAnswered(int $dailyQuestionsAnswered): self
-    {
-        $this->dailyQuestionsAnswered = $dailyQuestionsAnswered;
-        return $this;
-    }
-
-    public function incrementDailyQuestionsAnswered(): self
-    {
-        $this->dailyQuestionsAnswered++;
-        return $this;
-    }
-
-    public function getLastQuestionDate(): ?\DateTime
-    {
-        return $this->lastQuestionDate;
-    }
-
-    public function setLastQuestionDate(?\DateTime $lastQuestionDate): self
-    {
-        $this->lastQuestionDate = $lastQuestionDate;
-        return $this;
-    }
-
-    public function getReferralBonusDays(): int
-    {
-        return $this->referralBonusDays;
-    }
-
-    public function setReferralBonusDays(int $referralBonusDays): self
-    {
-        $this->referralBonusDays = $referralBonusDays;
-        return $this;
-    }
-
-    public function getReferralBonusStartDate(): ?\DateTime
-    {
-        return $this->referralBonusStartDate;
-    }
-
-    public function setReferralBonusStartDate(?\DateTime $referralBonusStartDate): self
-    {
-        $this->referralBonusStartDate = $referralBonusStartDate;
-        return $this;
-    }
-
-    public function hasUnlimitedQuestions(): bool
-    {
-        if ($this->referralBonusDays <= 0 || !$this->referralBonusStartDate) {
-            return false;
-        }
-
-        $now = new \DateTime();
-        $bonusEndDate = clone $this->referralBonusStartDate;
-        $bonusEndDate->modify("+{$this->referralBonusDays} days");
-
-        return $now <= $bonusEndDate;
-    }
-
-    public function canAnswerMoreQuestions(): bool
-    {
-        if ($this->hasUnlimitedQuestions()) {
-            return true;
-        }
-
-        $now = new \DateTime();
-        $today = new \DateTime('today');
-
-        // Reset daily count if it's a new day
-        if (!$this->lastQuestionDate || $this->lastQuestionDate < $today) {
-            $this->dailyQuestionsAnswered = 0;
-            $this->lastQuestionDate = $now;
-            return true;
-        }
-
-        return $this->dailyQuestionsAnswered < 20;
     }
 }
