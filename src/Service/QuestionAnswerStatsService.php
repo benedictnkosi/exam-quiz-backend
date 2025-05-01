@@ -30,6 +30,8 @@ class QuestionAnswerStatsService
                 ->where('r.created >= :startDate')
                 ->andWhere('r.created <= :endDate')
                 ->andWhere('l.email NOT LIKE :testEmail')
+                ->andWhere('r.created >= CONCAT(SUBSTRING(r.created, 1, 10), \' 00:00:00\')')
+                ->andWhere('r.created <= CONCAT(SUBSTRING(r.created, 1, 10), \' 23:59:59\')')
                 ->groupBy('date')
                 ->orderBy('date', 'ASC')
                 ->setParameter('startDate', $startDate)
