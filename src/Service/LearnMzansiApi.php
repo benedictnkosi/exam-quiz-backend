@@ -422,13 +422,7 @@ class LearnMzansiApi extends AbstractController
                 $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
 
                 // Remove capturer, reviewer, and subject.capturer information
-                $randomQuestion->setCapturer(null);
-                $randomQuestion->setReviewer(null);
-                if ($randomQuestion->getSubject()) {
-                    $randomQuestion->getSubject()->setCapturer(null);
-                    // Set topics to null to exclude them from the response
-                    //$randomQuestion->getSubject()->setTopics(null);
-                }
+
                 $this->logger->info("Final question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
 
                 return $randomQuestion;
@@ -673,12 +667,6 @@ class LearnMzansiApi extends AbstractController
             $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
 
             // Remove capturer, reviewer, and subject.capturer information
-            $randomQuestion->setCapturer(null);
-            $randomQuestion->setReviewer(null);
-            if ($randomQuestion->getSubject()) {
-                $randomQuestion->getSubject()->setCapturer(null);
-                $randomQuestion->getSubject()->setTopics(null);
-            }
 
             // Update topic tracker for non-admin/reviewer users
             if (!in_array($learner->getRole(), ['admin', 'reviewer']) && $topic) {
@@ -3706,12 +3694,6 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Clear unnecessary relations
-            $randomQuestion->setCapturer(null);
-            $randomQuestion->setReviewer(null);
-            if ($randomQuestion->getSubject()) {
-                $randomQuestion->getSubject()->setCapturer(null);
-                $randomQuestion->getSubject()->setTopics(null);
-            }
 
             return $randomQuestion;
 
