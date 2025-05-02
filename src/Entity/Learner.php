@@ -168,6 +168,11 @@ class Learner
     #[Serializer\MaxDepth(1)]
     private Collection $followers;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    #[Serializer\Type('array')]
+    private ?array $careerAdvice = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -631,6 +636,17 @@ class Learner
     public function setPublicProfile(bool $publicProfile): self
     {
         $this->publicProfile = $publicProfile;
+        return $this;
+    }
+
+    public function getCareerAdvice(): ?array
+    {
+        return $this->careerAdvice;
+    }
+
+    public function setCareerAdvice(?array $careerAdvice): self
+    {
+        $this->careerAdvice = $careerAdvice;
         return $this;
     }
 }

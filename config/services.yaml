@@ -70,3 +70,10 @@ services:
     App\Service\OpenAIService:
         arguments:
             $openaiApiKey: "%openai.api_key%"
+
+    App\Service\CareerAdviceService:
+        arguments:
+            $openaiApiKey: "%openai.api_key%"
+            $entityManager: "@doctrine.orm.entity_manager"
+            $logger: "@monolog.logger.api"
+            $reportService: '@App\Service\LearnerReportService'
