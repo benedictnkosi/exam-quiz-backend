@@ -110,9 +110,19 @@ class LearnMzansiApiController extends AbstractController
         $questionId = $request->query->get('question_id') ?? 0;
         $platform = $request->query->get('platform') ?? 'app';
         $topic = $request->query->get('topic');
-        $response = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic);
+        $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic);
+
+        if ($question instanceof \App\Entity\Question) {
+            $question->setCapturer(null);
+            $question->setReviewer(null);
+            if ($question->getSubject()) {
+                $question->getSubject()->setCapturer(null);
+            }
+        }
+
         $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
+
+        $jsonContent = $this->serializer->serialize($question, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
 
