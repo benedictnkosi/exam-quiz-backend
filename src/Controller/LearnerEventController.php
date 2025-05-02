@@ -26,4 +26,16 @@ class LearnerEventController extends AbstractController
 
         return new JsonResponse($result);
     }
+
+    #[Route('/{id}/today-events', name: 'learner_today_events', methods: ['GET'])]
+    public function getTodaysEvents(string $id): JsonResponse
+    {
+        $result = $this->learnerEventService->getTodaysEvents($id);
+
+        if ($result['status'] === 'NOK') {
+            return new JsonResponse($result, 404);
+        }
+
+        return new JsonResponse($result);
+    }
 }

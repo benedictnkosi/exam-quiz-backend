@@ -80,4 +80,55 @@ class LearnerEventService
             ];
         }
     }
+
+    public function getTodaysEvents(string $id): array
+    {
+        try {
+            // Try to find learner by uid first
+            $learner = $this->entityManager->getRepository(Learner::class)
+                ->findOneBy(['uid' => $id]);
+
+            // If not found by uid, try by followMeCode
+            if (!$learner) {
+                $learner = $this->entityManager->getRepository(Learner::class)
+                    ->findOneBy(['followMeCode' => $id]);
+            }
+
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            $events = $learner->getEvents() ?? [];
+            $today = (new \DateTime())->format('Y-m-d');
+            $todaysEvents = [];
+
+            if (isset($events[$today])) {
+                foreach ($events[$today] as $event) {
+                    $todaysEvents[] = [
+                        'title' => $event['title'],
+                        'startTime' => $event['startTime'],
+                        'endTime' => $event['endTime'],
+                        'subject' => $event['subject'],
+                        'reminder' => $event['reminder'] ?? false
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'date' => $today,
+                'events' => $todaysEvents
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error("Error getting today's events: " . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error getting today\'s events: ' . $e->getMessage()
+            ];
+        }
+    }
 }

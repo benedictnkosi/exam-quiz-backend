@@ -29,6 +29,7 @@ class InactiveLearnerNotificationService
                 )')
                 ->andWhere('l.expoPushToken IS NOT NULL')
                 ->andWhere('l.role = :role')
+                ->andWhere('DATE(l.createdAt) != CURRENT_DATE()')
                 ->setParameter('role', 'learner');
 
             $inactiveLearners = $qb->getQuery()->getResult();
