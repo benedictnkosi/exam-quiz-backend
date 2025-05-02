@@ -142,7 +142,6 @@ class CareerAdviceService
                 'status' => 'OK',
                 'data' => [
                     'advice' => $advice,
-                    'subject_performance' => $subjectPerformance, // Return full version to the client
                     'last_updated' => $careerAdviceData['lastUpdated']
                 ]
             ];
