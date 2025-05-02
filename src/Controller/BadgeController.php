@@ -45,11 +45,14 @@ class BadgeController extends AbstractController
         }
     }
 
-    #[Route('/learner/{uid}', name: 'get_learner_badges', methods: ['GET'])]
-    public function getLearnerBadges(string $uid): JsonResponse
+    #[Route('/learner/{id}', name: 'get_learner_badges', methods: ['GET'])]
+    public function getLearnerBadges(string $id): JsonResponse
     {
         try {
-            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
+            if (!$learner) {
+                $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+            }
 
             if (!$learner) {
                 return $this->json([
