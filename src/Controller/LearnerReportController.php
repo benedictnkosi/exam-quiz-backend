@@ -18,24 +18,30 @@ class LearnerReportController extends AbstractController
     ) {
     }
 
-    #[Route('/api/learner/{uid}/subject-performance', name: 'learner_subject_performance', methods: ['GET'])]
-    public function getSubjectPerformance(string $uid): JsonResponse
+    #[Route('/api/learner/{id}/subject-performance', name: 'learner_subject_performance', methods: ['GET'])]
+    public function getSubjectPerformance(string $id): JsonResponse
     {
-        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
         if (!$learner) {
-            return new JsonResponse(['error' => 'Learner not found'], 404);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+            if (!$learner) {
+                return new JsonResponse(['error' => 'Learner not found'], 404);
+            }
         }
 
         $report = $this->reportService->getSubjectPerformance($learner);
         return new JsonResponse(['data' => $report]);
     }
 
-    #[Route('/api/learner/{uid}/daily-activity', name: 'learner_daily_activity', methods: ['GET'])]
-    public function getDailyActivity(string $uid, Request $request): JsonResponse
+    #[Route('/api/learner/{id}/daily-activity', name: 'learner_daily_activity', methods: ['GET'])]
+    public function getDailyActivity(string $id, Request $request): JsonResponse
     {
-        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
         if (!$learner) {
-            return new JsonResponse(['error' => 'Learner not found'], 404);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+            if (!$learner) {
+                return new JsonResponse(['error' => 'Learner not found'], 404);
+            }
         }
 
         $subjectId = $request->query->get('subject_id');
@@ -43,12 +49,15 @@ class LearnerReportController extends AbstractController
         return new JsonResponse(['data' => $report]);
     }
 
-    #[Route('/api/learner/{uid}/weekly-progress', name: 'learner_weekly_progress', methods: ['GET'])]
-    public function getWeeklyProgress(string $uid, Request $request): JsonResponse
+    #[Route('/api/learner/{id}/weekly-progress', name: 'learner_weekly_progress', methods: ['GET'])]
+    public function getWeeklyProgress(string $id, Request $request): JsonResponse
     {
-        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
         if (!$learner) {
-            return new JsonResponse(['error' => 'Learner not found'], 404);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+            if (!$learner) {
+                return new JsonResponse(['error' => 'Learner not found'], 404);
+            }
         }
 
         $subjectId = $request->query->get('subject_id');

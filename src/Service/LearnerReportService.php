@@ -265,13 +265,17 @@ class LearnerReportService
         return 'Not achieved';
     }
 
-    public function getLearnerReport(string $uid, string $subjectName): array
+    public function getLearnerReport(string $id, string $subjectName): array
     {
         $qb = $this->entityManager->createQueryBuilder();
 
-        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
         if (!$learner) {
-            throw new \Exception('Learner not found');
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+
+            if (!$learner) {
+                throw new \Exception('Learner not found');
+            }
         }
 
         $qb->select([
