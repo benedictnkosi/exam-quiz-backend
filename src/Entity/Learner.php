@@ -139,6 +139,9 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private bool $newThreadNotification = true;
 
+    #[ORM\Column(name: 'public_profile', type: Types::BOOLEAN, options: ['default' => true])]
+    #[Serializer\Groups(['learner:read'])]
+    private bool $publicProfile = true;
 
     #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerBadge::class)]
     #[Serializer\Groups(['learner:read'])]
@@ -617,6 +620,17 @@ class Learner
     public function setTopicLessonsTracker(?array $topicLessonsTracker): self
     {
         $this->topicLessonsTracker = $topicLessonsTracker;
+        return $this;
+    }
+
+    public function getPublicProfile(): bool
+    {
+        return $this->publicProfile;
+    }
+
+    public function setPublicProfile(bool $publicProfile): self
+    {
+        $this->publicProfile = $publicProfile;
         return $this;
     }
 }

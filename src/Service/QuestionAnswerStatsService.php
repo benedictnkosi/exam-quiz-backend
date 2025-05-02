@@ -20,8 +20,9 @@ class QuestionAnswerStatsService
             $this->logger->info("Getting daily answer statistics for the past 30 days");
 
             // Calculate date range
-            $endDate = new \DateTime();
-            $startDate = (new \DateTime())->modify('-30 days');
+            $endDate = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $startDate = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+            $startDate = ($startDate)->modify('-30 days');
 
             $sql = "
                 SELECT 
@@ -38,15 +39,15 @@ class QuestionAnswerStatsService
 
             $this->logger->info('Executing SQL query: ' . $sql);
             $this->logger->info('Parameters: ', [
-                'startDate' => $startDate->format('Y-m-d H:i:s'),
-                'endDate' => $endDate->format('Y-m-d H:i:s'),
+                'startDate' => $startDate->format('Y-m-d 00:00:00'),
+                'endDate' => $endDate->format('Y-m-d 23:59:59'),
                 'testEmail' => '%test%'
             ]);
 
             $stmt = $this->em->getConnection()->prepare($sql);
             $result = $stmt->executeQuery([
-                'startDate' => $startDate->format('Y-m-d H:i:s'),
-                'endDate' => $endDate->format('Y-m-d H:i:s'),
+                'startDate' => $startDate->format('Y-m-d 00:00:00'),
+                'endDate' => $endDate->format('Y-m-d 23:59:59'),
                 'testEmail' => '%test%'
             ]);
 

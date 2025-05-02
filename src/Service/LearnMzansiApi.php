@@ -427,7 +427,7 @@ class LearnMzansiApi extends AbstractController
                 if ($randomQuestion->getSubject()) {
                     $randomQuestion->getSubject()->setCapturer(null);
                     // Set topics to null to exclude them from the response
-                    $randomQuestion->getSubject()->setTopics(null);
+                    //$randomQuestion->getSubject()->setTopics(null);
                 }
                 $this->logger->info("Final question ID: " . $randomQuestion->getId() . " with status: " . $randomQuestion->getStatus());
 
