@@ -117,6 +117,7 @@ class LearnMzansiApiController extends AbstractController
             $question->setReviewer(null);
             if ($question->getSubject()) {
                 $question->getSubject()->setCapturer(null);
+                $question->getSubject()->setTopics(null);
             }
         }
 
