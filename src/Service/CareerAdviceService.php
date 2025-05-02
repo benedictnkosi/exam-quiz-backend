@@ -90,14 +90,15 @@ class CareerAdviceService
             " . json_encode($cleanedPerformance, JSON_PRETTY_PRINT) . "
             
             Please provide:
-            1. A brief analysis of their strengths and areas of interest based on their academic performance
-            2. 3 suitable career options that align with their strengths
-            3. For each career option, explain:
-               - Why it might be a good fit
-               - Required qualifications and education path
-               - Job market prospects in South Africa
-               - Potential salary ranges
-            4. Any additional advice or considerations for their career planning
+            🎯 A brief analysis of their strengths and areas of interest based on their academic performance
+            
+            🚀 3 suitable career options that align with their strengths. For each career option, explain:
+               💡 Why it might be a good fit
+               📚 Required qualifications and education path
+               💼 Job market prospects in South Africa
+               💰 Potential salary ranges
+            
+            💭 Any additional advice or considerations for their career planning
 
             Keep the tone encouraging and practical, focusing on realistic opportunities in the South African context.";
 
