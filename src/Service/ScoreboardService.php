@@ -41,25 +41,25 @@ class ScoreboardService
 
             // Get all results for the current period with scoring
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.avatar, l.schoolName,
+            $qb->select('l.uid, l.name, l.avatar, l.schoolName, l.publicProfile,
                         COUNT(r.id) as total_answers,
                         SUM(CASE WHEN r.outcome = \'correct\' THEN 1 ELSE -1 END) as score')
-               ->from(Result::class, 'r')
-               ->join('r.learner', 'l')
-               ->where('r.created BETWEEN :periodStart AND :periodEnd')
-               ->andWhere('l.role = :role')
-               ->andWhere('l.email NOT LIKE :testEmail')
-               ->andWhere('l.name NOT LIKE :testName')
-               ->andWhere('l.grade = :grade')
-               ->setParameter('periodStart', $periodStart)
-               ->setParameter('periodEnd', $periodEnd)
-               ->setParameter('role', 'learner')
-               ->setParameter('testEmail', '%test%')
-               ->setParameter('testName', '%test%')
-               ->setParameter('grade', $currentLearner->getGrade())
-               ->groupBy('l.id')
-               ->having('score > 0')
-               ->orderBy('score', 'DESC');
+                ->from(Result::class, 'r')
+                ->join('r.learner', 'l')
+                ->where('r.created BETWEEN :periodStart AND :periodEnd')
+                ->andWhere('l.role = :role')
+                ->andWhere('l.email NOT LIKE :testEmail')
+                ->andWhere('l.name NOT LIKE :testName')
+                ->andWhere('l.grade = :grade')
+                ->setParameter('periodStart', $periodStart)
+                ->setParameter('periodEnd', $periodEnd)
+                ->setParameter('role', 'learner')
+                ->setParameter('testEmail', '%test%')
+                ->setParameter('testName', '%test%')
+                ->setParameter('grade', $currentLearner->getGrade())
+                ->groupBy('l.id')
+                ->having('score > 0')
+                ->orderBy('score', 'DESC');
 
             $periodResults = $qb->getQuery()->getResult();
 
@@ -78,12 +78,13 @@ class ScoreboardService
                 if ($index < 10) {
                     $scoreboard[] = [
                         'name' => $result['name'],
-                        'score' => (int)$result['score'],
-                        'totalAnswers' => (int)$result['total_answers'],
+                        'score' => (int) $result['score'],
+                        'totalAnswers' => (int) $result['total_answers'],
                         'position' => $index + 1,
                         'isCurrentLearner' => $isCurrentLearner,
                         'avatar' => $result['avatar'],
-                        'school' => $result['schoolName']
+                        'school' => $result['schoolName'],
+                        'publicProfile' => $result['publicProfile']
                     ];
                 }
             }
@@ -93,13 +94,14 @@ class ScoreboardService
                 $currentLearnerResult = $periodResults[$currentLearnerPosition - 1];
                 $scoreboard[] = [
                     'name' => $currentLearnerResult['name'],
-                    'score' => (int)$currentLearnerResult['score'],
-                    'totalAnswers' => (int)$currentLearnerResult['total_answers'],
+                    'score' => (int) $currentLearnerResult['score'],
+                    'totalAnswers' => (int) $currentLearnerResult['total_answers'],
                     'position' => $currentLearnerPosition,
                     'isCurrentLearner' => true,
                     'notInTop10' => true,
                     'avatar' => $currentLearnerResult['avatar'],
-                    'school' => $currentLearnerResult['schoolName']
+                    'school' => $currentLearnerResult['schoolName'],
+                    'publicProfile' => $currentLearnerResult['publicProfile']
                 ];
             }
 
@@ -120,4 +122,4 @@ class ScoreboardService
             ];
         }
     }
-} 
+}
