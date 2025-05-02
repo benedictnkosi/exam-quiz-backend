@@ -31,7 +31,7 @@ class LearnerRankingService
 
             // Get ALL learners with their points
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.points, l.avatar, l.schoolName, l.publicProfile')
+            $qb->select('l.uid, l.name, l.points, l.avatar, l.schoolName, l.publicProfile, l.followMeCode')
                 ->from(Learner::class, 'l')
                 ->where('l.points > 0')
                 ->andWhere('l.role = :role')
@@ -93,7 +93,8 @@ class LearnerRankingService
                     'isCurrentLearner' => $isCurrentLearner,
                     'avatar' => $learner['avatar'],
                     'school' => $learner['schoolName'],
-                    'publicProfile' => $learner['publicProfile']
+                    'publicProfile' => $learner['publicProfile'],
+                    'followMeCode' => $learner['followMeCode']
                 ];
             }
 
@@ -107,7 +108,8 @@ class LearnerRankingService
                     'isCurrentLearner' => true,
                     'notInTop10' => true,
                     'avatar' => $currentLearner->getAvatar(),
-                    'publicProfile' => $currentLearner->getPublicProfile()
+                    'publicProfile' => $currentLearner->getPublicProfile(),
+                    'followMeCode' => $currentLearner->getFollowMeCode()
                 ];
             }
 
