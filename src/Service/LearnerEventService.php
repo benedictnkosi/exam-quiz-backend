@@ -14,7 +14,7 @@ class LearnerEventService
     ) {
     }
 
-    public function getUpcomingEventsWithReminders(string $learnerUid): array
+    public function getUpcomingEvents(string $learnerUid): array
     {
         try {
             $learner = $this->entityManager->getRepository(Learner::class)
@@ -55,16 +55,13 @@ class LearnerEventService
                 }
 
                 foreach ($dayEvents as $event) {
-
-                    if ($event['reminder'] === true) {
-                        $upcomingEvents[] = [
-                            'date' => $date,
-                            'title' => $event['title'],
-                            'startTime' => $event['startTime'],
-                            'endTime' => $event['endTime'],
-                            'subject' => $event['subject']
-                        ];
-                    }
+                    $upcomingEvents[] = [
+                        'date' => $date,
+                        'title' => $event['title'],
+                        'startTime' => $event['startTime'],
+                        'endTime' => $event['endTime'],
+                        'subject' => $event['subject']
+                    ];
                 }
             }
 

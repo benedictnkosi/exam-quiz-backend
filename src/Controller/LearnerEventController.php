@@ -18,7 +18,7 @@ class LearnerEventController extends AbstractController
     #[Route('/{uid}/upcoming-events', name: 'learner_upcoming_events', methods: ['GET'])]
     public function getUpcomingEvents(string $uid): JsonResponse
     {
-        $result = $this->learnerEventService->getUpcomingEventsWithReminders($uid);
+        $result = $this->learnerEventService->getUpcomingEvents($uid);
 
         if ($result['status'] === 'NOK') {
             return new JsonResponse($result, 404);
