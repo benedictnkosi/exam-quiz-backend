@@ -29,23 +29,33 @@ class LearnerEventService
 
             $events = $learner->getEvents() ?? [];
             $upcomingEvents = [];
-            $today = new \DateTime();
-            $threeDaysFromNow = (new \DateTime())->modify('+3 days');
+            $timezone = new \DateTimeZone('Africa/Johannesburg');
+            $today = new \DateTime('now', $timezone);
+            $threeDaysFromNow = (new \DateTime('now', $timezone))->modify('+3 days');
 
             foreach ($events as $date => $dayEvents) {
-                $eventDate = new \DateTime($date);
+                $this->logger->info("Event: " . json_encode($events));
+                $eventDate = new \DateTime($date, $timezone);
+
+                // Compare only the date part (Y-m-d) for filtering
+                $eventDateOnly = $eventDate->format('Y-m-d');
+                $todayDateOnly = $today->format('Y-m-d');
+                $threeDaysFromNowDateOnly = $threeDaysFromNow->format('Y-m-d');
 
                 // Skip if event date is more than 3 days from now
-                if ($eventDate > $threeDaysFromNow) {
+                if ($eventDateOnly > $threeDaysFromNowDateOnly) {
+                    $this->logger->info("Skipping because event date is more than 3 days from now");
                     continue;
                 }
 
                 // Skip if event date is in the past
-                if ($eventDate < $today) {
+                if ($eventDateOnly < $todayDateOnly) {
+                    $this->logger->info("Skipping because event date is in the past");
                     continue;
                 }
 
                 foreach ($dayEvents as $event) {
+
                     if ($event['reminder'] === true) {
                         $upcomingEvents[] = [
                             'date' => $date,
