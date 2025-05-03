@@ -21,6 +21,15 @@ class TopicPopulationService
     public function updateTopicLecture(Topic $topic): bool
     {
         try {
+            //check if the topic has a lecture
+            //fetch from the database
+            $topicEntity = $this->entityManager->getRepository(Topic::class)->findOneBy([
+                'id' => $topic->getId()
+            ]);
+            if ($topicEntity->getLecture()) {
+                return true;
+            }
+
             $lecture = $this->openAIService->generateLecture(
                 $topic->getSubject()->getName() ?? 'Unknown Subject',
                 $topic->getName(),

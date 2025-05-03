@@ -35,27 +35,26 @@ class RecordLectureCommand extends Command
         $processedCount = 0;
         $successCount = 0;
         $failureCount = 0;
+        $maxIterations = 100;
 
         try {
-            // Find topics with a lecture but no recording (limit to 100)
-            $topics = $this->entityManager->getRepository(Topic::class)
-                ->createQueryBuilder('t')
-                ->where('t.lecture IS NOT NULL')
-                ->andWhere('t.recordingFileName IS NULL')
-                ->setMaxResults(500)
-                ->getQuery()
-                ->getResult();
+            for ($i = 0; $i < $maxIterations; $i++) {
+                // Find one topic with a lecture but no recording
+                $topic = $this->entityManager->getRepository(Topic::class)
+                    ->createQueryBuilder('t')
+                    ->where('t.lecture IS NOT NULL')
+                    ->andWhere('t.recordingFileName IS NULL')
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
 
-            if (empty($topics)) {
-                $io->success('No topics found with lectures but no recordings!');
-                return Command::SUCCESS;
-            }
+                if (!$topic) {
+                    $io->success('No more topics found with lectures but no recordings!');
+                    break;
+                }
 
-            $io->info(sprintf('Found %d topics to process', count($topics)));
-
-            foreach ($topics as $topic) {
                 $processedCount++;
-                $io->text(sprintf('Processing topic %d/%d:', $processedCount, count($topics)));
+                $io->text(sprintf('Processing topic %d/%d:', $processedCount, $maxIterations));
                 $io->text('Main Topic: ' . $topic->getName());
                 $io->text('Sub Topic: ' . $topic->getSubTopic());
                 $io->text('Subject: ' . $topic->getSubject()->getName());
@@ -69,15 +68,33 @@ class RecordLectureCommand extends Command
                 $filePath = $this->textToSpeechService->convertToSpeech($topic->getLecture(), $filename);
 
                 if ($filePath) {
-                    $topic->setRecordingFileName($filename . '.opus');
+                    // Find all topics with the same name and subtopic
+                    $matchingTopics = $this->entityManager->getRepository(Topic::class)
+                        ->createQueryBuilder('t')
+                        ->where('t.name = :name')
+                        ->andWhere('t.subTopic = :subTopic')
+                        ->setParameter('name', $topic->getName())
+                        ->setParameter('subTopic', $topic->getSubTopic())
+                        ->getQuery()
+                        ->getResult();
+
+                    // Update all matching topics with the recording filename
+                    foreach ($matchingTopics as $matchingTopic) {
+                        $matchingTopic->setRecordingFileName($filename . '.opus');
+                    }
+
                     $this->entityManager->flush();
                     $successCount++;
                     $io->success('Recording generated successfully!');
                     $io->text('File saved at: ' . $filePath);
+                    $io->text(sprintf('Updated %d matching topics with the same name and subtopic', count($matchingTopics)));
                 } else {
                     $failureCount++;
                     $io->warning('Failed to generate recording for the topic.');
                 }
+
+                // Clear the entity manager to free memory
+                $this->entityManager->clear();
             }
 
             $io->success(sprintf(
