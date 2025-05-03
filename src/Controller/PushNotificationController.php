@@ -87,10 +87,11 @@ class PushNotificationController extends AbstractController
             ], 400);
         }
 
-        $result = $this->pushNotificationService->sendNewThreadNotification(
+        $result = $this->pushNotificationService->a(
             $data['subject_name'],
             $data['thread_title'],
-            $data['uid']
+            $data['uid'],
+            $data['grade'] ?? null
         );
 
         return new JsonResponse($result, $result['status'] === 'OK' ? 200 : 500);

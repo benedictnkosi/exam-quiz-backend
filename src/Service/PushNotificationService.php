@@ -597,25 +597,28 @@ class PushNotificationService
         }
     }
 
-    public function sendNewThreadNotification(string $subjectName, string $threadTitle, string $uid): array
+    public function a(string $subjectName, string $threadTitle, string $uid, ?int $grade = null): array
     {
         try {
-            // Get the learner who created the thread
-            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if (!$learner) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                ];
-            }
+            // If grade is not provided, get it from the learner
+            if ($grade === null) {
+                // Get the learner who created the thread
+                $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+                if (!$learner) {
+                    return [
+                        'status' => 'NOK',
+                        'message' => 'Learner not found'
+                    ];
+                }
 
-            // Get the grade of the learner
-            $grade = $learner->getGrade();
-            if (!$grade) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Learner grade not found'
-                ];
+                // Get the grade of the learner
+                $grade = $learner->getGrade();
+                if (!$grade) {
+                    return [
+                        'status' => 'NOK',
+                        'message' => 'Learner grade not found'
+                    ];
+                }
             }
 
             // Find learners who have answered questions for this subject and grade
