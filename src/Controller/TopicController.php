@@ -87,4 +87,70 @@ class TopicController extends AbstractController
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/unposted/most-questions', name: 'get_unposted_topic_with_most_questions', methods: ['GET'])]
+    public function getUnpostedTopicWithMostQuestions(Request $request): JsonResponse
+    {
+        try {
+            $grade = $request->query->get('grade');
+            $term = $request->query->get('term');
+
+            if (!$grade || !$term) {
+                return new JsonResponse([
+                    'error' => 'Grade and term parameters are required'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $topic = $this->topicService->getTopicWithMostQuestions((int) $grade, $term);
+
+            if (!$topic) {
+                return new JsonResponse([
+                    'message' => 'No unposted topics found for the specified grade and term'
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            return new JsonResponse([
+                'topic' => [
+                    'id' => $topic->getId(),
+                    'name' => $topic->getName(),
+                    'subTopic' => $topic->getSubTopic(),
+                    'subject' => $topic->getSubject() ? [
+                        'id' => $topic->getSubject()->getId(),
+                        'name' => $topic->getSubject()->getName()
+                    ] : null,
+                    'postedDate' => $topic->getPostedDate() ? $topic->getPostedDate()->format('Y-m-d H:i:s') : null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/{id}/posted-date', name: 'update_topic_posted_date', methods: ['PUT'])]
+    public function updatePostedDate(Request $request, int $id): JsonResponse
+    {
+        try {
+            $topic = $this->topicService->getTopicById($id);
+            if (!$topic) {
+                return new JsonResponse(['error' => 'Topic not found'], Response::HTTP_NOT_FOUND);
+            }
+
+            $data = json_decode($request->getContent(), true);
+            $postedDate = isset($data['postedDate']) ? new \DateTime($data['postedDate']) : null;
+
+            if ($this->topicService->updatePostedDate($topic, $postedDate)) {
+                return new JsonResponse([
+                    'message' => 'Posted date updated successfully',
+                    'topic' => [
+                        'id' => $topic->getId(),
+                        'postedDate' => $topic->getPostedDate() ? $topic->getPostedDate()->format('Y-m-d H:i:s') : null
+                    ]
+                ]);
+            }
+
+            return new JsonResponse(['error' => 'Failed to update posted date'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

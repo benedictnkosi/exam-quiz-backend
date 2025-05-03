@@ -46,6 +46,10 @@ class Topic
     #[Serializer\Type('string')]
     private ?string $imageFileName = null;
 
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Serializer\Type('DateTime')]
+    private ?\DateTimeInterface $postedDate = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -131,6 +135,18 @@ class Topic
     public function setImageFileName(?string $imageFileName): static
     {
         $this->imageFileName = $imageFileName;
+
+        return $this;
+    }
+
+    public function getPostedDate(): ?\DateTimeInterface
+    {
+        return $this->postedDate;
+    }
+
+    public function setPostedDate(?\DateTimeInterface $postedDate): static
+    {
+        $this->postedDate = $postedDate;
 
         return $this;
     }
