@@ -36,7 +36,10 @@ class LearnerFollowingController extends AbstractController
         }
 
         if (!$following) {
-            return new JsonResponse(['error' => 'No learner found with this follow code'], 404);
+            $following = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $followMeCode]);
+            if (!$following) {
+                return new JsonResponse(['error' => 'No learner found with this follow code'], 404);
+            }
         }
 
         if ($follower->getUid() === $following->getUid()) {
@@ -135,4 +138,4 @@ class LearnerFollowingController extends AbstractController
         $jsonContent = $this->serializer->serialize($counts, 'json', $context);
         return new JsonResponse($jsonContent, 200, [], true);
     }
-} 
+}
