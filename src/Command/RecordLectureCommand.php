@@ -35,7 +35,7 @@ class RecordLectureCommand extends Command
         $processedCount = 0;
         $successCount = 0;
         $failureCount = 0;
-        $maxIterations = 100;
+        $maxIterations = 500;
 
         try {
             for ($i = 0; $i < $maxIterations; $i++) {
