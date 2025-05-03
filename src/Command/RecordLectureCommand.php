@@ -42,7 +42,7 @@ class RecordLectureCommand extends Command
                 ->createQueryBuilder('t')
                 ->where('t.lecture IS NOT NULL')
                 ->andWhere('t.recordingFileName IS NULL')
-                ->setMaxResults(100)
+                ->setMaxResults(500)
                 ->getQuery()
                 ->getResult();
 

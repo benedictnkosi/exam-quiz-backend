@@ -41,7 +41,7 @@ class GenerateLectureCommand extends Command
             $topics = $this->entityManager->getRepository(Topic::class)
                 ->createQueryBuilder('t')
                 ->where('t.lecture IS NULL')
-                ->setMaxResults(100)
+                ->setMaxResults(500)
                 ->getQuery()
                 ->getResult();
 
