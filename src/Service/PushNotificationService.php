@@ -597,7 +597,7 @@ class PushNotificationService
         }
     }
 
-    public function a(string $subjectName, string $threadTitle, string $uid, ?int $grade = null): array
+    public function sendNewThreadNotification(string $subjectName, string $threadTitle, string $uid, ?int $grade = null): array
     {
         try {
             // If grade is not provided, get it from the learner

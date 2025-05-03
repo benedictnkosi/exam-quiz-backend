@@ -87,7 +87,7 @@ class PushNotificationController extends AbstractController
             ], 400);
         }
 
-        $result = $this->pushNotificationService->a(
+        $result = $this->pushNotificationService->sendNewThreadNotification(
             $data['subject_name'],
             $data['thread_title'],
             $data['uid'],
