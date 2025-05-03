@@ -27,7 +27,17 @@ class TopicPopulationService
                 $topic->getSubTopic()
             );
 
-            $topic->setLecture($lecture);
+            // Find all topics with the same name and subtopic
+            $matchingTopics = $this->entityManager->getRepository(Topic::class)->findBy([
+                'name' => $topic->getName(),
+                'subTopic' => $topic->getSubTopic()
+            ]);
+
+            // Update all matching topics
+            foreach ($matchingTopics as $matchingTopic) {
+                $matchingTopic->setLecture($lecture);
+            }
+
             $this->entityManager->flush();
 
             return true;
