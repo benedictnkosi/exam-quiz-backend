@@ -14,6 +14,7 @@ class TopLearnerNotificationService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly PushNotificationService $pushNotificationService,
+        private readonly BadgeService $badgeService,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -53,9 +54,12 @@ class TopLearnerNotificationService
                     $points = $result[0]['points'];
 
                     if ($points > 0) {
+                        // Assign Daily Goat badge
+                        $this->badgeService->assignBadge($topLearner, 'Daily Goat');
+
                         $notification = [
                             'to' => $topLearner->getExpoPushToken(),
-                            'title' => '🏆 Top Learner Alert!',
+                            'title' => '🏆 Top Learner Badge!',
                             'body' => sprintf(
                                 'Congratulations! You were the top learner in Grade %d yesterday with %d correct answers!',
                                 $gradeId,
@@ -139,14 +143,15 @@ class TopLearnerNotificationService
                     $points = $result[0]['points'];
 
                     if ($points > 0) {
+                        // Assign Weekly Goat badge
+                        $this->badgeService->assignBadge($topLearner, 'Weekly Goat');
+
                         $notification = [
                             'to' => $topLearner->getExpoPushToken(),
-                            'title' => '🏆 Weekly Top Learner Alert!',
+                            'title' => '🏆 Weekly Top Learner Badge!',
                             'body' => sprintf(
-                                'Congratulations! You were the top learner in Grade %d last week (Mon %s - Sun %s) with %d correct answers!',
+                                'Congratulations! You were the top learner in Grade %d last week with %d correct answers!',
                                 $gradeId,
-                                $lastWeekMonday->format('d M'),
-                                $lastWeekSunday->format('d M'),
                                 $points
                             ),
                             'sound' => 'default',

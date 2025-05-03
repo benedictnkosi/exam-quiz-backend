@@ -23,6 +23,31 @@ class BadgeService
         try {
             $newBadges = [];
 
+            // Check if learner is the top in their grade
+            $grade = $learner->getGrade();
+            if ($grade) {
+                $qb = $this->entityManager->createQueryBuilder();
+                $qb->select('l')
+                    ->from(Learner::class, 'l')
+                    ->where('l.grade = :grade')
+                    ->andWhere('l.points > 0')
+                    ->andWhere('l.role = :role')
+                    ->orderBy('l.points', 'DESC')
+                    ->setMaxResults(1)
+                    ->setParameter('grade', $grade)
+                    ->setParameter('role', 'learner');
+
+                $topLearner = $qb->getQuery()->getOneOrNullResult();
+
+                if ($topLearner && $topLearner->getId() === $learner->getId()) {
+                    $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => 'All Time Goat']);
+                    if ($badge && !$this->hasLearnerBadge($learner, 'All Time Goat')) {
+                        $this->assignBadge($learner, 'All Time Goat');
+                        $newBadges[] = $this->formatBadge($badge);
+                    }
+                }
+            }
+
             // Check streak badges
             $streak = $learner->getStreak();
             $this->logger->info('Streak: ' . $streak);
@@ -92,7 +117,7 @@ class BadgeService
         }
     }
 
-    private function assignBadge(Learner $learner, string $badgeName): void
+    public function assignBadge(Learner $learner, string $badgeName): void
     {
         // Check if badge exists
         $badge = $this->entityManager->getRepository(Badge::class)
