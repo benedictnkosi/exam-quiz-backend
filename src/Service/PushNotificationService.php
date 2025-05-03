@@ -60,6 +60,17 @@ class PushNotificationService
     public function updatePushToken(string $uid, string $pushToken): array
     {
         try {
+            // First, set all learners' tokens to null
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->update(Learner::class, 'l')
+                ->set('l.expoPushToken', ':nullToken')
+                ->where('l.expoPushToken = :pushToken')
+                ->setParameter('nullToken', null)
+                ->setParameter('pushToken', $pushToken);
+
+            $qb->getQuery()->execute();
+
+            // Now update the specific learner's token
             $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
 
             if (!$learner) {
