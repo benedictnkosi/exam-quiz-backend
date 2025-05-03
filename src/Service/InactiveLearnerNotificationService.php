@@ -49,7 +49,7 @@ class InactiveLearnerNotificationService
 
                 $notification = [
                     'to' => $pushToken,
-                    'title' => '🚀 Your success starts here!',
+                    'title' => '🚀 Answer your first question!',
                     'body' => 'Start your learning journey today by answering your first question 💪',
                     'sound' => 'default',
                     'data' => [
