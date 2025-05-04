@@ -228,19 +228,19 @@ class LearnMzansiApi extends AbstractController
 
 
             if (!empty($data['type'])) {
-                $question->setQuestion($data['question']);
+                $question->setQuestion($this->replaceMathVariables($data['question']));
             } else {
                 $question->setQuestion("");
             }
             $question->setType($data['type']);
             $question->setSubject($subject);
-            $question->setContext($data['context'] ?? null);
+            $question->setContext($data['context'] ? $this->replaceMathVariables($data['context']) : null);
             if (!empty($data['answer'])) {
                 $question->setAnswer($data['answer']);
             }
             $question->setOptions($data['options'] ?? null); // Pass the array directly
             $question->setTerm($data['term'] ?? null);
-            $question->setExplanation($data['explanation'] ?? null);
+            $question->setExplanation($data['explanation'] ? $this->replaceMathVariables($data['explanation']) : null);
             $question->setYear($data['year'] ?? null);
             $question->setCapturer($user);
             if ($questionId == 0) {
@@ -2549,7 +2549,7 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            $explanation = $result['choices'][0]['message']['content'];
+            $explanation = $this->replaceMathVariables($result['choices'][0]['message']['content']);
 
             // Update question with AI explanation
             $question->setAiExplanation($explanation);
@@ -4569,6 +4569,40 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'Error getting topic progress ' . $e->getMessage()
             ];
         }
+    }
+
+    private function replaceMathVariables(string $text): string
+    {
+        $replacements = [
+            '$a$' => 'a',
+            '$b$' => 'b',
+            '$c$' => 'c',
+            '$d$' => 'd',
+            '$e$' => 'e',
+            '$f$' => 'f',
+            '$g$' => 'g',
+            '$h$' => 'h',
+            '$i$' => 'i',
+            '$j$' => 'j',
+            '$k$' => 'k',
+            '$l$' => 'l',
+            '$m$' => 'm',
+            '$n$' => 'n',
+            '$o$' => 'o',
+            '$p$' => 'p',
+            '$q$' => 'q',
+            '$r$' => 'r',
+            '$s$' => 's',
+            '$t$' => 't',
+            '$u$' => 'u',
+            '$v$' => 'v',
+            '$w$' => 'w',
+            '$x$' => 'x',
+            '$y$' => 'y',
+            '$z$' => 'z'
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
 }
