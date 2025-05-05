@@ -30,35 +30,3 @@ if [ "$total_to_convert" -eq 0 ]; then
 fi
 
 echo "Found $total_to_convert files to convert ($skipped_count already converted)"
-
-# Initialize counter
-converted_count=0
-
-# Loop through all .opus files
-for f in *.opus; do
-  # Skip if no .opus files found
-  [ -e "$f" ] || continue
-
-  # Output filename
-  output_file="$OUTPUT_DIR/${f%.opus}.m4a"
-
-  # Skip if output file already exists
-  if [ -f "$output_file" ]; then
-    continue
-  fi
-
-  echo "[$((converted_count + 1))/$total_to_convert] Converting: $f -> $output_file"
-
-  # Convert using ffmpeg
-  ffmpeg -i "$f" -c:a aac -b:a "$BITRATE" "$output_file"
-  
-  if [ $? -eq 0 ]; then
-    converted_count=$((converted_count + 1))
-  fi
-done
-
-echo "Conversion completed!"
-echo "Summary:"
-echo "- Files converted: $converted_count of $total_to_convert"
-echo "- Files already converted: $skipped_count"
-echo "Converted files are in the '$OUTPUT_DIR' directory" 
