@@ -227,7 +227,8 @@ class BadgeService
                     'id' => $badge->getId(),
                     'name' => $badge->getName(),
                     'rules' => $badge->getRules(),
-                    'earned_at' => $learnerBadge->getCreatedAt()->format('Y-m-d H:i:s')
+                    'earned_at' => $learnerBadge->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'image' => $badge->getImage()
                 ];
             }
 
