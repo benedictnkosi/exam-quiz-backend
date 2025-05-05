@@ -38,7 +38,9 @@ class QuestionTopicService
                         'context' => $question->getContext(),
                         'answer' => $question->getAnswer(),
                         'subject_id' => $subject ? $subject->getId() : null,
-                        'subject_topics' => $subjectTopics
+                        'subject_topics' => $subjectTopics,
+                        'image_path' => $question->getImagePath(),
+                        'question_image_path' => $question->getQuestionImagePath()
                     ];
 
                     $this->generateAndSetTopic($questionData);
@@ -97,7 +99,7 @@ class QuestionTopicService
 
             // If the AI returns 'NO MATCH', set it as the topic
             if ($topic === 'NO MATCH') {
-                $this->updateQuestionTopic($questionData['id'], 'NO MATCH');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH WITH IMAGE');
                 return;
             }
 
@@ -107,7 +109,7 @@ class QuestionTopicService
             if ($matchedSubtopic) {
                 $this->updateQuestionTopic($questionData['id'], $matchedSubtopic);
             } else {
-                $this->updateQuestionTopic($questionData['id'], 'NO MATCH');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH WITH IMAGE');
             }
         } catch (\Exception $e) {
             $this->logger->error('Error processing question {id}: {error}', [
@@ -120,13 +122,21 @@ class QuestionTopicService
     private function buildPrompt(array $questionData): string
     {
         $topicsList = $this->formatTopicsForPrompt($questionData['subject_topics'] ?? []);
+        $imageInfo = '';
+
+        if (!empty($questionData['image_path'])) {
+            $imageInfo .= "\nIMAGE PATH: " . $questionData['image_path'];
+        }
+        if (!empty($questionData['question_image_path'])) {
+            $imageInfo .= "\nQUESTION IMAGE PATH: " . $questionData['question_image_path'];
+        }
 
         return sprintf(
             "You are a topic classifier. Your ONLY task is to return an EXACT topic from the list below. Do not think, analyze, or explain. Just return the topic.
 
 QUESTION: %s
 CONTEXT: %s
-ANSWER: %s
+ANSWER: %s%s
 TOPICS:
 %s
 
@@ -139,6 +149,7 @@ RULES:
             $questionData['question'] ?? '',
             $questionData['context'] ?? '',
             $questionData['answer'] ?? '',
+            $imageInfo,
             $topicsList
         );
     }
@@ -221,16 +232,17 @@ RULES:
             $question = $this->entityManager->getRepository(Question::class)
                 ->createQueryBuilder('q')
                 ->join('q.subject', 's')
-                ->where('q.topic IS NULL')
+                ->where('q.topic IS NULL OR q.topic = :noMatch')
                 ->andWhere('s.grade = :grade')
                 ->setParameter('grade', $grade)
+                ->setParameter('noMatch', 'NO MATCH')
                 ->orderBy('q.id', 'ASC')
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
 
             if (!$question) {
-                $this->logger->info('No questions found with null topic for grade {grade}', [
+                $this->logger->info('No questions found with null or NO MATCH topic for grade {grade}', [
                     'grade' => $grade
                 ]);
                 return null;
