@@ -40,9 +40,11 @@ class BadgeService
 
             foreach ($subjects as $subject) {
                 if ($this->checkSubjectPerformance($learner, $subject)) {
+                    $this->logger->info('subject deserves a badge: ' . $subject);
                     $badgeName = $subject;
                     $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => $badgeName]);
                     if ($badge && !$this->hasLearnerBadge($learner, $badgeName)) {
+                        $this->logger->info('assigning badge: ' . $badgeName);
                         $this->assignBadge($learner, $badgeName);
                         $newBadges[] = $this->formatBadge($badge);
                     }
@@ -304,11 +306,13 @@ class BadgeService
 
         $result = $qb->getQuery()->getOneOrNullResult();
 
+        $this->logger->info('count: ' . $result['total_questions']);
         if (!$result || $result['total_questions'] < 50) {
             return false;
         }
 
         $passRate = ($result['correct_answers'] / $result['total_questions']) * 100;
+        $this->logger->info('passRate: ' . $passRate);
         return $passRate >= 80;
     }
 }
