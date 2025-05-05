@@ -23,6 +23,32 @@ class BadgeService
         try {
             $newBadges = [];
 
+            // Check subject-specific badges
+            $subjects = [
+                'Physical Sciences',
+                'Mathematics',
+                'Agricultural Sciences',
+                'Economics',
+                'Geography',
+                'Life Sciences',
+                'Mathematics Literacy',
+                'History',
+                'Tourism',
+                'Business Studies',
+                'Accounting'
+            ];
+
+            foreach ($subjects as $subject) {
+                if ($this->checkSubjectPerformance($learner, $subject)) {
+                    $badgeName = $subject;
+                    $badge = $this->entityManager->getRepository(Badge::class)->findOneBy(['name' => $badgeName]);
+                    if ($badge && !$this->hasLearnerBadge($learner, $badgeName)) {
+                        $this->assignBadge($learner, $badgeName);
+                        $newBadges[] = $this->formatBadge($badge);
+                    }
+                }
+            }
+
             // Check if learner is the top in their grade
             $grade = $learner->getGrade();
             if ($grade) {
@@ -254,5 +280,42 @@ class BadgeService
             'rules' => $badge->getRules(),
             'image' => $badge->getImage()
         ];
+    }
+
+    private function checkSubjectPerformance(Learner $learner, string $subject): bool
+    {
+        // First get the subject IDs for the given subject name
+        $subjectQb = $this->entityManager->createQueryBuilder();
+        $subjectQb->select('s.id')
+            ->from('App\Entity\Subject', 's')
+            ->where('s.name LIKE :subjectName')
+            ->setParameter('subjectName', '%' . $subject . '%');
+
+        $subjectIds = array_column($subjectQb->getQuery()->getResult(), 'id');
+
+        if (empty($subjectIds)) {
+            return false;
+        }
+
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('COUNT(r) as total_questions')
+            ->addSelect('SUM(CASE WHEN r.outcome = :correct THEN 1 ELSE 0 END) as correct_answers')
+            ->from(Result::class, 'r')
+            ->join('r.question', 'q')
+            ->join('q.subject', 's')
+            ->where('r.learner = :learner')
+            ->andWhere('s.id IN (:subjectIds)')
+            ->setParameter('learner', $learner)
+            ->setParameter('subjectIds', $subjectIds)
+            ->setParameter('correct', 'correct');
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        if (!$result || $result['total_questions'] < 50) {
+            return false;
+        }
+
+        $passRate = ($result['correct_answers'] / $result['total_questions']) * 100;
+        return $passRate >= 80;
     }
 }
