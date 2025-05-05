@@ -107,8 +107,9 @@ php bin/console app:generate-question-topics
 
 convert opus to m4a
 chmod +x scripts/convert-opus-to-m4a.sh
+chmod +x scripts/fiels-to-convert-count.sh
 cd public/assets/lectures/
 ../../../scripts/convert-opus-to-m4a.sh
-../../../scripts/convert-opus-to-m4a.sh
+../../../scripts/fiels-to-convert-count.sh
 
 php bin/console app:generate-question-topics 1  # For grade 1
