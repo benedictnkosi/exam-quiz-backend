@@ -99,11 +99,14 @@ php bin/console list
 
 
 ### Podcast
+php bin/console app:generate-question-topics
+
+php bin/console app:populate-topics
 php bin/console app:generate-lecture
 
 php bin/console app:record-lecture
 
-php bin/console app:generate-question-topics
+
 
 convert opus to m4a
 chmod +x scripts/convert-opus-to-m4a.sh

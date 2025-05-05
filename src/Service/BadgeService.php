@@ -18,6 +18,13 @@ class BadgeService
     ) {
     }
 
+    public function checkAndAssignBadgesToAllLearners(): void
+    {
+        $learners = $this->entityManager->getRepository(Learner::class)->findAll();
+        foreach ($learners as $learner) {
+            $this->checkAndAssignBadges($learner);
+        }
+    }
     public function checkAndAssignBadges(Learner $learner): array
     {
         try {
