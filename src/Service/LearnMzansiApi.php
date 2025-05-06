@@ -4546,6 +4546,12 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('subjects', $subjectIds)
                 ->setParameter('status', 'approved');
 
+            // Add terms filter if learner has terms
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)')
+                    ->setParameter('terms', $learnerTerms);
+            }
+
             $totalQuestions = $qb->getQuery()->getSingleScalarResult();
 
             // Get viewed questions from topic tracker
