@@ -4605,4 +4605,44 @@ class LearnMzansiApi extends AbstractController
         return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
+    public function resetTopicProgress(Request $request): array
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        try {
+            $uid = $request->query->get('uid');
+
+            if (empty($uid)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'User ID is required'
+                ];
+            }
+
+            // Get the learner
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Reset the entire topic lessons tracker
+            $learner->setTopicLessonsTracker(null);
+            $this->em->flush();
+
+            return [
+                'status' => 'OK',
+                'message' => 'Topic progress reset successfully'
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error resetting topic progress: ' . $e->getMessage()
+            ];
+        }
+    }
+
 }

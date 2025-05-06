@@ -91,7 +91,8 @@ class PushNotificationController extends AbstractController
             $data['subject_name'],
             $data['thread_title'],
             $data['uid'],
-            $data['grade'] ?? null
+            $data['grade'] ?? null,
+            $data['thread_id'] ?? null
         );
 
         return new JsonResponse($result, $result['status'] === 'OK' ? 200 : 500);

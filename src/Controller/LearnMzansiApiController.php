@@ -1239,6 +1239,14 @@ class LearnMzansiApiController extends AbstractController
         return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
     }
 
+    #[Route('/learn/topic/reset-progress', name: 'reset_topic_progress', methods: ['POST'])]
+    public function resetTopicProgress(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+        $response = $this->api->resetTopicProgress($request);
+        return new JsonResponse($response, 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
     #[Route('/learn/learner/check-ad', name: 'check_ad', methods: ['GET'])]
     public function checkAd(
         Request $request,

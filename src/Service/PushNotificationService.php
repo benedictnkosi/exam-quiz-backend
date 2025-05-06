@@ -597,7 +597,7 @@ class PushNotificationService
         }
     }
 
-    public function sendNewThreadNotification(string $subjectName, string $threadTitle, string $uid, ?int $grade = null): array
+    public function sendNewThreadNotification(string $subjectName, string $threadTitle, string $uid, ?int $grade = null, ?int $threadId = null): array
     {
         try {
             // If grade is not provided, get it from the learner
@@ -658,7 +658,8 @@ class PushNotificationService
                         'subjectName' => $subjectName,
                         'threadTitle' => $threadTitle,
                         'creatorUid' => $uid,
-                        'creatorName' => $learner->getName()
+                        'creatorName' => $learner->getName(),
+                        'threadId' => $threadId
                     ]
                 ];
 
