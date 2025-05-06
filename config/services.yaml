@@ -77,3 +77,8 @@ services:
             $entityManager: "@doctrine.orm.entity_manager"
             $logger: "@monolog.logger.api"
             $reportService: '@App\Service\LearnerReportService'
+
+    App\Service\ReportedMessageService:
+        arguments:
+            $entityManager: "@doctrine.orm.entity_manager"
+            $logger: "@monolog.logger.api"
