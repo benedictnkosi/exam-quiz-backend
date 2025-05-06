@@ -125,10 +125,10 @@ class QuestionTopicService
         $imageInfo = '';
 
         if (!empty($questionData['image_path'])) {
-            $imageInfo .= "\nIMAGE PATH: " . $questionData['image_path'];
+            $imageInfo .= "\nIMAGE PATH: https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $questionData['image_path'];
         }
         if (!empty($questionData['question_image_path'])) {
-            $imageInfo .= "\nQUESTION IMAGE PATH: " . $questionData['question_image_path'];
+            $imageInfo .= "\nQUESTION IMAGE PATH: https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $questionData['question_image_path'];
         }
 
         return sprintf(
