@@ -19,12 +19,14 @@ class TopicRecordingService
     public function findTopicsWithRecordings(string $uid, string $subjectName): array
     {
         $grade = 1; // Default grade
+        $terms = null;
         if ($uid !== 'default') {
             $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
                 return [];
             }
             $grade = $learner->getGrade();
+            $terms = $learner->getTerms();
         }
 
         // First get the subjects for this grade
@@ -45,13 +47,24 @@ class TopicRecordingService
             return $subject->getId();
         }, $subjects);
 
-        // Then get topics with recordings for these subjects
-        return $this->entityManager->getRepository(Topic::class)
+        // Then get topics with recordings for these subjects that have questions for the learner's terms
+        $qb = $this->entityManager->getRepository(Topic::class)
             ->createQueryBuilder('t')
             ->where('t.subject IN (:subjectIds)')
             ->andWhere('t.recordingFileName IS NOT NULL')
-            ->setParameter('subjectIds', $subjectIds)
-            ->orderBy('t.name', 'ASC')
+            ->setParameter('subjectIds', $subjectIds);
+
+        if ($terms !== null) {
+            $qb->andWhere('EXISTS (
+                SELECT 1 FROM App\Entity\Question q 
+                WHERE q.topic = t.subTopic 
+                AND q.subject IN (:subjectIds)
+                AND q.term IN (:terms)
+            )')
+                ->setParameter('terms', explode(',', $terms));
+        }
+
+        return $qb->orderBy('t.name', 'ASC')
             ->getQuery()
             ->getResult();
     }
