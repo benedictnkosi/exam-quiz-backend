@@ -41,4 +41,15 @@ class RequestedSubjectController extends AbstractController
         $result = $this->requestedSubjectService->getSubjectRequestReport();
         return new JsonResponse($result);
     }
+
+    #[Route('/api/subjects/request-counts', name: 'app_subjects_request_counts', methods: ['GET'])]
+    public function getSubjectRequestCounts(): JsonResponse
+    {
+        $counts = $this->requestedSubjectService->getSubjectRequestCounts();
+
+        return $this->json([
+            'success' => true,
+            'data' => $counts
+        ]);
+    }
 }

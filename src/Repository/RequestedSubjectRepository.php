@@ -18,6 +18,7 @@ class RequestedSubjectRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('rs')
             ->select('rs.subjectName, COUNT(rs.id) as requestCount')
             ->groupBy('rs.subjectName')
+            ->orderBy('requestCount', 'DESC')
             ->getQuery()
             ->getResult();
     }

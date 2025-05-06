@@ -6,13 +6,18 @@ use App\Entity\Learner;
 use App\Entity\RequestedSubject;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Repository\RequestedSubjectRepository;
 
 class RequestedSubjectService
 {
+    private $requestedSubjectRepository;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        RequestedSubjectRepository $requestedSubjectRepository
     ) {
+        $this->requestedSubjectRepository = $requestedSubjectRepository;
     }
 
     public function requestSubject(string $learnerUid, string $subjectName): array
@@ -68,5 +73,10 @@ class RequestedSubjectService
                 'message' => 'Error retrieving subject request report: ' . $e->getMessage()
             ];
         }
+    }
+
+    public function getSubjectRequestCounts(): array
+    {
+        return $this->requestedSubjectRepository->getSubjectRequestCounts();
     }
 }
