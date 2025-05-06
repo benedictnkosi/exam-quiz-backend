@@ -4547,6 +4547,10 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('status', 'approved');
 
             // Add terms filter if learner has terms
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
             if (!empty($learnerTerms)) {
                 $qb->andWhere('q.term IN (:terms)')
                     ->setParameter('terms', $learnerTerms);
