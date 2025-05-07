@@ -50,12 +50,38 @@ class SubjectDifficultyService
 
             $results = $qb->getQuery()->getResult();
 
-            // Calculate difficulty metrics for each subject
-            $subjectDifficulty = [];
+            // Group subjects by name and combine their metrics
+            $groupedSubjects = [];
+
+            // First pass to group subjects and calculate totals
             foreach ($results as $result) {
+                $subjectName = $this->getBaseSubjectName($result['subject_name']);
                 $totalAnswers = (int) $result['total_answers'];
                 $correctAnswers = (int) $result['correct_answers'];
                 $incorrectAnswers = (int) $result['incorrect_answers'];
+
+                if (!isset($groupedSubjects[$subjectName])) {
+                    $groupedSubjects[$subjectName] = [
+                        'subject_ids' => [],
+                        'subject_name' => $subjectName,
+                        'total_answers' => 0,
+                        'correct_answers' => 0,
+                        'incorrect_answers' => 0
+                    ];
+                }
+
+                $groupedSubjects[$subjectName]['subject_ids'][] = $result['subject_id'];
+                $groupedSubjects[$subjectName]['total_answers'] += $totalAnswers;
+                $groupedSubjects[$subjectName]['correct_answers'] += $correctAnswers;
+                $groupedSubjects[$subjectName]['incorrect_answers'] += $incorrectAnswers;
+            }
+
+            // Calculate difficulty metrics for each group
+            $subjectDifficulty = [];
+            foreach ($groupedSubjects as $group) {
+                $totalAnswers = $group['total_answers'];
+                $correctAnswers = $group['correct_answers'];
+                $incorrectAnswers = $group['incorrect_answers'];
 
                 // Calculate success rate
                 $successRate = $totalAnswers > 0 ? ($correctAnswers / $totalAnswers) * 100 : 0;
@@ -64,8 +90,8 @@ class SubjectDifficultyService
                 $difficultyLevel = $this->calculateDifficultyLevel($successRate);
 
                 $subjectDifficulty[] = [
-                    'subject_id' => $result['subject_id'],
-                    'subject_name' => $result['subject_name'],
+                    'subject_ids' => $group['subject_ids'],
+                    'subject_name' => $group['subject_name'],
                     'total_answers' => $totalAnswers,
                     'correct_answers' => $correctAnswers,
                     'incorrect_answers' => $incorrectAnswers,
@@ -73,6 +99,11 @@ class SubjectDifficultyService
                     'difficulty_level' => $difficultyLevel
                 ];
             }
+
+            // Sort by success rate in ascending order (harder subjects first)
+            usort($subjectDifficulty, function ($a, $b) {
+                return $a['success_rate'] - $b['success_rate'];
+            });
 
             return [
                 'status' => 'OK',
@@ -106,5 +137,22 @@ class SubjectDifficultyService
         } else {
             return 'Difficult';
         }
+    }
+
+    /**
+     * Extract the base subject name by removing paper numbers and other suffixes
+     * 
+     * @param string $subjectName Full subject name
+     * @return string Base subject name
+     */
+    private function getBaseSubjectName(string $subjectName): string
+    {
+        // Remove paper numbers (P1, P2, etc.)
+        $baseName = preg_replace('/\s*P\d+\s*$/', '', $subjectName);
+
+        // Remove other common suffixes
+        $baseName = preg_replace('/\s*\([^)]*\)\s*$/', '', $baseName);
+
+        return trim($baseName);
     }
 }
