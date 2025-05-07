@@ -837,7 +837,7 @@ class LearnMzansiApi extends AbstractController
     {
         try {
             $uid = $request->query->get('uid');
-            $accounting = $request->query->get('accounting');
+            $accounting = $request->query->get('accounting2');
 
             if (empty($uid)) {
                 return array(
