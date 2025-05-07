@@ -512,35 +512,16 @@ class LearnMzansiApi extends AbstractController
             }
 
             // First, get the IDs of mastered questions (answered correctly 3 times in a row)
-            $masteredQuestionsQb = $this->em->createQueryBuilder();
-            $masteredQuestionsQb->select('DISTINCT IDENTITY(r1.question) as questionId')
-                ->from('App\Entity\Result', 'r1')
-                ->join('r1.question', 'q1')
-                ->where('r1.learner = :learner')
-                ->andWhere('r1.outcome = :outcome')
-                ->andWhere('EXISTS (
-                    SELECT 1 
-                    FROM App\Entity\Result r2 
-                    WHERE r2.learner = r1.learner 
-                    AND r2.question = r1.question 
-                    AND r2.outcome = :outcome 
-                    AND r2.created < r1.created 
-                    AND EXISTS (
-                        SELECT 1 
-                        FROM App\Entity\Result r3 
-                        WHERE r3.learner = r1.learner 
-                        AND r3.question = r1.question 
-                        AND r3.outcome = :outcome 
-                        AND r3.created < r2.created
-                    )
-                )')
-                ->setParameter('learner', $learner)
-                ->setParameter('outcome', 'correct');
+            $masteredQuestionIds = [];
 
-            $masteredQuestions = $masteredQuestionsQb->getQuery()->getResult();
-            $masteredQuestionIds = array_map(function ($result) {
-                return $result['questionId'];
-            }, $masteredQuestions);
+            // Check if this is an accounting subject
+            $subject = $this->em->getRepository('App\Entity\Subject')->findOneBy(['name' => $subjectName . ' ' . $paperName]);
+            if ($subject && str_contains($subject->getName(), 'Accounting')) {
+                $masteredQuestionIds = $this->getMasteredAccountingQuestions($learner, $subject);
+            } else if ($subject) {
+                $masteredQuestions = $this->getMasteredQuestions($learner, $subject);
+                $masteredQuestionIds = array_column($masteredQuestions, 'questionId');
+            }
 
             // Build query with term and curriculum conditions
             $qb = $this->em->createQueryBuilder();
@@ -689,6 +670,36 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'Error getting random question ' . $e->getMessage()
             );
         }
+    }
+
+    private function getMasteredQuestions(Learner $learner, Subject $subject): array
+    {
+        $masteredQuestionsQb = $this->em->createQueryBuilder();
+        $masteredQuestionsQb->select('DISTINCT IDENTITY(r1.question) as questionId')
+            ->from('App\Entity\Result', 'r1')
+            ->join('r1.question', 'q1')
+            ->where('r1.learner = :learner')
+            ->andWhere('r1.outcome = :outcome')
+            ->andWhere('EXISTS (
+                SELECT 1 
+                FROM App\Entity\Result r2 
+                WHERE r2.learner = r1.learner 
+                AND r2.question = r1.question 
+                AND r2.outcome = :outcome 
+                AND r2.created < r1.created 
+                AND EXISTS (
+                    SELECT 1 
+                    FROM App\Entity\Result r3 
+                    WHERE r3.learner = r1.learner 
+                    AND r3.question = r1.question 
+                    AND r3.outcome = :outcome 
+                    AND r3.created < r2.created
+                )
+            )')
+            ->setParameter('learner', $learner)
+            ->setParameter('outcome', 'correct');
+
+        return $masteredQuestionsQb->getQuery()->getResult();
     }
 
     public function getRecordingQuestion(string $subjectName, string $uid, int $grade, string $learnerTerms)
@@ -4663,6 +4674,70 @@ class LearnMzansiApi extends AbstractController
                 'message' => 'Error resetting topic progress: ' . $e->getMessage()
             ];
         }
+    }
+
+    private function getMasteredAccountingQuestions(Learner $learner, Subject $subject): array
+    {
+        // First get all accounting questions with their answer sheets
+        $accountingQuestionsQb = $this->em->createQueryBuilder();
+        $accountingQuestionsQb->select('q.id, q.answerSheet')
+            ->from('App\Entity\Question', 'q')
+            ->where('q.subject = :subject')
+            ->setParameter('subject', $subject);
+
+        $accountingQuestions = $accountingQuestionsQb->getQuery()->getResult();
+
+        $masteredQuestionIds = [];
+
+        foreach ($accountingQuestions as $question) {
+            $answerSheet = json_decode($question['answerSheet'], true);
+            if (!$answerSheet)
+                continue;
+
+            // Count number of sub-questions with options
+            $requiredCorrectAnswers = 0;
+            foreach ($answerSheet as $subQuestion) {
+                if (isset($subQuestion['B']['options'])) {
+                    $requiredCorrectAnswers++;
+                }
+            }
+
+            if ($requiredCorrectAnswers === 0)
+                continue;
+
+            // Get the last N results for this question
+            $resultsQb = $this->em->createQueryBuilder();
+            $resultsQb->select('r')
+                ->from('App\Entity\Result', 'r')
+                ->where('r.learner = :learner')
+                ->andWhere('r.question = :questionId')
+                ->orderBy('r.created', 'DESC')
+                ->setMaxResults($requiredCorrectAnswers)
+                ->setParameter('learner', $learner)
+                ->setParameter('questionId', $question['id']);
+
+            $results = $resultsQb->getQuery()->getResult();
+
+            // Check if we have enough results
+            if (count($results) < $requiredCorrectAnswers) {
+                continue;
+            }
+
+            // Check if all results are correct
+            $allCorrect = true;
+            foreach ($results as $result) {
+                if ($result->getOutcome() !== 'correct') {
+                    $allCorrect = false;
+                    break;
+                }
+            }
+
+            if ($allCorrect) {
+                $masteredQuestionIds[] = $question['id'];
+            }
+        }
+
+        return $masteredQuestionIds;
     }
 
 }
