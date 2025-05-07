@@ -2485,6 +2485,14 @@ class LearnMzansiApi extends AbstractController
                 "text" => "Correct Answer: " . $question->getAnswer()
             ];
 
+            // Add answer sheet if it exists
+            if ($question->getAnswerSheet() && $question->getAnswerSheet() != "" && $question->getAnswerSheet() != null && $question->getAnswerSheet() != "NULL") {
+                $messages[1]['content'][] = [
+                    "type" => "text",
+                    "text" => "Answer Sheet: " . $question->getAnswerSheet()
+                ];
+            }
+
             // Add image if exists
             if ($question->getImagePath() && $question->getImagePath() != "" && $question->getImagePath() != null && $question->getImagePath() != "NULL") {
                 $imageUrl = "https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $question->getImagePath();
@@ -2518,7 +2526,7 @@ class LearnMzansiApi extends AbstractController
             }
 
             $data = [
-                "model" => "gpt-4o-mini",
+                "model" => "gpt-4o",
                 "messages" => $messages
             ];
 
