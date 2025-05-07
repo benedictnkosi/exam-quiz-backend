@@ -108,7 +108,7 @@ php bin/console app:record-lecture
 
 
 
-convert opus to m4a
+### convert opus to m4a
 chmod +x scripts/convert-opus-to-m4a.sh
 chmod +x scripts/fiels-to-convert-count.sh
 cd public/assets/lectures/

@@ -31,6 +31,13 @@ services:
         tags:
             - { name: monolog.logger, channel: api }
 
+    # Performance monitoring
+    App\EventListener\PerformanceListener:
+        arguments:
+            $logger: "@monolog.logger.api"
+        tags:
+            - { name: kernel.event_subscriber }
+
     App\Service\Base\BaseLearnMzansiService:
         arguments:
             $entityManager: "@doctrine.orm.entity_manager"
