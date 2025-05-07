@@ -518,8 +518,8 @@ class LearnMzansiApi extends AbstractController
             $subject = $this->em->getRepository('App\Entity\Subject')->findOneBy(['name' => $subjectName . ' ' . $paperName]);
             if ($subject && str_contains($subject->getName(), 'Accounting')) {
                 $masteredQuestionIds = $this->getMasteredAccountingQuestions($learner, $subject);
-            } else if ($subject) {
-                $masteredQuestions = $this->getMasteredQuestions($learner, $subject);
+            } else {
+                $masteredQuestions = $this->getMasteredQuestions($learner);
                 $masteredQuestionIds = array_column($masteredQuestions, 'questionId');
             }
 
@@ -672,7 +672,7 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    private function getMasteredQuestions(Learner $learner, Subject $subject): array
+    private function getMasteredQuestions(Learner $learner): array
     {
         $masteredQuestionsQb = $this->em->createQueryBuilder();
         $masteredQuestionsQb->select('DISTINCT IDENTITY(r1.question) as questionId')
