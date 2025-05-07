@@ -29,7 +29,7 @@ class ResultGrowthService
                 DATE(created) as date,
                 COUNT(*) as count
             FROM result
-            WHERE created >= DATE_SUB(CURRENT_DATE, INTERVAL 14 DAY)
+            WHERE created >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
             GROUP BY DATE(created)
             ORDER BY date DESC',
             $rsm
@@ -51,7 +51,7 @@ class ResultGrowthService
         for ($i = 0; $i < count($dailyResults); $i++) {
             $currentDay = $dailyResults[$i];
             $previousDay = $dailyResults[$i + 1] ?? null;
-            
+
             $resultsWithGrowth[] = [
                 'date' => $currentDay['date'],
                 'count' => $currentDay['count'],
@@ -81,8 +81,8 @@ class ResultGrowthService
 
         // Calculate percentage growth
         $growth = (($currentCount - $previousCount) / $previousCount) * 100;
-        
+
         // Round to 2 decimal places for cleaner output
         return round($growth, 2);
     }
-} 
+}
