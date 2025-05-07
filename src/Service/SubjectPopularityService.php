@@ -103,12 +103,22 @@ class SubjectPopularityService
             // Format the final results
             $subjectPopularity = [];
             $rank = 1;
+            $processedNames = []; // Track processed subject names to prevent duplicates
+
             foreach ($groupedSubjects as $group) {
+                $subjectName = $group['subject_name'];
+
+                // Skip if we've already processed this subject name
+                if (in_array($subjectName, $processedNames)) {
+                    continue;
+                }
+
+                $processedNames[] = $subjectName;
                 $percentageOfTotal = $totalAnswers > 0 ? ($group['total_answers'] / $totalAnswers) * 100 : 0;
 
                 $subjectPopularity[] = [
                     'subject_ids' => $group['subject_ids'],
-                    'subject_name' => $group['subject_name'],
+                    'subject_name' => $subjectName,
                     'total_answers' => $group['total_answers'],
                     'unique_learners' => $group['unique_learners'],
                     'unique_questions' => $group['unique_questions'],
