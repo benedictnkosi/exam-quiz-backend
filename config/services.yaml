@@ -31,10 +31,20 @@ services:
         tags:
             - { name: monolog.logger, channel: api }
 
+    # Monitoring Service
+    App\Service\MonitoringService:
+        arguments:
+            $influxdbUrl: "%env(INFLUXDB_URL)%"
+            $influxdbToken: "%env(INFLUXDB_TOKEN)%"
+            $influxdbOrg: "%env(INFLUXDB_ORG)%"
+            $influxdbBucket: "%env(INFLUXDB_BUCKET)%"
+            $logger: "@monolog.logger.api"
+
     # Performance monitoring
     App\EventListener\PerformanceListener:
         arguments:
             $logger: "@monolog.logger.api"
+            $monitoringService: '@App\Service\MonitoringService'
         tags:
             - { name: kernel.event_subscriber }
 
