@@ -237,6 +237,8 @@ class LearnMzansiApi extends AbstractController
             $question->setContext($data['context'] ? $this->replaceMathVariables($data['context']) : null);
             if (!empty($data['answer'])) {
                 $question->setAnswer($data['answer']);
+            } else {
+                $question->setAnswer("0");
             }
             $question->setOptions($data['options'] ?? null); // Pass the array directly
             $question->setTerm($data['term'] ?? null);
