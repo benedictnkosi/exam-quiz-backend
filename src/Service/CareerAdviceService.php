@@ -46,7 +46,7 @@ class CareerAdviceService
             // Find the learner
             $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
             if (!$learner) {
-                $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followerMeCode' => $id]);
+                $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
                 if (!$learner) {
                     return [
                         'status' => 'NOK',
