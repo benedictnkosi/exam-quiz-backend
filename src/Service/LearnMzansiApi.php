@@ -422,6 +422,7 @@ class LearnMzansiApi extends AbstractController
                 // Set related question IDs on the question object
                 $relatedQuestionIds = array_values($relatedQuestionIds); // Reindex the array
                 $randomQuestion->setRelatedQuestionIds($relatedQuestionIds);
+                
 
                 // Remove capturer, reviewer, and subject.capturer information
 
@@ -4138,6 +4139,14 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            //if context and image path are null or empty return question not found
+            if (empty($question->getContext()) && empty($question->getImagePath())) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
             $context = $question->getContext();
             $subject = $question->getSubject();
             $year = $question->getYear();
@@ -4150,14 +4159,24 @@ class LearnMzansiApi extends AbstractController
                 ->where('q.subject = :subject')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.context IS NOT NULL')
-                ->andWhere('q.context = :context')
                 ->andWhere('q.year = :year')
                 ->andWhere('q.term = :term')
                 ->setParameter('subject', $subject)
                 ->setParameter('active', true)
-                ->setParameter('context', $context)
                 ->setParameter('year', $year)
                 ->setParameter('term', $term);
+
+            //if context is not empty, add it to the query
+            if (!empty($context)) {
+                $qb->andWhere('q.context = :context')
+                    ->setParameter('context', $context);
+            }
+
+            //if context is empty, add image path to the query
+            if (empty($context) && !empty($question->getImagePath())) {
+                $qb->andWhere('q.imagePath = :imagePath')
+                    ->setParameter('imagePath', $question->getImagePath());
+            }
 
             // If topic is provided, add it to the query
 
