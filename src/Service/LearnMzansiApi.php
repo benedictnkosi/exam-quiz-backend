@@ -4138,6 +4138,14 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            //if context and image path are null or empty return question not found
+            if (empty($question->getContext()) && empty($question->getImagePath())) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Question not found'
+                ];
+            }
+
             $context = $question->getContext();
             $subject = $question->getSubject();
             $year = $question->getYear();
@@ -4158,6 +4166,18 @@ class LearnMzansiApi extends AbstractController
                 ->setParameter('context', $context)
                 ->setParameter('year', $year)
                 ->setParameter('term', $term);
+
+            //if context is not empty, add it to the query
+            if (!empty($context)) {
+                $qb->andWhere('q.context = :context')
+                    ->setParameter('context', $context);
+            }
+
+            //if context is empty, add image path to the query
+            if (empty($context) && !empty($question->getImagePath())) {
+                $qb->andWhere('q.imagePath = :imagePath')
+                    ->setParameter('imagePath', $question->getImagePath());
+            }
 
             // If topic is provided, add it to the query
 
