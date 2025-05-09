@@ -6,15 +6,21 @@ use App\Entity\Badge;
 use App\Entity\Learner;
 use App\Entity\LearnerBadge;
 use App\Entity\Result;
+use App\Entity\User;
+use App\Entity\UserBadge;
+use App\Repository\UserBadgeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class BadgeService
 {
+    private const POINTS_PER_BADGE = 10;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private PushNotificationService $pushNotificationService
+        private PushNotificationService $pushNotificationService,
+        private UserBadgeRepository $userBadgeRepository
     ) {
     }
 
@@ -322,5 +328,32 @@ class BadgeService
         $passRate = ($result['correct_answers'] / $result['total_questions']) * 100;
         $this->logger->info('passRate: ' . $passRate);
         return $passRate >= 80;
+    }
+
+    public function assignPointsForBadges(User $user): void
+    {
+        $badgeCount = $this->userBadgeRepository->count(['user' => $user]);
+        $pointsToAdd = $badgeCount * self::POINTS_PER_BADGE;
+
+        $user->addPoints($pointsToAdd);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+    }
+
+    public function assignBadgeToUser(User $user, int $badgeId): void
+    {
+        $badge = $this->entityManager->getReference('App\Entity\Badge', $badgeId);
+
+        $userBadge = new UserBadge();
+        $userBadge->setUser($user);
+        $userBadge->setBadge($badge);
+
+        $this->entityManager->persist($userBadge);
+        $this->entityManager->flush();
+
+        // Assign points for the new badge
+        $user->addPoints(self::POINTS_PER_BADGE);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
     }
 }

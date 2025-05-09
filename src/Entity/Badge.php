@@ -2,62 +2,26 @@
 
 namespace App\Entity;
 
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
+use App\Repository\BadgeRepository;
 use Doctrine\ORM\Mapping as ORM;
-use JMS\Serializer\Annotation as Serializer;
 
-#[ORM\Entity]
-#[ORM\Table(name: 'badge')]
+#[ORM\Entity(repositoryClass: BadgeRepository::class)]
 class Badge
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(type: Types::INTEGER)]
-    #[Serializer\Groups(['learner:read'])]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
-    #[Serializer\Groups(['learner:read'])]
-    private \DateTime $createdAt;
-
-    #[ORM\Column(type: Types::STRING, length: 100)]
-    #[Serializer\Groups(['learner:read'])]
+    #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(type: Types::STRING, length: 255)]
-    #[Serializer\Groups(['learner:read'])]
-    private ?string $rules = null;
-
-    #[ORM\Column(type: Types::STRING, length: 100)]
-    #[Serializer\Groups(['learner:read'])]
-    private ?string $image = null;
-
-    #[ORM\OneToMany(mappedBy: 'badge', targetEntity: LearnerBadge::class)]
-    #[Serializer\Exclude]
-    private Collection $learnerBadges;
-
-    public function __construct()
-    {
-        $this->createdAt = new \DateTime();
-        $this->learnerBadges = new ArrayCollection();
-    }
+    #[ORM\Column(length: 1000, nullable: true)]
+    private ?string $description = null;
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getCreatedAt(): \DateTime
-    {
-        return $this->createdAt;
-    }
-
-    public function setCreatedAt(\DateTime $createdAt): self
-    {
-        $this->createdAt = $createdAt;
-        return $this;
     }
 
     public function getName(): ?string
@@ -65,60 +29,20 @@ class Badge
         return $this->name;
     }
 
-    public function setName(?string $name): self
+    public function setName(string $name): self
     {
         $this->name = $name;
         return $this;
     }
 
-    public function getRules(): ?string
+    public function getDescription(): ?string
     {
-        return $this->rules;
+        return $this->description;
     }
 
-    public function setRules(?string $rules): self
+    public function setDescription(?string $description): self
     {
-        $this->rules = $rules;
-        return $this;
-    }
-
-    public function getImage(): ?string
-    {
-        return $this->image;
-    }
-
-    public function setImage(?string $image): self
-    {
-        $this->image = $image;
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, LearnerBadge>
-     */
-    public function getLearnerBadges(): Collection
-    {
-        return $this->learnerBadges;
-    }
-
-    public function addLearnerBadge(LearnerBadge $learnerBadge): self
-    {
-        if (!$this->learnerBadges->contains($learnerBadge)) {
-            $this->learnerBadges->add($learnerBadge);
-            $learnerBadge->setBadge($this);
-        }
-
-        return $this;
-    }
-
-    public function removeLearnerBadge(LearnerBadge $learnerBadge): self
-    {
-        if ($this->learnerBadges->removeElement($learnerBadge)) {
-            if ($learnerBadge->getBadge() === $this) {
-                $learnerBadge->setBadge(null);
-            }
-        }
-
+        $this->description = $description;
         return $this;
     }
 }
