@@ -78,7 +78,7 @@ DITOR=nano crontab -e
 sudo crontab -u www-data -l
 sudo crontab -u www-data -e
 
-### running deepsick
+### running deepseek
 ollama serve
 ollama run deepseek-llm
 

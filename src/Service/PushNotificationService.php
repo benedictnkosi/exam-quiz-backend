@@ -3,12 +3,14 @@
 namespace App\Service;
 
 use App\Entity\Learner;
+use App\Entity\PushNotification;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class PushNotificationService
 {
     private const EXPO_API_URL = 'https://exp.host/--/api/v2/push/send';
+    private const NOTIFICATION_RETENTION_DAYS = 7;
 
     private const NOTIFICATION_MESSAGES = [
         [
@@ -45,6 +47,26 @@ class PushNotificationService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger
     ) {
+    }
+
+    private function cleanupOldNotifications(): void
+    {
+        try {
+            $cutoffDate = new \DateTimeImmutable('-' . self::NOTIFICATION_RETENTION_DAYS . ' days');
+
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->delete(PushNotification::class, 'pn')
+                ->where('pn.createdAt < :cutoffDate')
+                ->setParameter('cutoffDate', $cutoffDate);
+
+            $deletedCount = $qb->getQuery()->execute();
+
+            if ($deletedCount > 0) {
+                $this->logger->info(sprintf('Cleaned up %d old push notifications', $deletedCount));
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Error cleaning up old notifications: ' . $e->getMessage());
+        }
     }
 
     private function getMessageForInactiveDays(int $daysInactive): array
@@ -92,6 +114,84 @@ class PushNotificationService
             return [
                 'status' => 'NOK',
                 'message' => 'Failed to update push token'
+            ];
+        }
+    }
+
+    private function logNotification(array $notification, bool $success, ?string $error = null, ?Learner $recipient = null): void
+    {
+        // Clean up old notifications before adding new ones
+        $this->cleanupOldNotifications();
+
+        $pushNotification = new PushNotification();
+        $pushNotification->setTitle($notification['title']);
+        $pushNotification->setBody($notification['body']);
+        $pushNotification->setType($notification['data']['type'] ?? 'custom_message');
+        $pushNotification->setData($notification['data'] ?? null);
+        $pushNotification->setPushToken($notification['to']);
+        $pushNotification->setSuccess($success);
+        $pushNotification->setError($error);
+        $pushNotification->setRecipient($recipient);
+
+        $this->entityManager->persist($pushNotification);
+        $this->entityManager->flush();
+    }
+
+    public function sendPushNotification(array $notification): array
+    {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::EXPO_API_URL);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Accept: application/json'
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200) {
+                // Try to find the recipient learner by push token
+                $recipient = $this->entityManager->getRepository(Learner::class)
+                    ->findOneBy(['expoPushToken' => $notification['to']]);
+
+                $this->logNotification($notification, true, null, $recipient);
+                return [
+                    'status' => 'OK',
+                    'message' => 'Notification sent successfully'
+                ];
+            }
+
+            $this->logger->error('Failed to send notification: ' . $response);
+
+            // Try to find the recipient learner by push token
+            $recipient = $this->entityManager->getRepository(Learner::class)
+                ->findOneBy(['expoPushToken' => $notification['to']]);
+
+            $this->logNotification($notification, false, $response, $recipient);
+
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send notification',
+                'error' => $response
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending push notification: ' . $e->getMessage());
+
+            // Try to find the recipient learner by push token
+            $recipient = $this->entityManager->getRepository(Learner::class)
+                ->findOneBy(['expoPushToken' => $notification['to']]);
+
+            $this->logNotification($notification, false, $e->getMessage(), $recipient);
+
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send notification',
+                'error' => $e->getMessage()
             ];
         }
     }
@@ -153,30 +253,16 @@ class PushNotificationService
                     ]
                 ];
 
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, self::EXPO_API_URL);
-                curl_setopt($ch, CURLOPT_POST, 1);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Accept: application/json'
-                ]);
-
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
-
-                if ($httpCode === 200) {
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
                     $notificationsSent++;
                 } else {
                     $errors[] = [
                         'userId' => $user->getUid(),
-                        'error' => $response,
-                        'statusCode' => $httpCode,
-                        'daysInactive' => $daysInactive
+                        'error' => $result['message'],
+                        'statusCode' => $result['statusCode']
                     ];
-                    $this->logger->error('Failed to send notification to user ' . $user->getUid() . ': ' . $response);
+                    $this->logger->error('Failed to send notification to user ' . $user->getUid() . ': ' . $result['message']);
                 }
             }
 
@@ -446,46 +532,6 @@ class PushNotificationService
             return [
                 'status' => 'NOK',
                 'message' => 'Failed to send notifications',
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function sendPushNotification(array $notification): array
-    {
-        try {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, self::EXPO_API_URL);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Accept: application/json'
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode === 200) {
-                return [
-                    'status' => 'OK',
-                    'message' => 'Notification sent successfully'
-                ];
-            }
-
-            $this->logger->error('Failed to send notification: ' . $response);
-            return [
-                'status' => 'NOK',
-                'message' => 'Failed to send notification',
-                'error' => $response
-            ];
-        } catch (\Exception $e) {
-            $this->logger->error('Error sending push notification: ' . $e->getMessage());
-            return [
-                'status' => 'NOK',
-                'message' => 'Failed to send notification',
                 'error' => $e->getMessage()
             ];
         }
