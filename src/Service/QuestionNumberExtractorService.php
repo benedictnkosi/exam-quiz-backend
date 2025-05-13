@@ -33,7 +33,7 @@ class QuestionNumberExtractorService
                 'Content-Type' => 'application/json',
             ],
             'json' => [
-                'model' => 'gpt-4.1',
+                'model' => 'gpt-4.1-mini',
                 'messages' => [
                     [
                         'role' => 'system',
