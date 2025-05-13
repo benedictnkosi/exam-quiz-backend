@@ -15,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Grade;
 use App\Entity\Subject;
 use App\Entity\Learner;
+use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(
     name: 'app:create-questions',
@@ -31,10 +32,17 @@ class CreateQuestionsCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this
+            ->addArgument('question-number', InputArgument::OPTIONAL, 'Filter questions by number (e.g., 1.4.2)');
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $apiKey = $this->params->get('openai_api_key');
         $apiUrl = 'https://api.openai.com/v1/chat/completions';
+        $questionNumberFilter = $input->getArgument('question-number');
 
         $papers = $this->examPaperRepository->findBy(['status' => ['in_progress', 'processed_numbers']]);
         foreach ($papers as $paper) {
@@ -42,7 +50,6 @@ class CreateQuestionsCommand extends Command
             if (!$paper->getPaperOpenAiFileId() || !$paper->getQuestionNumbers() || !$paper->getMemoOpenAiFileId()) {
                 continue;
             }
-
 
             // Set paper status to in_progress
             $paper->setStatus('in_progress');
@@ -67,6 +74,12 @@ class CreateQuestionsCommand extends Command
                 $childQuestionNumber = $questionNumber . " (a)";
                 if (in_array($childQuestionNumber, $questionNumbers)) {
                     $output->writeln("Question $questionNumber has child questions, skipping...");
+                    continue;
+                }
+
+                // Apply question number filter if provided
+                if ($questionNumberFilter && !str_contains($questionNumber, $questionNumberFilter)) {
+                    $output->writeln("Skipping question $questionNumber (does not match filter: $questionNumberFilter)");
                     continue;
                 }
 
@@ -251,9 +264,17 @@ class CreateQuestionsCommand extends Command
                     $questionContent = $questionData['choices'][0]['message']['content'];
                     // Remove question numbers in parentheses like (1), (5), (10)
                     $questionContent = preg_replace('/\s*\(\d+\)\s*/', '', $questionContent);
+
+                    // Remove markdown code block markers if present
+                    $questionContent = preg_replace('/^```json\s*|\s*```$/', '', $questionContent);
+
+                    // Replace escaped newlines with actual newlines
+                    $questionContent = str_replace('\\n', "\n", $questionContent);
+
                     $questionJson = json_decode($questionContent, true);
 
                     if (json_last_error() !== JSON_ERROR_NONE) {
+                        $output->writeln("Raw question content: " . $questionContent);
                         throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
                     }
 
