@@ -242,7 +242,7 @@ class CreateQuestionsCommand extends Command
                                     $output->writeln("Question number: " . $questionNumber);
                                     $output->writeln("Question text: " . $questionJson[$questionNumber]);
                                     // Format the match table question with column B values
-                                    $formattedQuestion = $questionJson[$questionNumber] . "\n\n";
+                                    $formattedQuestion = $questionJson[$questionNumber] . "\n\n\n";
                                     foreach ($columnsJson['columnB'] as $value) {
                                         $output->writeln("Column B value: " . $value);
                                         $formattedQuestion .= $value . "\n";
