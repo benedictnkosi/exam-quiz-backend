@@ -83,12 +83,6 @@ class CreateQuestionsCommand extends Command
                     continue;
                 }
 
-                //does not contain 1.3
-                if (!str_contains($questionNumber, '4.4')) {
-                    $output->writeln("Skipping question $questionNumber");
-                    continue;
-                }
-
                 // Extract question
                 $parentNumber = $this->getParentQuestion($questionNumber);
                 $grandParentNumber = $this->getGrandParentQuestion($questionNumber);
