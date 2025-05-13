@@ -109,6 +109,7 @@ class CreateQuestionsCommand extends Command
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
                                     "3. do not include any text in tables or diagrams or images and pictures. \n" .
+                                    "4. if question is a match table question, then return value from column A only. \n" .
                                     "4. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
                                     "5. return the data in a json format. \n" .
                                     "6. the question node must be named exactly as the question number, do not prefix with anything. \n" .
@@ -238,9 +239,12 @@ class CreateQuestionsCommand extends Command
                                 $questionJson = json_decode($originalQuestion, true);
 
                                 if (isset($questionJson[$questionNumber])) {
+                                    $output->writeln("Question number: " . $questionNumber);
+                                    $output->writeln("Question text: " . $questionJson[$questionNumber]);
                                     // Format the match table question with column B values
                                     $formattedQuestion = $questionJson[$questionNumber] . "\n\n";
                                     foreach ($columnsJson['columnB'] as $value) {
+                                        $output->writeln("Column B value: " . $value);
                                         $formattedQuestion .= $value . "\n";
                                     }
 
@@ -471,21 +475,6 @@ class CreateQuestionsCommand extends Command
 
                             $matchColumnsData = $matchColumnsResponse->toArray(false);
                             $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
-
-                            // Append Column B content to question text
-                            if (isset($matchColumnsData['choices'][0]['message']['content'])) {
-                                $content = $matchColumnsData['choices'][0]['message']['content'];
-                                // Remove markdown code block markers if present
-                                $content = preg_replace('/^```json\s*|\s*```$/', '', $content);
-                                $columnsJson = json_decode($content, true);
-                                if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
-                                    $output->writeln("Columns JSON: " . json_encode($columnsJson));
-                                    $questionText .= "\n\n" . implode("\n", $columnsJson['columnB']);
-                                    $output->writeln("Question Text: " . $questionText);
-
-                                    $question->setQuestion($questionText);
-                                }
-                            }
                         }
                     }
 
