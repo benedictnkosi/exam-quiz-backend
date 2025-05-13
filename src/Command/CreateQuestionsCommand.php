@@ -90,7 +90,7 @@ class CreateQuestionsCommand extends Command
                                 'type' => 'text',
                                 'text' => "From the question paper, extract the full text of question $questionNumber" .
                                     ($grandParentNumber && str_contains($grandParentNumber, '.') ? ", its grandparent $grandParentNumber" : "") .
-                                    ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . " do not include text for sub questions for the parent node. \n" .
+                                    ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
                                     "3. do not include any text in tables or diagrams or images and pictures. \n" .
