@@ -338,6 +338,23 @@ class CreateQuestionsCommand extends Command
                     $question->setStatus('new');
                     $question->setActive(true);
 
+                    // Check for duplicate question
+                    $existingQuestion = $this->entityManager->getRepository(Question::class)->findOneBy([
+                        'subject' => $subject,
+                        'question' => $questionText,
+                        'year' => $paper->getYear(),
+                        'term' => $paper->getTerm()
+                    ]);
+
+                    if ($existingQuestion) {
+                        $output->writeln("Duplicate question found with ID: " . $existingQuestion->getId() . ". Skipping creation.");
+                        // Update progress for this question
+                        $paper->updateQuestionProgress($questionNumber, "Skipped", "Duplicate question found");
+                        $this->entityManager->persist($paper);
+                        $this->entityManager->flush();
+                        continue;
+                    }
+
                     $this->entityManager->persist($question);
                     $this->entityManager->flush();
 
