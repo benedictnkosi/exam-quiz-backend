@@ -87,7 +87,7 @@ class CreateQuestionsCommand extends Command
                                     " and its parent $parentNumber. do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
-                                    "3. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. e.g. A. taxes\n" .
+                                    "3. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
                                     "3. return the data in a json format. \n" .
                                     "4. the question node must be named exactly as the question number, do not prefix with anything. \n" .
                                     "5. do not prefix the json with any text"
