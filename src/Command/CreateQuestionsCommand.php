@@ -43,6 +43,7 @@ class CreateQuestionsCommand extends Command
                 continue;
             }
 
+
             // Set paper status to in_progress
             $paper->setStatus('in_progress');
             $this->entityManager->persist($paper);
@@ -62,11 +63,18 @@ class CreateQuestionsCommand extends Command
                     continue;
                 }
 
+                // Check if question has child questions
+                $childQuestionNumber = $questionNumber . " (a)";
+                if (in_array($childQuestionNumber, $questionNumbers)) {
+                    $output->writeln("Question $questionNumber has child questions, skipping...");
+                    continue;
+                }
+
                 //does not contain 1.3
-                // if (!str_contains($questionNumber, '6.1')) {
-                //     $output->writeln("Skipping question $questionNumber");
-                //     continue;
-                // }
+                if (!str_contains($questionNumber, '4.4')) {
+                    $output->writeln("Skipping question $questionNumber");
+                    continue;
+                }
 
                 // Extract question
                 $parentNumber = $this->getParentQuestion($questionNumber);
@@ -128,9 +136,7 @@ class CreateQuestionsCommand extends Command
 
                 try {
                     // Get question content
-                    $isMatchTableQuestion = false;
-                    $output->writeln("Question Prompt: " . json_encode($questionPrompt));
-                    $questionResponse = $this->httpClient->request('POST', $apiUrl, [
+                    $questionData = $this->httpClient->request('POST', $apiUrl, [
                         'headers' => [
                             'Authorization' => 'Bearer ' . $apiKey,
                             'Content-Type' => 'application/json',
@@ -139,10 +145,13 @@ class CreateQuestionsCommand extends Command
                             'model' => 'gpt-4.1-mini',
                             'messages' => $questionPrompt
                         ]
-                    ]);
-
-                    $questionData = $questionResponse->toArray(false);
+                    ])->toArray(false);
                     $output->writeln("Question Data: " . json_encode($questionData));
+
+                    // Initialize variables
+                    $question = null;
+                    $isMatchTableQuestion = false;
+                    $questionText = '';
 
                     //check if working with a match table question
                     if (
@@ -152,6 +161,16 @@ class CreateQuestionsCommand extends Command
                     ) {
                         $isMatchTableQuestion = true;
                         $output->writeln("Working with a match table question");
+
+                        // Create question entity for match table question
+                        $question = new Question();
+                        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => 'nkosi@gmail.com']);
+                        //default values
+                        $question->setCapturer($learner);
+                        $question->setReviewer($learner);
+                        $question->setCurriculum('CAPS');
+                        $question->setRelatedQuestionIds([]);
+                        $question->setTopic(null);
 
                         // Create a new prompt to extract column values
                         $matchColumnsPrompt = [
@@ -176,7 +195,8 @@ class CreateQuestionsCommand extends Command
                                             "  \"columnB\": [\"value1\", \"value2\", ...]\n" .
                                             "}\n" .
                                             "1. include the columnB alphabet for each option\n" .
-                                            "2. Return only the JSON, no additional text\n"
+                                            "2. Return only the JSON, no additional text\n" .
+                                            "3. Make sure all the values in columnB are included in the json\n"
                                     ]
                                 ]
                             ]
@@ -198,9 +218,28 @@ class CreateQuestionsCommand extends Command
 
                         // Append Column B content to question text
                         if (isset($matchColumnsData['choices'][0]['message']['content'])) {
-                            $columnsJson = json_decode($matchColumnsData['choices'][0]['message']['content'], true);
+                            $content = $matchColumnsData['choices'][0]['message']['content'];
+                            // Remove markdown code block markers if present
+                            $content = preg_replace('/^```json\s*|\s*```$/', '', $content);
+                            $columnsJson = json_decode($content, true);
                             if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
-                                $questionText = $questionData['choices'][0]['message']['content'] . "\n\n" . implode("\n", $columnsJson['columnB']);
+                                $output->writeln("Columns JSON: " . json_encode($columnsJson));
+
+                                // Get the original question text without JSON formatting
+                                $originalQuestion = $questionData['choices'][0]['message']['content'];
+                                $originalQuestion = preg_replace('/^```json\s*|\s*```$/', '', $originalQuestion);
+                                $questionJson = json_decode($originalQuestion, true);
+
+                                if (isset($questionJson[$questionNumber])) {
+                                    // Format the match table question with column B values
+                                    $formattedQuestion = $questionJson[$questionNumber] . "\n\n";
+                                    foreach ($columnsJson['columnB'] as $value) {
+                                        $formattedQuestion .= $value . "\n";
+                                    }
+
+                                    $output->writeln("Formatted Question Text: " . $formattedQuestion);
+                                    $question->setQuestion($formattedQuestion);
+                                }
                             }
                         }
                     }
@@ -241,10 +280,16 @@ class CreateQuestionsCommand extends Command
 
                     // Validate child question data
                     if (!isset($questionJson[$questionNumber])) {
-                        throw new \Exception("Missing or invalid question data for $questionNumber");
+                        // Try without space if not found
+                        $questionNumberNoSpace = str_replace(' (', '(', $questionNumber);
+                        if (!isset($questionJson[$questionNumberNoSpace])) {
+                            throw new \Exception("Missing or invalid question data for $questionNumber");
+                        }
+                        $questionData = $questionJson[$questionNumberNoSpace];
+                    } else {
+                        $questionData = $questionJson[$questionNumber];
                     }
 
-                    $questionData = $questionJson[$questionNumber];
                     if (!is_string($questionData)) {
                         throw new \Exception("Invalid question data format for $questionNumber");
                     }
@@ -252,41 +297,42 @@ class CreateQuestionsCommand extends Command
                     $questionText = $questionData;
                     $output->writeln("Question: " . $questionText);
 
-                    // Get answer content
-                    $answerResponse = $this->httpClient->request('POST', $apiUrl, [
-                        'headers' => [
-                            'Authorization' => 'Bearer ' . $apiKey,
-                            'Content-Type' => 'application/json',
-                        ],
-                        'json' => [
-                            'model' => 'gpt-4.1-mini',
-                            'messages' => $answerPrompt
-                        ]
-                    ]);
-
-                    $answerData = $answerResponse->toArray(false);
-
-                    if (!isset($answerData['choices'][0]['message']['content'])) {
-                        throw new \Exception('Invalid response format from OpenAI API for answer');
+                    // Create question entity if not already created for match table
+                    if (!$question) {
+                        $question = new Question();
+                        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => 'nkosi@gmail.com']);
+                        //default values
+                        $question->setCapturer($learner);
+                        $question->setReviewer($learner);
+                        $question->setCurriculum('CAPS');
+                        $question->setRelatedQuestionIds([]);
+                        $question->setTopic(null);
                     }
 
-                    $answerContent = $answerData['choices'][0]['message']['content'];
-                    $output->writeln("\nAnswer content for $questionNumber:");
-                    $output->writeln($answerContent);
+                    //REMOVE TWO, THREE, FOUR FROM THE QUESTION TEXT
+                    $questionText = str_replace('TWO', '', $questionText);
+                    $questionText = str_replace('THREE', '', $questionText);
+                    $questionText = str_replace('FOUR', '', $questionText);
+                    $questionText = str_replace('FIVE', '', $questionText);
+                    $questionText = str_replace('SIX', '', $questionText);
 
-                    // Create question entity
-                    $question = new Question();
+                    // For match table questions, clean up the question text and ensure column B values are included
+                    if ($isMatchTableQuestion) {
+                        // Remove any answer that might be included in the question text (format: "X. answer text")
+                        $questionText = preg_replace('/\n[A-Z]\.\s.*$/', '', $questionText);
 
-                    $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => 'nkosi@gmail.com']);
-                    //default values
-                    $question->setCapturer($learner);
-                    $question->setReviewer($learner);
-                    $question->setCurriculum('CAPS');
-                    $question->setRelatedQuestionIds([]);
-                    $question->setTopic(null);
+                        if (isset($matchColumnsData['choices'][0]['message']['content'])) {
+                            $content = $matchColumnsData['choices'][0]['message']['content'];
+                            // Remove markdown code block markers if present
+                            $content = preg_replace('/^```json\s*|\s*```$/', '', $content);
+                            $columnsJson = json_decode($content, true);
+                            if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
+                                $questionText .= "\n\n" . implode("\n", $columnsJson['columnB']);
+                            }
+                        }
+                    }
 
                     $question->setQuestion($questionText);
-                    $question->setAnswer($answerContent);
 
                     // Process images if present
                     if ($paper->getImages()) {
@@ -329,6 +375,30 @@ class CreateQuestionsCommand extends Command
                         }
                     }
 
+                    // Get answer content
+                    $answerResponse = $this->httpClient->request('POST', $apiUrl, [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $apiKey,
+                            'Content-Type' => 'application/json',
+                        ],
+                        'json' => [
+                            'model' => 'gpt-4.1-mini',
+                            'messages' => $answerPrompt
+                        ]
+                    ]);
+
+                    $answerData = $answerResponse->toArray(false);
+
+                    if (!isset($answerData['choices'][0]['message']['content'])) {
+                        throw new \Exception('Invalid response format from OpenAI API for answer');
+                    }
+
+                    $answerContent = $answerData['choices'][0]['message']['content'];
+                    $output->writeln("\nAnswer content for $questionNumber:");
+                    $output->writeln($answerContent);
+
+                    $question->setAnswer($answerContent);
+
                     // Check if answer is a single letter A, B, C, or D
                     if (in_array(trim($answerContent), ['A', 'B', 'C', 'D'])) {
                         $wrongAnswersContent = implode('_', array_filter(['A', 'B', 'C', 'D'], function ($letter) use ($answerContent) {
@@ -344,7 +414,7 @@ class CreateQuestionsCommand extends Command
                                 ],
                                 [
                                     'role' => 'user',
-                                    'content' => "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string "
+                                    'content' => "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options \n if correct answer container forward slashes then the options must contain forward slashes \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string "
                                 ]
                             ];
 
@@ -366,17 +436,24 @@ class CreateQuestionsCommand extends Command
                             }
 
                             $wrongAnswersContent = $wrongAnswersData['choices'][0]['message']['content'];
+                            $output->writeln("Wrong Answers Content: " . $wrongAnswersContent);
                         } else {
                             $wrongAnswersContent = "A_B_C_D";
 
                             $matchColumnsData = $matchColumnsResponse->toArray(false);
                             $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
 
-                            // Append Column B content to question textƒ
+                            // Append Column B content to question text
                             if (isset($matchColumnsData['choices'][0]['message']['content'])) {
-                                $columnsJson = json_decode($matchColumnsData['choices'][0]['message']['content'], true);
+                                $content = $matchColumnsData['choices'][0]['message']['content'];
+                                // Remove markdown code block markers if present
+                                $content = preg_replace('/^```json\s*|\s*```$/', '', $content);
+                                $columnsJson = json_decode($content, true);
                                 if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
+                                    $output->writeln("Columns JSON: " . json_encode($columnsJson));
                                     $questionText .= "\n\n" . implode("\n", $columnsJson['columnB']);
+                                    $output->writeln("Question Text: " . $questionText);
+
                                     $question->setQuestion($questionText);
                                 }
                             }
@@ -405,15 +482,20 @@ class CreateQuestionsCommand extends Command
                     $context = '';
                     if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                         $grandParentText = $questionJson[$grandParentNumber];
-                        $parentText = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
-                        $context = $grandParentText . "\n" . $parentText;
-                    } else if ($parentNumber && isset($questionJson[$parentNumber])) {
-                        $context = $questionJson[$parentNumber];
+                        if ($imagePath) {
+                            $grandParentText = strtok($grandParentText, "\n");
+                        }
+                        $context = $grandParentText;
                     }
 
-                    if ($imagePath) {
-                        $context = strtok($context, "\n");
+                    if ($parentNumber && isset($questionJson[$parentNumber])) {
+                        $parentText = $questionJson[$parentNumber];
+                        if ($imagePath) {
+                            $parentText = strtok($parentText, "\n");
+                        }
+                        $context = $context . "\n\n" . $parentText;
                     }
+
                     $question->setContext($context);
 
                     $question->setYear($paper->getYear());
