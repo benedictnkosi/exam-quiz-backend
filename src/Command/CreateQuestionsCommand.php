@@ -265,11 +265,25 @@ class CreateQuestionsCommand extends Command
                     // Replace escaped newlines with actual newlines
                     $questionContent = str_replace('\\n', "\n", $questionContent);
 
+                    // Clean up any control characters and ensure proper JSON encoding
+                    $questionContent = preg_replace('/[\x00-\x1F\x7F]/u', '', $questionContent);
+
+                    // Try to parse the JSON with proper error handling
                     $questionJson = json_decode($questionContent, true);
 
                     if (json_last_error() !== JSON_ERROR_NONE) {
-                        $output->writeln("Raw question content: " . $questionContent);
-                        throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
+                        // If parsing fails, try to clean up the JSON structure
+                        $questionContent = preg_replace('/[\x00-\x1F\x7F]/u', '', $questionContent);
+                        $questionContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $questionContent);
+                        $questionContent = preg_replace('/[\x{202A}-\x{202E}]/u', '', $questionContent);
+
+                        // Try parsing again
+                        $questionJson = json_decode($questionContent, true);
+
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $output->writeln("Raw question content: " . $questionContent);
+                            throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
+                        }
                     }
 
                     $output->writeln("Question ($questionNumber):");
