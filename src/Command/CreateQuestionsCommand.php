@@ -136,7 +136,7 @@ class CreateQuestionsCommand extends Command
                             'Content-Type' => 'application/json',
                         ],
                         'json' => [
-                            'model' => 'gpt-4.1',
+                            'model' => 'gpt-4.1-mini',
                             'messages' => $questionPrompt
                         ]
                     ]);
@@ -188,7 +188,7 @@ class CreateQuestionsCommand extends Command
                                 'Content-Type' => 'application/json',
                             ],
                             'json' => [
-                                'model' => 'gpt-4.1',
+                                'model' => 'gpt-4.1-mini',
                                 'messages' => $matchColumnsPrompt
                             ]
                         ]);
@@ -259,7 +259,7 @@ class CreateQuestionsCommand extends Command
                             'Content-Type' => 'application/json',
                         ],
                         'json' => [
-                            'model' => 'gpt-4.1',
+                            'model' => 'gpt-4.1-mini',
                             'messages' => $answerPrompt
                         ]
                     ]);
@@ -354,7 +354,7 @@ class CreateQuestionsCommand extends Command
                                     'Content-Type' => 'application/json',
                                 ],
                                 'json' => [
-                                    'model' => 'gpt-4.1',
+                                    'model' => 'gpt-4.1-mini',
                                     'messages' => $wrongAnswersPrompt
                                 ]
                             ]);
