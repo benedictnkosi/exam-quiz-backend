@@ -62,6 +62,12 @@ class CreateQuestionsCommand extends Command
                     continue;
                 }
 
+                //does not contain 1.3
+                if (!str_contains($questionNumber, '6.1')) {
+                    $output->writeln("Skipping question $questionNumber");
+                    continue;
+                }
+
                 // Extract question
                 $parentNumber = $this->getParentQuestion($questionNumber);
                 $grandParentNumber = $this->getGrandParentQuestion($questionNumber);
@@ -84,13 +90,14 @@ class CreateQuestionsCommand extends Command
                                 'type' => 'text',
                                 'text' => "From the question paper, extract the full text of question $questionNumber" .
                                     ($grandParentNumber && str_contains($grandParentNumber, '.') ? ", its grandparent $grandParentNumber" : "") .
-                                    " and its parent $parentNumber. do not include text for sub questions for the parent node. \n" .
+                                    ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . " do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
-                                    "3. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
-                                    "3. return the data in a json format. \n" .
-                                    "4. the question node must be named exactly as the question number, do not prefix with anything. \n" .
-                                    "5. do not prefix the json with any text"
+                                    "3. do not include any text in tables or diagrams or images and pictures. \n" .
+                                    "4. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
+                                    "5. return the data in a json format. \n" .
+                                    "6. the question node must be named exactly as the question number, do not prefix with anything. \n" .
+                                    "7. do not prefix the json with any text"
                             ]
                         ]
                     ]
@@ -121,6 +128,7 @@ class CreateQuestionsCommand extends Command
 
                 try {
                     // Get question content
+                    $isMatchTableQuestion = false;
                     $output->writeln("Question Prompt: " . json_encode($questionPrompt));
                     $questionResponse = $this->httpClient->request('POST', $apiUrl, [
                         'headers' => [
@@ -135,6 +143,67 @@ class CreateQuestionsCommand extends Command
 
                     $questionData = $questionResponse->toArray(false);
                     $output->writeln("Question Data: " . json_encode($questionData));
+
+                    //check if working with a match table question
+                    if (
+                        isset($questionData['choices'][0]['message']['content']) &&
+                        stripos($questionData['choices'][0]['message']['content'], 'Match') !== false &&
+                        stripos($questionData['choices'][0]['message']['content'], 'Column') !== false
+                    ) {
+                        $isMatchTableQuestion = true;
+                        $output->writeln("Working with a match table question");
+
+                        // Create a new prompt to extract column values
+                        $matchColumnsPrompt = [
+                            [
+                                'role' => 'system',
+                                'content' => 'You are a document analysis assistant. Your task is to extract column values from match table questions and return them in a structured JSON format.'
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => [
+                                    [
+                                        'type' => 'file',
+                                        'file' => [
+                                            'file_id' => $paper->getPaperOpenAiFileId()
+                                        ]
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => "From the question paper, extract the values from Column A and Column B for question $questionNumber. Return the data in the following JSON format:\n" .
+                                            "{\n" .
+                                            "  \"columnA\": [\"value1\", \"value2\", ...],\n" .
+                                            "  \"columnB\": [\"value1\", \"value2\", ...]\n" .
+                                            "}\n" .
+                                            "1. include the columnB alphabet for each option\n" .
+                                            "2. Return only the JSON, no additional text\n"
+                                    ]
+                                ]
+                            ]
+                        ];
+
+                        $matchColumnsResponse = $this->httpClient->request('POST', $apiUrl, [
+                            'headers' => [
+                                'Authorization' => 'Bearer ' . $apiKey,
+                                'Content-Type' => 'application/json',
+                            ],
+                            'json' => [
+                                'model' => 'gpt-4.1',
+                                'messages' => $matchColumnsPrompt
+                            ]
+                        ]);
+
+                        $matchColumnsData = $matchColumnsResponse->toArray(false);
+                        $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
+
+                        // Append Column B content to question text
+                        if (isset($matchColumnsData['choices'][0]['message']['content'])) {
+                            $columnsJson = json_decode($matchColumnsData['choices'][0]['message']['content'], true);
+                            if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
+                                $questionText = $questionData['choices'][0]['message']['content'] . "\n\n" . implode("\n", $columnsJson['columnB']);
+                            }
+                        }
+                    }
 
                     if (!isset($questionData['choices'][0]['message']['content'])) {
                         throw new \Exception('Invalid response format from OpenAI API');
@@ -154,11 +223,11 @@ class CreateQuestionsCommand extends Command
                     $output->writeln("Parent Question ($parentNumber):");
 
                     // Validate parent question data
-                    if (!isset($questionJson[$parentNumber])) {
+                    if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
                         throw new \Exception("Missing or invalid parent question data for $parentNumber");
                     }
 
-                    $parentData = $questionJson[$parentNumber];
+                    $parentData = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
                     if (!is_string($parentData)) {
                         $output->writeln("Parent data: " . json_encode($parentData));
                         throw new \Exception("Invalid parent question data format for $parentNumber");
@@ -260,41 +329,69 @@ class CreateQuestionsCommand extends Command
                         }
                     }
 
-                    // Get wrong answer options
-                    $wrongAnswersPrompt = [
-                        [
-                            'role' => 'system',
-                            'content' => 'You are a document analysis assistant. Your task is to generate plausible but incorrect answers for exam questions.'
-                        ],
-                        [
-                            'role' => 'user',
-                            'content' => "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string "
-                        ]
-                    ];
+                    // Check if answer is a single letter A, B, C, or D
+                    if (in_array(trim($answerContent), ['A', 'B', 'C', 'D'])) {
+                        $wrongAnswersContent = implode('_', array_filter(['A', 'B', 'C', 'D'], function ($letter) use ($answerContent) {
+                            return $letter !== trim($answerContent);
+                        }));
+                    } else {
+                        // Get wrong answer options
+                        if (!$isMatchTableQuestion) {
+                            $wrongAnswersPrompt = [
+                                [
+                                    'role' => 'system',
+                                    'content' => 'You are a document analysis assistant. Your task is to generate plausible but incorrect answers for exam questions.'
+                                ],
+                                [
+                                    'role' => 'user',
+                                    'content' => "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string "
+                                ]
+                            ];
 
-                    $wrongAnswersResponse = $this->httpClient->request('POST', $apiUrl, [
-                        'headers' => [
-                            'Authorization' => 'Bearer ' . $apiKey,
-                            'Content-Type' => 'application/json',
-                        ],
-                        'json' => [
-                            'model' => 'gpt-4.1',
-                            'messages' => $wrongAnswersPrompt
-                        ]
-                    ]);
+                            $wrongAnswersResponse = $this->httpClient->request('POST', $apiUrl, [
+                                'headers' => [
+                                    'Authorization' => 'Bearer ' . $apiKey,
+                                    'Content-Type' => 'application/json',
+                                ],
+                                'json' => [
+                                    'model' => 'gpt-4.1',
+                                    'messages' => $wrongAnswersPrompt
+                                ]
+                            ]);
 
-                    $wrongAnswersData = $wrongAnswersResponse->toArray(false);
+                            $wrongAnswersData = $wrongAnswersResponse->toArray(false);
 
-                    if (!isset($wrongAnswersData['choices'][0]['message']['content'])) {
-                        throw new \Exception('Invalid response format from OpenAI API for wrong answers');
+                            if (!isset($wrongAnswersData['choices'][0]['message']['content'])) {
+                                throw new \Exception('Invalid response format from OpenAI API for wrong answers');
+                            }
+
+                            $wrongAnswersContent = $wrongAnswersData['choices'][0]['message']['content'];
+                        } else {
+                            $wrongAnswersContent = "A_B_C_D";
+
+                            $matchColumnsData = $matchColumnsResponse->toArray(false);
+                            $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
+
+                            // Append Column B content to question textƒ
+                            if (isset($matchColumnsData['choices'][0]['message']['content'])) {
+                                $columnsJson = json_decode($matchColumnsData['choices'][0]['message']['content'], true);
+                                if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
+                                    $questionText .= "\n\n" . implode("\n", $columnsJson['columnB']);
+                                    $question->setQuestion($questionText);
+                                }
+                            }
+                        }
                     }
 
-                    $wrongAnswersContent = $wrongAnswersData['choices'][0]['message']['content'];
                     $output->writeln("\nWrong answer options for $questionNumber:");
                     $output->writeln($wrongAnswersContent);
 
                     // Format options into the required structure
                     $optionsArray = explode('_', $wrongAnswersContent);
+                    // Remove the correct answer (D) from optionsArray if it exists
+                    $optionsArray = array_filter($optionsArray, function ($option) use ($answerContent) {
+                        return $option !== $answerContent;
+                    });
                     $formattedOptions = [
                         'option1' => $optionsArray[0] ?? '',
                         'option2' => $optionsArray[1] ?? '',
@@ -308,10 +405,14 @@ class CreateQuestionsCommand extends Command
                     $context = '';
                     if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                         $grandParentText = $questionJson[$grandParentNumber];
-                        $parentText = $questionJson[$parentNumber];
+                        $parentText = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
                         $context = $grandParentText . "\n" . $parentText;
-                    } else {
+                    } else if ($parentNumber && isset($questionJson[$parentNumber])) {
                         $context = $questionJson[$parentNumber];
+                    }
+
+                    if ($imagePath) {
+                        $context = strtok($context, "\n");
                     }
                     $question->setContext($context);
 
