@@ -87,6 +87,7 @@ class CreateQuestionsCommand extends Command
                                     " and its parent $parentNumber. do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
+                                    "3. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. e.g. A. taxes\n" .
                                     "3. return the data in a json format. \n" .
                                     "4. the question node must be named exactly as the question number, do not prefix with anything. \n" .
                                     "5. do not prefix the json with any text"
@@ -140,6 +141,8 @@ class CreateQuestionsCommand extends Command
                     }
 
                     $questionContent = $questionData['choices'][0]['message']['content'];
+                    // Remove question numbers in parentheses like (1), (5), (10)
+                    $questionContent = preg_replace('/\s*\(\d+\)\s*/', '', $questionContent);
                     $questionJson = json_decode($questionContent, true);
 
                     if (json_last_error() !== JSON_ERROR_NONE) {
