@@ -501,17 +501,23 @@ class CreateQuestionsCommand extends Command
                     if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                         $grandParentText = $questionJson[$grandParentNumber];
                         if ($imagePath) {
-                            $grandParentText = strtok($grandParentText, "\n");
+                            // Limit grandparent text to 100 characters and add ellipsis
+                            $grandParentText = strlen($grandParentText) > 100 ? substr($grandParentText, 0, 100) . "..." : $grandParentText;
+                            $output->writeln("Grandparent text: " . $grandParentText);
                         }
                         $context = $grandParentText;
+                        $output->writeln("Context: " . $context);
                     }
 
                     if ($parentNumber && isset($questionJson[$parentNumber])) {
                         $parentText = $questionJson[$parentNumber];
                         if ($imagePath) {
-                            $parentText = strtok($parentText, "\n");
+                            // Limit parent text to 100 characters and add ellipsis
+                            $parentText = strlen($parentText) > 100 ? substr($parentText, 0, 100) . "..." : $parentText;
+                            $output->writeln("Parent text: " . $parentText);
                         }
                         $context = $context . "\n\n" . $parentText;
+                        $output->writeln("Context: " . $context);
                     }
 
                     $question->setContext($context);
