@@ -4,6 +4,7 @@ namespace App\Service;
 
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class OpenAIService
 {
@@ -70,6 +71,45 @@ At the end of the script, provide a search text for Google to find the best imag
         } catch (\Exception $e) {
             error_log('OpenAI API Error: ' . $e->getMessage());
             return 'Failed to generate lecture content due to an API error.';
+        }
+    }
+
+    public function uploadFile(UploadedFile $file): array
+    {
+        try {
+            $url = 'https://api.openai.com/v1/files';
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->apiKey
+            ]);
+
+            $postData = [
+                'purpose' => 'assistants',
+                'file' => new \CURLFile(
+                    $file->getPathname(),
+                    $file->getMimeType(),
+                    $file->getClientOriginalName()
+                )
+            ];
+
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($httpCode !== 200) {
+                throw new \Exception('OpenAI API returned status code ' . $httpCode . ': ' . $response);
+            }
+
+            curl_close($ch);
+
+            return json_decode($response, true);
+        } catch (\Exception $e) {
+            throw new \Exception('Failed to upload file to OpenAI: ' . $e->getMessage());
         }
     }
 }

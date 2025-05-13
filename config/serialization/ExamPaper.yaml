@@ -1,0 +1,30 @@
+App\Entity\ExamPaper:
+  attributes:
+    id:
+      groups: ["exam_paper:read"]
+    paperName:
+      groups: ["exam_paper:read"]
+    memoName:
+      groups: ["exam_paper:read"]
+    numberOfQuestions:
+      groups: ["exam_paper:read"]
+    images:
+      groups: ["exam_paper:read"]
+    currentQuestion:
+      groups: ["exam_paper:read"]
+    status:
+      groups: ["exam_paper:read"]
+    subjectName:
+      groups: ["exam_paper:read"]
+    grade:
+      groups: ["exam_paper:read"]
+    year:
+      groups: ["exam_paper:read"]
+    term:
+      groups: ["exam_paper:read"]
+    paperOpenAiFileId:
+      groups: ["exam_paper:read"]
+    memoOpenAiFileId:
+      groups: ["exam_paper:read"]
+    questionNumbers:
+      groups: ["exam_paper:read"]

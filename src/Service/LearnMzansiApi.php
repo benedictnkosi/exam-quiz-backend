@@ -1147,6 +1147,10 @@ class LearnMzansiApi extends AbstractController
             }
 
             $uploadDir = $this->projectDir . '/public/assets/images/learnMzansi';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
             $newFilename = uniqid() . '.' . $file->guessExtension();
 
             $file->move($uploadDir, $newFilename);
@@ -1169,7 +1173,6 @@ class LearnMzansiApi extends AbstractController
 
             $this->em->persist($question);
             $this->em->flush();
-
 
             return array(
                 'status' => 'OK',
