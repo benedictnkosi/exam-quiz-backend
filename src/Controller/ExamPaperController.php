@@ -214,7 +214,7 @@ class ExamPaperController extends AbstractController
         }
     }
 
-    #[Route('/{id}/status', name: 'exam_paper_update_status', methods: ['PATCH'])]
+    #[Route('/{id}/status', name: 'exam_paper_update_status', methods: ['PUT'])]
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         try {
