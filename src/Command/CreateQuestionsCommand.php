@@ -608,19 +608,17 @@ class CreateQuestionsCommand extends Command
                 }
 
                 // Set paper status to done if all questions were processed successfully
-                if ($allQuestionsProcessed) {
-                    $paper->setStatus('done');
-                    $this->entityManager->persist($paper);
-                    $this->entityManager->flush();
-                    $output->writeln("Paper ID: {$paper->getId()} completed successfully");
-                }
+
+                $paper->setStatus('done');
+                $this->entityManager->persist($paper);
+                $this->entityManager->flush();
+                $output->writeln("Paper ID: {$paper->getId()} completed");
             }
 
             $output->writeln("Finished processing current batch. Waiting for 5 minutes before checking for new papers...");
             sleep(300); // Sleep for 5 minutes
         }
 
-        return Command::SUCCESS;
     }
 
     private function getLeafQuestions(array $questionNumbers): array
