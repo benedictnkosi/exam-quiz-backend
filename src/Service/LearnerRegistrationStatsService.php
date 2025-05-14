@@ -69,17 +69,34 @@ class LearnerRegistrationStatsService
             $this->logger->info("Getting total number of learners");
 
             $qb = $this->em->createQueryBuilder();
-            $qb->select('COUNT(l.id) as total')
+            $qb->select('g.number as grade_number, COUNT(l.id) as total')
                 ->from('App\\Entity\\Learner', 'l')
+                ->leftJoin('l.grade', 'g')
                 ->where('l.email NOT LIKE :testEmail')
+                ->groupBy('g.number')
+                ->orderBy('g.number', 'ASC')
                 ->setParameter('testEmail', '%test%');
 
-            $result = $qb->getQuery()->getSingleResult();
+            $results = $qb->getQuery()->getResult();
+
+            // Calculate total across all grades
+            $totalLearners = 0;
+            $gradeBreakdown = [];
+            foreach ($results as $result) {
+                $gradeNumber = $result['grade_number'] ?? 'Unknown';
+                $count = (int) $result['total'];
+                $totalLearners += $count;
+                $gradeBreakdown[] = [
+                    'grade' => $gradeNumber,
+                    'count' => $count
+                ];
+            }
 
             return [
                 'status' => 'OK',
                 'data' => [
-                    'total' => (int) $result['total']
+                    'total' => $totalLearners,
+                    'grade_breakdown' => $gradeBreakdown
                 ]
             ];
 
