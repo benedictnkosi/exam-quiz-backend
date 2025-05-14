@@ -45,7 +45,7 @@ class CreateQuestionsCommand extends Command
         $questionNumberFilter = $input->getArgument('question-number');
 
         while (true) {
-            $papers = $this->examPaperRepository->findBy(['status' => ['processed_numbers']]);
+            $papers = $this->examPaperRepository->findBy(['status' => ['pending']]);
 
             if (empty($papers)) {
                 $output->writeln("No papers to process. Waiting for 5 minutes...");
