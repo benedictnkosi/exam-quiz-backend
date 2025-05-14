@@ -387,6 +387,15 @@ class CreateQuestionsCommand extends Command
                     } else {
                         // Get wrong answer options
                         if (!$isMatchTableQuestion) {
+                            $promptContent = "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options";
+
+                            // Check if answer contains forward slashes
+                            if (strpos($answerContent, '/') !== false) {
+                                $promptContent .= " \n all options must contain forward slashes in the same format as the correct answer";
+                            }
+
+                            $promptContent .= " \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string";
+
                             $wrongAnswersPrompt = [
                                 [
                                     'role' => 'system',
@@ -394,7 +403,7 @@ class CreateQuestionsCommand extends Command
                                 ],
                                 [
                                     'role' => 'user',
-                                    'content' => "question: {$questionText}. Correct Answer: \"{$answerContent}\". \n Give me exactly 3 wrong answers for this question. \n length of each answer must be similar to the length of the correct answer. \n if a letter is provided as the answer, then only letters must be in the options \n if correct answer container forward slashes then the options must contain forward slashes \n I am setting up a mock test. \n separate the answers by an underscore sign, do not number the answers, do not return the string as json, do not add new line to the string "
+                                    'content' => $promptContent
                                 ]
                             ];
 
