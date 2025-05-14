@@ -891,7 +891,7 @@ class LearnMzansiApi extends AbstractController
                     'q',
                     'WITH',
                     $qb->expr()->andX(
-                        $qb->expr()->eq('q.subject', 's.id'),
+                        $qb->expr()->eq('q.subject', 's'),
                         $qb->expr()->eq('q.active', ':active'),
                         $qb->expr()->in('q.curriculum', ':curriculum'),
                         $qb->expr()->in('q.term', ':terms')
