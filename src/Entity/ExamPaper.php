@@ -15,6 +15,10 @@ class ExamPaper
     #[Serializer\Groups(["exam_paper:read"])]
     private ?int $id = null;
 
+    #[ORM\Column(type: 'datetime')]
+    #[Serializer\Groups(["exam_paper:read"])]
+    private ?\DateTime $created = null;
+
     #[ORM\ManyToOne(targetEntity: Learner::class)]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true)]
     #[Serializer\Groups(["exam_paper:read"])]
@@ -257,6 +261,17 @@ class ExamPaper
     public function setQuestionProgress(?array $questionProgress): static
     {
         $this->questionProgress = $questionProgress;
+        return $this;
+    }
+
+    public function getCreated(): ?\DateTime
+    {
+        return $this->created;
+    }
+
+    public function setCreated(\DateTime $created): static
+    {
+        $this->created = $created;
         return $this;
     }
 

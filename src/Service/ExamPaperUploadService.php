@@ -155,6 +155,7 @@ class ExamPaperUploadService
             $examPaper->setCurrentQuestion('0'); // Initialize current question as string
             $examPaper->setStatus('pending'); // Set initial status
             $examPaper->setUser($user); // Set the user
+            $examPaper->setCreated(new \DateTime()); // Set creation time
 
             $examPaper->setPaperName($newFilename);
             $examPaper->setImages(null);

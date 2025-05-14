@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\ExamPaper;
 use App\Service\ExamPaperUploadService;
+use App\Service\ExamPaperStatusService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,6 +25,7 @@ class ExamPaperController extends AbstractController
 {
     public function __construct(
         private ExamPaperUploadService $uploadService,
+        private ExamPaperStatusService $statusService,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer,
         private LoggerInterface $logger
@@ -209,6 +211,89 @@ class ExamPaperController extends AbstractController
         } catch (\Exception $e) {
             $this->logger->error('Error removing image: ' . $e->getMessage());
             return $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    #[Route('/{id}/status', name: 'exam_paper_update_status', methods: ['PATCH'])]
+    public function updateStatus(Request $request, int $id): JsonResponse
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            if (!isset($data['status'])) {
+                return $this->json(['error' => 'Status is required'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $examPaper = $this->statusService->updateStatus($id, $data['status']);
+
+            $context = SerializationContext::create()->setGroups(['exam_paper:read']);
+            $jsonContent = $this->serializer->serialize($examPaper, 'json', $context);
+
+            return new JsonResponse([
+                'message' => 'Status updated successfully',
+                'examPaper' => json_decode($jsonContent, true)
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\Exception $e) {
+            $this->logger->error('Error updating exam paper status: ' . $e->getMessage());
+            return $this->json(['error' => 'An error occurred while updating the status'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('', name: 'exam_paper_list', methods: ['GET'])]
+    public function list(Request $request): JsonResponse
+    {
+        try {
+            // Get query parameters
+            $filters = [];
+            $orderBy = ['field' => 'id', 'direction' => 'DESC'];
+            $limit = null;
+            $offset = null;
+
+            // Parse filters
+            if ($request->query->has('status')) {
+                $filters['status'] = $request->query->get('status');
+            }
+            if ($request->query->has('grade')) {
+                $filters['grade'] = (int) $request->query->get('grade');
+            }
+            if ($request->query->has('year')) {
+                $filters['year'] = (int) $request->query->get('year');
+            }
+            if ($request->query->has('term')) {
+                $filters['term'] = $request->query->get('term');
+            }
+            if ($request->query->has('subjectName')) {
+                $filters['subjectName'] = $request->query->get('subjectName');
+            }
+
+            // Parse ordering
+            if ($request->query->has('orderBy')) {
+                $orderBy['field'] = $request->query->get('orderBy');
+            }
+            if ($request->query->has('orderDirection')) {
+                $orderBy['direction'] = strtoupper($request->query->get('orderDirection'));
+            }
+
+            // Parse pagination
+            if ($request->query->has('limit')) {
+                $limit = (int) $request->query->get('limit');
+            }
+            if ($request->query->has('offset')) {
+                $offset = (int) $request->query->get('offset');
+            }
+
+            $examPapers = $this->statusService->getAllExamPapers($filters, $orderBy, $limit, $offset);
+
+            $context = SerializationContext::create()->setGroups(['exam_paper:read']);
+            $jsonContent = $this->serializer->serialize($examPapers, 'json', $context);
+
+            return new JsonResponse([
+                'examPapers' => json_decode($jsonContent, true)
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting exam papers: ' . $e->getMessage());
+            return $this->json(['error' => 'An error occurred while fetching exam papers'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

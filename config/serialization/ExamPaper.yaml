@@ -2,6 +2,8 @@ App\Entity\ExamPaper:
   attributes:
     id:
       groups: ["exam_paper:read"]
+    created:
+      groups: ["exam_paper:read"]
     paperName:
       groups: ["exam_paper:read"]
     memoName:
