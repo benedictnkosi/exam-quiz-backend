@@ -108,6 +108,7 @@ class CreateQuestionsCommand extends Command
                                     ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
+                                    "3. Do not include quotaiton marks in the question text. \n" .
                                     "3. do not include any text in tables or diagrams or images and pictures. \n" .
                                     "4. if question is a match table question, then return value from column A only. \n" .
                                     "4. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
@@ -241,6 +242,39 @@ class CreateQuestionsCommand extends Command
 
                     $output->writeln("Parent Question ($parentNumber):");
 
+                    // Check if this is a true/false question
+                    $isTrueFalseQuestion = false;
+                    if (isset($questionData['choices'][0]['message']['content'])) {
+                        $content = strtoupper($questionData['choices'][0]['message']['content']);
+                        if (strpos($content, 'TRUE') !== false && strpos($content, 'FALSE') !== false) {
+                            $isTrueFalseQuestion = true;
+                            $output->writeln("Working with a true/false question");
+
+                            // Update answer prompt for true/false questions
+                            $answerPrompt = [
+                                [
+                                    'role' => 'system',
+                                    'content' => 'You are a document analysis assistant. Your task is to extract the correct answer (TRUE or FALSE) from answer memos. Return only TRUE or FALSE.'
+                                ],
+                                [
+                                    'role' => 'user',
+                                    'content' => [
+                                        [
+                                            'type' => 'file',
+                                            'file' => [
+                                                'file_id' => $paper->getMemoOpenAiFileId()
+                                            ]
+                                        ],
+                                        [
+                                            'type' => 'text',
+                                            'text' => "From the question answer book, extract the correct answer (TRUE or FALSE) for question $questionNumber. Return only TRUE or FALSE, nothing else."
+                                        ]
+                                    ]
+                                ]
+                            ];
+                        }
+                    }
+
                     // Validate parent question data
                     if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
                         throw new \Exception("Missing or invalid parent question data for $parentNumber");
@@ -280,7 +314,7 @@ class CreateQuestionsCommand extends Command
                     // Create question entity if not already created for match table
                     if (!$question) {
                         $question = new Question();
-                        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => 'nkosi@gmail.com']);
+                        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['id' => $paper->getUser()]);
                         //default values
                         $question->setCapturer($learner);
                         $question->setReviewer($learner);
@@ -438,23 +472,32 @@ class CreateQuestionsCommand extends Command
                     $output->writeln($wrongAnswersContent);
 
                     // Format options into the required structure
-                    $optionsArray = explode('_', $wrongAnswersContent);
-                    // Remove the correct answer (D) from optionsArray if it exists
-                    $optionsArray = array_filter($optionsArray, function ($option) use ($answerContent) {
-                        return $option !== $answerContent;
-                    });
-                    // Remove quotation marks from each option
-                    $optionsArray = array_map(function ($option) {
-                        return str_replace(['"', "'"], '', trim($option));
-                    }, $optionsArray);
-                    $formattedOptions = [
-                        'option1' => $optionsArray[0] ?? '',
-                        'option2' => $optionsArray[1] ?? '',
-                        'option3' => $optionsArray[2] ?? '',
-                        'option4' => str_replace(['"', "'"], '', trim($answerContent)) ?? ''
-                    ];
+                    if ($isTrueFalseQuestion) {
+                        $formattedOptions = [
+                            'option1' => 'TRUE',
+                            'option2' => 'FALSE',
+                            'option3' => 'MAYBE',
+                            'option4' => 'SOMETIMES'
+                        ];
+                    } else {
+                        $optionsArray = explode('_', $wrongAnswersContent);
+                        // Remove the correct answer (D) from optionsArray if it exists
+                        $optionsArray = array_filter($optionsArray, function ($option) use ($answerContent) {
+                            return $option !== $answerContent;
+                        });
+                        // Remove quotation marks from each option
+                        $optionsArray = array_map(function ($option) {
+                            return str_replace(['"', "'"], '', trim($option));
+                        }, $optionsArray);
+                        $formattedOptions = [
+                            'option1' => $optionsArray[0] ?? '',
+                            'option2' => $optionsArray[1] ?? '',
+                            'option3' => $optionsArray[2] ?? '',
+                            'option4' => str_replace(['"', "'"], '', trim($answerContent)) ?? ''
+                        ];
+                    }
                     $question->setOptions($formattedOptions);
-                    $question->setType('multiple_choice');
+                    $question->setType($isTrueFalseQuestion ? 'true_false' : 'multiple_choice');
 
                     // Set context based on whether grandparent exists
                     $context = '';

@@ -10,6 +10,9 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Psr\Log\LoggerInterface;
 use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\Grade;
+use App\Entity\Subject;
+use App\Entity\Question;
 
 class ExamPaperUploadService
 {
@@ -27,6 +30,43 @@ class ExamPaperUploadService
     ) {
         $this->uploadDir = $this->params->get('upload_directory');
         $this->logger = $logger;
+    }
+
+    private function checkQuestionCount(string $subjectName, int $grade, int $year, string $term): void
+    {
+        // Find the subject by name and grade
+        $gradeEntity = $this->entityManager->getRepository(Grade::class)->findOneBy(['number' => $grade]);
+        if (!$gradeEntity) {
+            throw new \InvalidArgumentException("Grade {$grade} not found");
+        }
+
+        $subject = $this->entityManager->getRepository(Subject::class)->findOneBy([
+            'name' => $subjectName,
+            'grade' => $gradeEntity
+        ]);
+
+        if (!$subject) {
+            throw new \InvalidArgumentException("Subject {$subjectName} not found for grade {$grade}");
+        }
+
+        // Count questions for this subject, year, and term
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('COUNT(q.id)')
+            ->from(Question::class, 'q')
+            ->where('q.subject = :subject')
+            ->andWhere('q.year = :year')
+            ->andWhere('q.term = :term')
+            ->andWhere('q.active = :active')
+            ->setParameter('subject', $subject)
+            ->setParameter('year', $year)
+            ->setParameter('term', $term)
+            ->setParameter('active', true);
+
+        $questionCount = $qb->getQuery()->getSingleScalarResult();
+
+        if ($questionCount >= 5) {
+            throw new \InvalidArgumentException('Maximum number of questions (5) already reached for this subject, grade, year, and term combination.');
+        }
     }
 
     public function uploadPaper(
@@ -59,6 +99,11 @@ class ExamPaperUploadService
         $validTerms = ['1', '2', '3', '4'];
         if (!in_array($term, $validTerms)) {
             throw new \InvalidArgumentException('Term must be one of: ' . implode(', ', $validTerms));
+        }
+
+        // Check question count limit if not a memo
+        if ($type !== 'memo') {
+            $this->checkQuestionCount($subjectName, $grade, $year, $term);
         }
 
         // Find user by UID
