@@ -170,16 +170,6 @@ class CreateQuestionsCommand extends Command
                         $isMatchTableQuestion = true;
                         $output->writeln("Working with a match table question");
 
-                        // Create question entity for match table question
-                        $question = new Question();
-                        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => 'nkosi@gmail.com']);
-                        //default values
-                        $question->setCapturer($learner);
-                        $question->setReviewer($learner);
-                        $question->setCurriculum('CAPS');
-                        $question->setRelatedQuestionIds([]);
-                        $question->setTopic(null);
-
                         // Create a new prompt to extract column values
                         $matchColumnsPrompt = [
                             [
@@ -204,7 +194,8 @@ class CreateQuestionsCommand extends Command
                                             "}\n" .
                                             "1. include the columnB alphabet for each option\n" .
                                             "2. Return only the JSON, no additional text\n" .
-                                            "3. Make sure all the values in columnB are included in the json\n"
+                                            "3. Make sure all the values in columnB are included in the json\n" .
+                                            "3. Do not change the order of the values in column B\n"
                                     ]
                                 ]
                             ]
@@ -226,31 +217,9 @@ class CreateQuestionsCommand extends Command
 
                         // Append Column B content to question text
                         if (isset($matchColumnsData['choices'][0]['message']['content'])) {
-                            $content = $matchColumnsData['choices'][0]['message']['content'];
-                            // Remove markdown code block markers if present
-                            $content = preg_replace('/^```json\s*|\s*```$/', '', $content);
-                            $columnsJson = json_decode($content, true);
+                            $columnsJson = json_decode($matchColumnsData['choices'][0]['message']['content'], true);
                             if (isset($columnsJson['columnB']) && is_array($columnsJson['columnB'])) {
-                                $output->writeln("Columns JSON: " . json_encode($columnsJson));
-
-                                // Get the original question text without JSON formatting
-                                $originalQuestion = $questionData['choices'][0]['message']['content'];
-                                $originalQuestion = preg_replace('/^```json\s*|\s*```$/', '', $originalQuestion);
-                                $questionJson = json_decode($originalQuestion, true);
-
-                                if (isset($questionJson[$questionNumber])) {
-                                    $output->writeln("Question number: " . $questionNumber);
-                                    $output->writeln("Question text: " . $questionJson[$questionNumber]);
-                                    // Format the match table question with column B values
-                                    $formattedQuestion = $questionJson[$questionNumber] . "\n\n\n";
-                                    foreach ($columnsJson['columnB'] as $value) {
-                                        $output->writeln("Column B value: " . $value);
-                                        $formattedQuestion .= $value . "\n";
-                                    }
-
-                                    $output->writeln("Formatted Question Text: " . $formattedQuestion);
-                                    $question->setQuestion($formattedQuestion);
-                                }
+                                $questionText = $questionData['choices'][0]['message']['content'] . "\n\n" . implode("\n", $columnsJson['columnB']);
                             }
                         }
                     }
@@ -262,32 +231,10 @@ class CreateQuestionsCommand extends Command
                     $questionContent = $questionData['choices'][0]['message']['content'];
                     // Remove question numbers in parentheses like (1), (5), (10)
                     $questionContent = preg_replace('/\s*\(\d+\)\s*/', '', $questionContent);
-
-                    // Remove markdown code block markers if present
-                    $questionContent = preg_replace('/^```json\s*|\s*```$/', '', $questionContent);
-
-                    // Replace escaped newlines with actual newlines
-                    $questionContent = str_replace('\\n', "\n", $questionContent);
-
-                    // Clean up any control characters and ensure proper JSON encoding
-                    $questionContent = preg_replace('/[\x00-\x1F\x7F]/u', '', $questionContent);
-
-                    // Try to parse the JSON with proper error handling
                     $questionJson = json_decode($questionContent, true);
 
                     if (json_last_error() !== JSON_ERROR_NONE) {
-                        // If parsing fails, try to clean up the JSON structure
-                        $questionContent = preg_replace('/[\x00-\x1F\x7F]/u', '', $questionContent);
-                        $questionContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $questionContent);
-                        $questionContent = preg_replace('/[\x{202A}-\x{202E}]/u', '', $questionContent);
-
-                        // Try parsing again
-                        $questionJson = json_decode($questionContent, true);
-
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            $output->writeln("Raw question content: " . $questionContent);
-                            throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
-                        }
+                        throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
                     }
 
                     $output->writeln("Question ($questionNumber):");
