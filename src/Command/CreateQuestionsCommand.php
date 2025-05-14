@@ -44,7 +44,7 @@ class CreateQuestionsCommand extends Command
         $apiUrl = 'https://api.openai.com/v1/chat/completions';
         $questionNumberFilter = $input->getArgument('question-number');
 
-        $papers = $this->examPaperRepository->findBy(['status' => ['in_progress', 'processed_numbers']]);
+        $papers = $this->examPaperRepository->findBy(['status' => ['processed_numbers']]);
         foreach ($papers as $paper) {
             $output->writeln("Processing paper ID: {$paper->getId()}");
             if (!$paper->getPaperOpenAiFileId() || !$paper->getQuestionNumbers() || !$paper->getMemoOpenAiFileId()) {
@@ -478,6 +478,15 @@ class CreateQuestionsCommand extends Command
                         }
                         $context = $context . "\n\n" . $parentText;
                         $output->writeln("Context: " . $context);
+                    }
+
+                    // Clean up context text
+                    if ($context) {
+                        $context = str_replace('TWO', '', $context);
+                        $context = str_replace('THREE', '', $context);
+                        $context = str_replace('FOUR', '', $context);
+                        $context = str_replace('FIVE', '', $context);
+                        $context = str_replace('SIX', '', $context);
                     }
 
                     $question->setContext($context);

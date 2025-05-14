@@ -28,3 +28,5 @@ App\Entity\ExamPaper:
       groups: ["exam_paper:read"]
     questionNumbers:
       groups: ["exam_paper:read"]
+    user:
+      groups: ["exam_paper:read"]

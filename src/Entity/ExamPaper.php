@@ -15,6 +15,11 @@ class ExamPaper
     #[Serializer\Groups(["exam_paper:read"])]
     private ?int $id = null;
 
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true)]
+    #[Serializer\Groups(["exam_paper:read"])]
+    private ?Learner $user = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     #[Serializer\Groups(["exam_paper:read"])]
     private ?string $paperName = null;
@@ -74,6 +79,17 @@ class ExamPaper
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getUser(): ?Learner
+    {
+        return $this->user;
+    }
+
+    public function setUser(?Learner $user): self
+    {
+        $this->user = $user;
+        return $this;
     }
 
     public function getPaperName(): ?string

@@ -8,6 +8,8 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Psr\Log\LoggerInterface;
+use App\Entity\Learner;
+use Doctrine\ORM\EntityManagerInterface;
 
 class ExamPaperUploadService
 {
@@ -20,6 +22,7 @@ class ExamPaperUploadService
         private OpenAIService $openAiService,
         private ParameterBagInterface $params,
         private ExamPaperProcessorService $processorService,
+        private EntityManagerInterface $entityManager,
         LoggerInterface $logger
     ) {
         $this->uploadDir = $this->params->get('upload_directory');
@@ -33,6 +36,7 @@ class ExamPaperUploadService
         int $grade,
         int $year,
         string $term,
+        string $userUid,
         ?string $examPaperId = null
     ): ExamPaper {
         // Validate file type
@@ -55,6 +59,12 @@ class ExamPaperUploadService
         $validTerms = ['1', '2', '3', '4'];
         if (!in_array($term, $validTerms)) {
             throw new \InvalidArgumentException('Term must be one of: ' . implode(', ', $validTerms));
+        }
+
+        // Find user by UID
+        $user = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $userUid]);
+        if (!$user) {
+            throw new \InvalidArgumentException('User not found');
         }
 
         // Generate unique filename
@@ -99,6 +109,7 @@ class ExamPaperUploadService
             $examPaper->setNumberOfQuestions(0); // Initialize with 0 questions
             $examPaper->setCurrentQuestion('0'); // Initialize current question as string
             $examPaper->setStatus('pending'); // Set initial status
+            $examPaper->setUser($user); // Set the user
 
             $examPaper->setPaperName($newFilename);
             $examPaper->setImages(null);

@@ -48,6 +48,11 @@ class ExamPaperController extends AbstractController
             $grade = (int) $request->request->get('grade');
             $year = (int) $request->request->get('year');
             $term = $request->request->get('term');
+            $userUid = $request->request->get('userUid');
+
+            if (!$userUid) {
+                return $this->json(['error' => 'User UID is required'], Response::HTTP_BAD_REQUEST);
+            }
 
             // For memo uploads, require examPaperId
             if ($type === 'memo') {
@@ -64,6 +69,7 @@ class ExamPaperController extends AbstractController
                 $grade,
                 $year,
                 $term,
+                $userUid,
                 $type === 'memo' ? $examPaperId : null
             );
 
