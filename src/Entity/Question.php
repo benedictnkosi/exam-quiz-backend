@@ -102,6 +102,9 @@ class Question
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $topic = null;
 
+    #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ['default' => false])]
+    private bool $ai = false;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -440,6 +443,19 @@ class Question
     public function setTopic(?string $topic): static
     {
         $this->topic = $topic;
+
+        return $this;
+    }
+
+    public function isAi(): bool
+    {
+        return $this->ai;
+    }
+
+    public function setAi(bool $ai): static
+    {
+        $this->ai = $ai;
+
         return $this;
     }
 }

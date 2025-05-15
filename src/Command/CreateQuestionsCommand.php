@@ -48,13 +48,15 @@ class CreateQuestionsCommand extends Command
             $papers = $this->examPaperRepository->findBy(['status' => ['pending']]);
 
             if (empty($papers)) {
-                $output->writeln("No papers to process. Waiting for 5 minutes...");
+                $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                $output->writeln("[$timestamp] No papers to process. Waiting for 5 minutes...");
                 sleep(300); // Sleep for 5 minutes
                 continue;
             }
 
             foreach ($papers as $paper) {
-                $output->writeln("Processing paper ID: {$paper->getId()}");
+                $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                $output->writeln("[$timestamp] Processing paper ID: {$paper->getId()}");
                 if (!$paper->getPaperOpenAiFileId() || !$paper->getQuestionNumbers() || !$paper->getMemoOpenAiFileId()) {
                     continue;
                 }
@@ -69,25 +71,26 @@ class CreateQuestionsCommand extends Command
                 $allQuestionsProcessed = true;
 
                 foreach ($leafQuestions as $questionNumber) {
-                    //$output->writeln("Processing question: $questionNumber for paper ID: {$paper->getId()}");
-
                     // Check if question is already processed
                     $questionProgress = $paper->getQuestionProgress();
                     if (isset($questionProgress[$questionNumber]) && $questionProgress[$questionNumber]['status'] === 'Done') {
-                        $output->writeln("Question $questionNumber already processed, skipping...");
+                        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                        $output->writeln("[$timestamp] Question $questionNumber already processed, skipping...");
                         continue;
                     }
 
                     // Check if question has child questions
                     $childQuestionNumber = $questionNumber . " (a)";
                     if (in_array($childQuestionNumber, $questionNumbers)) {
-                        $output->writeln("Question $questionNumber has child questions, skipping...");
+                        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                        $output->writeln("[$timestamp] Question $questionNumber has child questions, skipping...");
                         continue;
                     }
 
                     // Apply question number filter if provided
                     if ($questionNumberFilter && !str_contains($questionNumber, $questionNumberFilter)) {
-                        $output->writeln("Skipping question $questionNumber (does not match filter: $questionNumberFilter)");
+                        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                        $output->writeln("[$timestamp] Skipping question $questionNumber (does not match filter: $questionNumberFilter)");
                         continue;
                     }
 
@@ -163,7 +166,6 @@ class CreateQuestionsCommand extends Command
                                 'messages' => $questionPrompt
                             ]
                         ])->toArray(false);
-                        $output->writeln("Question Data: " . json_encode($questionData));
 
                         // Initialize variables
                         $question = null;
@@ -177,7 +179,6 @@ class CreateQuestionsCommand extends Command
                             stripos($questionData['choices'][0]['message']['content'], 'Column') !== false
                         ) {
                             $isMatchTableQuestion = true;
-                            $output->writeln("Working with a match table question");
 
                             // Create a new prompt to extract column values
                             $matchColumnsPrompt = [
@@ -222,7 +223,6 @@ class CreateQuestionsCommand extends Command
                             ]);
 
                             $matchColumnsData = $matchColumnsResponse->toArray(false);
-                            $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
 
                             // Append Column B content to question text
                             if (isset($matchColumnsData['choices'][0]['message']['content'])) {
@@ -246,17 +246,12 @@ class CreateQuestionsCommand extends Command
                             throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
                         }
 
-                        $output->writeln("Question ($questionNumber):");
-
-                        $output->writeln("Parent Question ($parentNumber):");
-
                         // Check if this is a true/false question
                         $isTrueFalseQuestion = false;
                         if (isset($questionData['choices'][0]['message']['content'])) {
                             $content = strtoupper($questionData['choices'][0]['message']['content']);
                             if (strpos($content, 'TRUE') !== false && strpos($content, 'FALSE') !== false) {
                                 $isTrueFalseQuestion = true;
-                                $output->writeln("Working with a true/false question");
 
                                 // Update answer prompt for true/false questions
                                 $answerPrompt = [
@@ -290,15 +285,10 @@ class CreateQuestionsCommand extends Command
 
                         $parentData = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
                         if (!is_string($parentData)) {
-                            $output->writeln("Parent data: " . json_encode($parentData));
                             throw new \Exception("Invalid parent question data format for $parentNumber");
                         }
 
                         $questionText = $parentData;
-                        $output->writeln("Context: " . $questionText);
-                        $output->writeln("Has Image/Table/Diagram: " . (isset($parentData['has_image_or_table_or_diagram']) && $parentData['has_image_or_table_or_diagram'] ? 'Yes' : 'No'));
-
-                        $output->writeln("\nQuestion ($questionNumber):");
 
                         // Validate child question data
                         if (!isset($questionJson[$questionNumber])) {
@@ -317,7 +307,6 @@ class CreateQuestionsCommand extends Command
                         }
 
                         $questionText = $questionData;
-                        $output->writeln("Question: " . $questionText);
 
                         // Create question entity if not already created for match table
                         if (!$question) {
@@ -329,6 +318,7 @@ class CreateQuestionsCommand extends Command
                             $question->setCurriculum('CAPS');
                             $question->setRelatedQuestionIds([]);
                             $question->setTopic(null);
+                            $question->setAi(true);
                         }
 
                         //REMOVE TWO, THREE, FOUR FROM THE QUESTION TEXT
@@ -360,7 +350,8 @@ class CreateQuestionsCommand extends Command
                         if ($paper->getImages()) {
                             $images = $paper->getImages();
                             if (!is_array($images)) {
-                                $output->writeln("Warning: Invalid images data format for paper ID: {$paper->getId()}");
+                                $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                                $output->writeln("[$timestamp] Warning: Invalid images data format for paper ID: {$paper->getId()}");
                                 continue;
                             }
 
@@ -383,17 +374,10 @@ class CreateQuestionsCommand extends Command
 
                             if ($imagePath) {
                                 $question->setImagePath($imagePath);
-                                $output->writeln("Found image for question: " . $imagePath);
-                            } else {
-                                $output->writeln("No matching image found for question parents $parentNumber, grandparent $grandParentNumber" .
-                                    ($grandParentNumber ? ", or grandparent $grandParentNumber" : ""));
                             }
 
                             if ($questionImagePath) {
                                 $question->setQuestionImagePath($questionImagePath);
-                                $output->writeln("Found image for question: " . $questionImagePath);
-                            } else {
-                                $output->writeln("No matching image found for question $questionNumber");
                             }
                         }
 
@@ -416,8 +400,6 @@ class CreateQuestionsCommand extends Command
                         }
 
                         $answerContent = $answerData['choices'][0]['message']['content'];
-                        $output->writeln("\nAnswer content for $questionNumber:");
-                        $output->writeln($answerContent);
 
                         $question->setAnswer($answerContent);
 
@@ -467,17 +449,10 @@ class CreateQuestionsCommand extends Command
                                 }
 
                                 $wrongAnswersContent = $wrongAnswersData['choices'][0]['message']['content'];
-                                $output->writeln("Wrong Answers Content: " . $wrongAnswersContent);
                             } else {
                                 $wrongAnswersContent = "A_B_C_D";
-
-                                $matchColumnsData = $matchColumnsResponse->toArray(false);
-                                $output->writeln("Match Columns Data: " . json_encode($matchColumnsData));
                             }
                         }
-
-                        $output->writeln("\nWrong answer options for $questionNumber:");
-                        $output->writeln($wrongAnswersContent);
 
                         // Format options into the required structure
                         if ($isTrueFalseQuestion) {
@@ -514,10 +489,8 @@ class CreateQuestionsCommand extends Command
                             if ($imagePath) {
                                 // Limit grandparent text to 100 characters and add ellipsis
                                 $grandParentText = strlen($grandParentText) > 100 ? substr($grandParentText, 0, 100) . "..." : $grandParentText;
-                                $output->writeln("Grandparent text: " . $grandParentText);
                             }
                             $context = $grandParentText;
-                            $output->writeln("Context: " . $context);
                         }
 
                         if ($parentNumber && isset($questionJson[$parentNumber])) {
@@ -525,10 +498,8 @@ class CreateQuestionsCommand extends Command
                             if ($imagePath) {
                                 // Limit parent text to 100 characters and add ellipsis
                                 $parentText = strlen($parentText) > 100 ? substr($parentText, 0, 100) . "..." : $parentText;
-                                $output->writeln("Parent text: " . $parentText);
                             }
                             $context = $context . "\n\n" . $parentText;
-                            $output->writeln("Context: " . $context);
                         }
 
                         // Clean up context text
@@ -577,7 +548,8 @@ class CreateQuestionsCommand extends Command
                         ]);
 
                         if ($existingQuestion) {
-                            $output->writeln("Duplicate question found with ID: " . $existingQuestion->getId() . ". Skipping creation.");
+                            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                            $output->writeln("[$timestamp] Duplicate question found with ID: " . $existingQuestion->getId() . ". Skipping creation.");
                             // Update progress for this question
                             $paper->updateQuestionProgress($questionNumber, "Skipped", "Duplicate question found");
                             $this->entityManager->persist($paper);
@@ -588,8 +560,8 @@ class CreateQuestionsCommand extends Command
                         $this->entityManager->persist($question);
                         $this->entityManager->flush();
 
-                        $output->writeln("Question created with ID: " . $question->getId());
-                        $output->writeln("----------------------------------------");
+                        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                        $output->writeln("[$timestamp] Question created with ID: " . $question->getId());
 
                         // Update progress for this question
                         $paper->updateQuestionProgress($questionNumber, "Done");
@@ -597,7 +569,8 @@ class CreateQuestionsCommand extends Command
                         $this->entityManager->flush();
 
                     } catch (\Exception $e) {
-                        $output->writeln("<error>Error processing question $questionNumber: " . $e->getMessage() . "</error>");
+                        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                        $output->writeln("[$timestamp] <error>Error processing question $questionNumber: " . $e->getMessage() . "</error>");
                         // Update progress with failure status
                         $paper->updateQuestionProgress($questionNumber, "Failed", $e->getMessage());
                         $this->entityManager->persist($paper);
@@ -608,17 +581,17 @@ class CreateQuestionsCommand extends Command
                 }
 
                 // Set paper status to done if all questions were processed successfully
-
                 $paper->setStatus('done');
                 $this->entityManager->persist($paper);
                 $this->entityManager->flush();
-                $output->writeln("Paper ID: {$paper->getId()} completed");
+                $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                $output->writeln("[$timestamp] Paper ID: {$paper->getId()} completed");
             }
 
-            $output->writeln("Finished processing current batch. Waiting for 5 minutes before checking for new papers...");
+            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+            $output->writeln("[$timestamp] Finished processing current batch. Waiting for 5 minutes before checking for new papers...");
             sleep(300); // Sleep for 5 minutes
         }
-
     }
 
     private function getLeafQuestions(array $questionNumbers): array
@@ -642,31 +615,21 @@ class CreateQuestionsCommand extends Command
 
     private function getParentQuestion(string $questionNumber): string
     {
-        $output = new \Symfony\Component\Console\Output\ConsoleOutput();
-        $output->writeln("Original question number: " . $questionNumber);
-
         // Check if it's a lettered sub-question
         if (preg_match('/\s*\([a-z]\)\s*$/i', $questionNumber)) {
             // For lettered sub-questions, return the full number without the letter
-            $result = preg_replace('/\s*\([a-z]\)\s*$/i', '', $questionNumber);
-            $output->writeln("Lettered sub-question, returning: " . $result);
-            return $result;
+            return preg_replace('/\s*\([a-z]\)\s*$/i', '', $questionNumber);
         }
 
         // For numbered sub-questions, remove the last number
         if (str_contains($questionNumber, '.')) {
             $parts = explode('.', $questionNumber);
-            $output->writeln("Parts after splitting: " . json_encode($parts));
-
             if (count($parts) > 1) {
                 array_pop($parts);
-                $result = implode('.', $parts);
-                $output->writeln("Numbered sub-question, returning: " . $result);
-                return $result;
+                return implode('.', $parts);
             }
         }
 
-        $output->writeln("No dots found, returning original: " . $questionNumber);
         return $questionNumber;
     }
 
