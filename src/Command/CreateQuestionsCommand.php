@@ -53,14 +53,14 @@ class CreateQuestionsCommand extends Command
         }
 
         $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
-        $papers = array_filter($papers, function($paper) {
+        $papers = array_filter($papers, function ($paper) {
             return strtolower($paper->getSubjectName()) !== 'mathematics';
         });
 
         if (empty($papers)) {
             $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
             $output->writeln("[$timestamp] No papers to process.");
-            return Command::SUCCESS;e
+            return Command::SUCCESS;
         }
 
         foreach ($papers as $paper) {
