@@ -2578,6 +2578,7 @@ class LearnMzansiApi extends AbstractController
 
             // Update question with AI explanation
             $question->setAiExplanation($explanation);
+            $question->setAi(false);
             $this->em->flush();
 
             return [
