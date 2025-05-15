@@ -800,6 +800,9 @@ class CreateMathsQuestionsCommand extends Command
             return false;
         }
 
+        // List of LaTeX command words to exclude
+        $excludedWords = ['frac', 'sqrt', 'sum', 'begin', 'left', 'right'];
+
         // Remove all LaTeX commands and their contents
         $text = preg_replace('/\\\\[a-zA-Z]+(\{[^}]*\})?/', '', $text);
         // Remove all mathematical expressions
@@ -808,16 +811,23 @@ class CreateMathsQuestionsCommand extends Command
         // Remove all special characters and keep only letters
         $text = preg_replace('/[^a-zA-Z\s]/', ' ', $text);
 
-        // Split into words and filter out short words and words with non-letters
+        // Split into words and filter out short words, words with non-letters, and excluded words
         $words = array_filter(
             explode(' ', $text),
-            function ($word) {
-                return strlen($word) >= 4 && preg_match('/^[a-zA-Z]+$/', $word);
+            function ($word) use ($excludedWords) {
+                return strlen($word) >= 4
+                    && preg_match('/^[a-zA-Z]+$/', $word)
+                    && !in_array(strtolower($word), $excludedWords);
             }
         );
 
         // Check for single long word (more than 4 consecutive letters)
-        if (preg_match('/[a-zA-Z]{5,}/', $text)) {
+        // Exclude the excluded words from this check
+        $textWithoutExcluded = $text;
+        foreach ($excludedWords as $word) {
+            $textWithoutExcluded = str_replace($word, '', $textWithoutExcluded);
+        }
+        if (preg_match('/[a-zA-Z]{5,}/', $textWithoutExcluded)) {
             return true;
         }
 
