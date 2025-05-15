@@ -3,9 +3,8 @@
 # Set the output bitrate (optional)
 BITRATE="128k"
 
-# Create an output folder (optional)
-OUTPUT_DIR="converted_m4a"
-mkdir -p "$OUTPUT_DIR"
+# Set the lectures directory
+LECTURES_DIR="/Users/mac1/Documents/cursor/exam_quiz_backend/public/assets/lectures"
 
 echo "Starting batch conversion of .opus files to .m4a..."
 
@@ -14,9 +13,9 @@ total_to_convert=0
 skipped_count=0
 
 # First pass to count files that need conversion
-for f in *.opus; do
+for f in "$LECTURES_DIR"/*.opus; do
   [ -e "$f" ] || continue
-  output_file="$OUTPUT_DIR/${f%.opus}.m4a"
+  output_file="${f%.opus}.m4a"
   if [ -f "$output_file" ]; then
     skipped_count=$((skipped_count + 1))
   else
@@ -35,19 +34,19 @@ echo "Found $total_to_convert files to convert ($skipped_count already converted
 converted_count=0
 
 # Loop through all .opus files
-for f in *.opus; do
+for f in "$LECTURES_DIR"/*.opus; do
   # Skip if no .opus files found
   [ -e "$f" ] || continue
 
   # Output filename
-  output_file="$OUTPUT_DIR/${f%.opus}.m4a"
+  output_file="${f%.opus}.m4a"
 
   # Skip if output file already exists
   if [ -f "$output_file" ]; then
     continue
   fi
 
-  echo "[$((converted_count + 1))/$total_to_convert] Converting: $f -> $output_file"
+  echo "[$((converted_count + 1))/$total_to_convert] Converting: $(basename "$f") -> $(basename "$output_file")"
 
   # Convert using ffmpeg
   ffmpeg -i "$f" -c:a aac -b:a "$BITRATE" "$output_file"
@@ -60,5 +59,4 @@ done
 echo "Conversion completed!"
 echo "Summary:"
 echo "- Files converted: $converted_count of $total_to_convert"
-echo "- Files already converted: $skipped_count"
-echo "Converted files are in the '$OUTPUT_DIR' directory" 
+echo "- Files already converted: $skipped_count" 
