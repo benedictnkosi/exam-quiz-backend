@@ -296,4 +296,22 @@ class ExamPaperController extends AbstractController
             return $this->json(['error' => 'An error occurred while fetching exam papers'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/download/{paperName}', name: 'download_paper', methods: ['GET'])]
+    public function downloadPaper(string $paperName): Response
+    {
+        try {
+            $filePath = $this->uploadService->downloadPaperByName($paperName);
+
+            if (!$filePath) {
+                return new JsonResponse(['error' => 'Paper not found'], Response::HTTP_NOT_FOUND);
+            }
+
+            $mimeType = mime_content_type($filePath);
+            return $this->file($filePath, null, ResponseHeaderBag::DISPOSITION_ATTACHMENT, ['Content-Type' => $mimeType]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error downloading paper: ' . $e->getMessage());
+            return new JsonResponse(['error' => 'An error occurred while downloading the paper'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

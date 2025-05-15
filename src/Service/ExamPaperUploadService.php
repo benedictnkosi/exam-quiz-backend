@@ -332,4 +332,15 @@ class ExamPaperUploadService
 
         return true;
     }
+
+    public function downloadPaperByName(string $paperName): ?string
+    {
+        $filePath = $this->uploadDir . '/' . $paperName;
+
+        if (!file_exists($filePath)) {
+            return null;
+        }
+
+        return $filePath;
+    }
 }
