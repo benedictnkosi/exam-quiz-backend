@@ -205,10 +205,6 @@ class LearnMzansiApi extends AbstractController
                     );
                 }
             } else {
-                // return array(
-                //     'status' => 'NOK',
-                //     'message' => "Question capturing paused, quality control is being done on the questions."
-                // );
                 $question = new Question();
             }
 
@@ -244,11 +240,13 @@ class LearnMzansiApi extends AbstractController
             $question->setTerm($data['term'] ?? null);
             $question->setExplanation($data['explanation'] ? $this->replaceMathVariables($data['explanation']) : null);
             $question->setYear($data['year'] ?? null);
-            $question->setCapturer($user);
             if ($questionId == 0) {
+                $question->setCapturer($user);
                 $question->setReviewer($user);
                 $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
                 $question->setCreated($date);
+            } else {
+                $question->setReviewer($user);
             }
 
             $question->setActive(true);
