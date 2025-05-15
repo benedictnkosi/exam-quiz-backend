@@ -348,14 +348,12 @@ class LearnMzansiApi extends AbstractController
                     ->innerJoin('q.subject', 's', 'WITH', 's.name = :subjectName')
                     ->where('q.active = :active')
                     ->andWhere('q.status = :status')
-                    ->andWhere('q.capturer = :capturer')
                     ->orderBy('q.created', 'DESC');
 
                 $parameters = new ArrayCollection([
                     new Parameter('subjectName', $subjectName . ' ' . $paperName),
                     new Parameter('active', true),
-                    new Parameter('status', 'new'),
-                    new Parameter('capturer', $learner)
+                    new Parameter('status', 'new')
                 ]);
 
                 $qb->setParameters($parameters);
