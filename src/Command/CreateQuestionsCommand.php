@@ -511,6 +511,8 @@ class CreateQuestionsCommand extends Command
                             $context = str_replace('SIX', '', $context);
                         }
 
+                        //remove all text after 'next to the question numbers', including 'next to the question numbers'
+                        $context = preg_replace('/next to the question numbers.*$/', '', $context);
                         $question->setContext($context);
 
                         $question->setYear($paper->getYear());
