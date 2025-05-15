@@ -54,7 +54,7 @@ class CreateQuestionsCommand extends Command
 
         $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
         $papers = array_filter($papers, function ($paper) {
-            return strtolower($paper->getSubjectName()) !== 'mathematics';
+            return stripos(strtolower($paper->getSubjectName()), 'mathematics') === false;
         });
 
         if (empty($papers)) {
