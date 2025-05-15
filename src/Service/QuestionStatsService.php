@@ -69,7 +69,8 @@ class QuestionStatsService
                         ],
                         'email' => 'unknown'
                     ]
-                ]
+                ],
+                'ai_questions_count' => 0  // Add count for AI questions
             ];
 
             foreach ($questions as $question) {
@@ -101,7 +102,8 @@ class QuestionStatsService
                                     method_exists($capturer, 'getFirstName') ?
                                     trim($capturer->getFirstName() . ' ' . ($capturer->getLastName() ?? '')) :
                                     'unknown'
-                                )
+                                ),
+                                'ai_questions_count' => 0  // Add AI questions count for each capturer
                             ];
                         } else {
                             $this->logger->info("Using existing capturer stats for: " . $capturerKey);
@@ -163,6 +165,12 @@ class QuestionStatsService
                     $stats['status_counts'][$status] = 0;
                 }
                 $stats['status_counts'][$status]++;
+
+                // Count AI questions
+                if ($question->isAi()) {
+                    $stats['ai_questions_count']++;
+                    $stats['capturer_stats'][$capturerKey]['ai_questions_count']++;  // Increment capturer's AI count
+                }
             }
 
             // Sort all arrays by keys
