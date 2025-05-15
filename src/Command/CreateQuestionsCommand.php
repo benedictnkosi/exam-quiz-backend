@@ -360,16 +360,26 @@ class CreateQuestionsCommand extends Command
                             $questionImagePath = null;
 
                             // Check current question number
+                            //print images array
+                            $output->writeln("Images: " . json_encode($images));
+
+
                             if (isset($images[$questionNumber])) {
                                 $questionImagePath = $images[$questionNumber];
+                            } else {
+                                $output->writeln("[$timestamp] Warning: No image found for question number: {$questionNumber}");
                             }
                             // Check parent question number
                             if (isset($images[$parentNumber])) {
                                 $imagePath = $images[$parentNumber];
+                            } else {
+                                $output->writeln("[$timestamp] Warning: No image found for parent question number: {$parentNumber}");
                             }
                             // Check grandparent question number
-                            elseif ($grandParentNumber && isset($images[$grandParentNumber])) {
+                            if ($grandParentNumber && isset($images[$grandParentNumber])) {
                                 $imagePath = $images[$grandParentNumber];
+                            } else {
+                                $output->writeln("[$timestamp] Warning: No image found for grandparent question number: {$grandParentNumber}");
                             }
 
                             if ($imagePath) {
