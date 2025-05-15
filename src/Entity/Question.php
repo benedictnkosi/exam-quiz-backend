@@ -105,6 +105,9 @@ class Question
     #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ['default' => false])]
     private bool $ai = false;
 
+    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    private ?string $questionNumber = null;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -456,6 +459,17 @@ class Question
     {
         $this->ai = $ai;
 
+        return $this;
+    }
+
+    public function getQuestionNumber(): ?string
+    {
+        return $this->questionNumber;
+    }
+
+    public function setQuestionNumber(?string $questionNumber): static
+    {
+        $this->questionNumber = $questionNumber;
         return $this;
     }
 }

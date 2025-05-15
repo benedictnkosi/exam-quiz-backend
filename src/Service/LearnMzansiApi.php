@@ -266,6 +266,11 @@ class LearnMzansiApi extends AbstractController
                 $question->setAnswerSheet(json_encode($data['answer_sheet']));
             }
 
+            // Set question number if provided
+            if (!empty($data['question_number'])) {
+                $question->setQuestionNumber($data['question_number']);
+            }
+
             // Persist and flush the new entity
             $this->em->persist($question);
             $this->em->flush();

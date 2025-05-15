@@ -530,6 +530,7 @@ class CreateQuestionsCommand extends Command
                         $question->setCreated(new \DateTime());
                         $question->setUpdated(new \DateTime());
                         $question->setReviewedAt(new \DateTime());
+                        $question->setQuestionNumber($questionNumber);
 
                         // Find the subject by name and grade
                         $grade = $this->entityManager->getRepository(Grade::class)->findOneBy(['number' => $paper->getGrade()]);
