@@ -52,12 +52,15 @@ class CreateQuestionsCommand extends Command
             return Command::SUCCESS;
         }
 
-        $papers = $this->examPaperRepository->findBy(['status' => ['pending']]);
+        $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
+        $papers = array_filter($papers, function($paper) {
+            return strtolower($paper->getSubjectName()) !== 'mathematics';
+        });
 
         if (empty($papers)) {
             $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
             $output->writeln("[$timestamp] No papers to process.");
-            return Command::SUCCESS;
+            return Command::SUCCESS;e
         }
 
         foreach ($papers as $paper) {
@@ -565,9 +568,9 @@ class CreateQuestionsCommand extends Command
                     $question->setYear($paper->getYear());
                     $question->setTerm($paper->getTerm());
                     $question->setComment("new");
-                    $question->setCreated(new \DateTime());
-                    $question->setUpdated(new \DateTime());
-                    $question->setReviewedAt(new \DateTime());
+                    $question->setCreated(new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')));
+                    $question->setUpdated(new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')));
+                    $question->setReviewedAt(new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')));
                     $question->setQuestionNumber($questionNumber);
 
                     // Find the subject by name and grade

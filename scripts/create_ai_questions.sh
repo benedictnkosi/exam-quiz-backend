@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to the correct directory
+cd /var/www/exam-quiz-backend
+
 # Set error handling
 set -e
 
