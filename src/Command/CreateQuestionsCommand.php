@@ -346,49 +346,48 @@ class CreateQuestionsCommand extends Command
 
                         $question->setQuestion($questionText);
 
-                        // Process images if present
+                        // Initialize image variables
+                        $imagePath = null;
+                        $questionImagePath = null;
+
                         if ($paper->getImages()) {
                             $images = $paper->getImages();
                             if (!is_array($images)) {
                                 $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
                                 $output->writeln("[$timestamp] Warning: Invalid images data format for paper ID: {$paper->getId()}");
-                                continue;
-                            }
-
-                            // Check for images in parent, grandparent, and current question
-                            $imagePath = null;
-                            $questionImagePath = null;
-
-                            // Check current question number
-                            //print images array
-                            $output->writeln("Images: " . json_encode($images));
-
-
-                            if (isset($images[$questionNumber])) {
-                                $questionImagePath = $images[$questionNumber];
                             } else {
-                                $output->writeln("[$timestamp] Warning: No image found for question number: {$questionNumber}");
-                            }
-                            // Check parent question number
-                            if (isset($images[$parentNumber])) {
-                                $imagePath = $images[$parentNumber];
-                            } else {
-                                $output->writeln("[$timestamp] Warning: No image found for parent question number: {$parentNumber}");
-                            }
-                            // Check grandparent question number
-                            if ($grandParentNumber && isset($images[$grandParentNumber])) {
-                                $imagePath = $images[$grandParentNumber];
-                            } else {
-                                $output->writeln("[$timestamp] Warning: No image found for grandparent question number: {$grandParentNumber}");
-                            }
+                                // Check current question number
+                                $output->writeln("Images: " . json_encode($images));
 
-                            if ($imagePath) {
-                                $question->setImagePath($imagePath);
+                                if (isset($images[$questionNumber])) {
+                                    $output->writeln("[$timestamp] Image found for question number: {$questionNumber}");
+                                    $questionImagePath = $images[$questionNumber];
+                                } else {
+                                    $output->writeln("[$timestamp] Warning: No image found for question number: {$questionNumber}");
+                                }
+                                // Check parent question number
+                                if (isset($images[$parentNumber])) {
+                                    $output->writeln("[$timestamp] Image found for parent question number: {$parentNumber}");
+                                    $imagePath = $images[$parentNumber];
+                                } else {
+                                    $output->writeln("[$timestamp] Warning: No image found for parent question number: {$parentNumber}");
+                                }
+                                // Check grandparent question number
+                                if ($grandParentNumber && isset($images[$grandParentNumber])) {
+                                    $output->writeln("[$timestamp] Image found for grandparent question number: {$grandParentNumber}");
+                                    $imagePath = $images[$grandParentNumber];
+                                } else {
+                                    $output->writeln("[$timestamp] Warning: No image found for grandparent question number: {$grandParentNumber}");
+                                }
                             }
+                        }
 
-                            if ($questionImagePath) {
-                                $question->setQuestionImagePath($questionImagePath);
-                            }
+                        if ($imagePath) {
+                            $question->setImagePath($imagePath);
+                        }
+
+                        if ($questionImagePath) {
+                            $question->setQuestionImagePath($questionImagePath);
                         }
 
                         // Get answer content
@@ -496,18 +495,18 @@ class CreateQuestionsCommand extends Command
                         $context = '';
                         if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                             $grandParentText = $questionJson[$grandParentNumber];
-                            if ($imagePath) {
-                                // Limit grandparent text to 100 characters and add ellipsis
-                                $grandParentText = strlen($grandParentText) > 100 ? substr($grandParentText, 0, 100) . "..." : $grandParentText;
+                            // Only limit text if there's an image
+                            if ($imagePath && strlen($grandParentText) > 100) {
+                                $grandParentText = substr($grandParentText, 0, 100) . "...";
                             }
                             $context = $grandParentText;
                         }
 
                         if ($parentNumber && isset($questionJson[$parentNumber])) {
                             $parentText = $questionJson[$parentNumber];
-                            if ($imagePath) {
-                                // Limit parent text to 100 characters and add ellipsis
-                                $parentText = strlen($parentText) > 100 ? substr($parentText, 0, 100) . "..." : $parentText;
+                            // Only limit text if there's an image
+                            if ($imagePath && strlen($parentText) > 100) {
+                                $parentText = substr($parentText, 0, 100) . "...";
                             }
                             $context = $context . "\n\n" . $parentText;
                         }
