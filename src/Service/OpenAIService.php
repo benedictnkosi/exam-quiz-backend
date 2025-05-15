@@ -112,4 +112,83 @@ At the end of the script, provide a search text for Google to find the best imag
             throw new \Exception('Failed to upload file to OpenAI: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Delete a file from OpenAI by its ID
+     * 
+     * @param string $fileId The ID of the file to delete
+     * @return array The response from the OpenAI API
+     * @throws \Exception If the deletion fails
+     */
+    public function deleteFile(string $fileId): array
+    {
+        try {
+            $url = 'https://api.openai.com/v1/files/' . $fileId;
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->apiKey
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($httpCode !== 200) {
+                throw new \Exception('OpenAI API returned status code ' . $httpCode . ': ' . $response);
+            }
+
+            curl_close($ch);
+
+            return json_decode($response, true);
+        } catch (\Exception $e) {
+            throw new \Exception('Failed to delete file from OpenAI: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete all files from OpenAI
+     * 
+     * @return array Array of responses from the OpenAI API for each deleted file
+     * @throws \Exception If the deletion fails
+     */
+    public function deleteAllFiles(): array
+    {
+        try {
+            $url = 'https://api.openai.com/v1/files';
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->apiKey
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($httpCode !== 200) {
+                throw new \Exception('OpenAI API returned status code ' . $httpCode . ': ' . $response);
+            }
+
+            curl_close($ch);
+
+            $data = json_decode($response, true);
+            $responses = [];
+
+            if (isset($data['data']) && is_array($data['data'])) {
+                foreach ($data['data'] as $file) {
+                    if (isset($file['id'])) {
+                        $responses[] = $this->deleteFile($file['id']);
+                    }
+                }
+            }
+
+            return $responses;
+        } catch (\Exception $e) {
+            throw new \Exception('Failed to delete all files from OpenAI: ' . $e->getMessage());
+        }
+    }
 }
