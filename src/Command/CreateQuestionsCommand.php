@@ -350,6 +350,38 @@ class CreateQuestionsCommand extends Command
                         }
                     }
 
+                    // Check if question text contains ' A ' and ' B ' on the same line
+                    if (strpos($questionText, ' A ') !== false && strpos($questionText, ' B ') !== false) {
+                        // Create a prompt to format the question
+                        $formatPrompt = [
+                            [
+                                'role' => 'system',
+                                'content' => 'You are a document formatting assistant. Your task is to format questions with multiple options (A, B, C, D, etc.) on the same line by putting each option on a new line. Each option should start with its letter followed by a period and a space (e.g., "A. "). Do not prefix your response with any text.'
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => "Format this question by putting each option on a new line. Each option should start with its letter followed by a period and a space (e.g., 'A. '). Preserve any other text in the question. Do not prefix your response with any text:\n\n" . $questionText
+                            ]
+                        ];
+
+                        // Call OpenAI to format the question
+                        $formatResponse = $this->httpClient->request('POST', $apiUrl, [
+                            'headers' => [
+                                'Authorization' => 'Bearer ' . $apiKey,
+                                'Content-Type' => 'application/json',
+                            ],
+                            'json' => [
+                                'model' => 'gpt-4.1-mini',
+                                'messages' => $formatPrompt
+                            ]
+                        ]);
+
+                        $formatData = $formatResponse->toArray(false);
+                        if (isset($formatData['choices'][0]['message']['content'])) {
+                            $questionText = $formatData['choices'][0]['message']['content'];
+                        }
+                    }
+
                     $question->setQuestion($questionText);
 
                     // Initialize image variables
