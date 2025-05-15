@@ -18,13 +18,28 @@ log_message() {
 # Start the script
 log_message "Starting question creation process..."
 
-# Run the command
+# Run the regular questions command
+log_message "Running regular questions command..."
 php bin/console app:create-questions 2>&1 | tee -a "$LOG_FILE"
 
-# Check if the command was successful
+# Check if the regular questions command was successful
 if [ $? -eq 0 ]; then
-    log_message "Question creation process completed successfully"
+    log_message "Regular questions creation process completed successfully"
 else
-    log_message "Error: Question creation process failed"
+    log_message "Error: Regular questions creation process failed"
     exit 1
-fi 
+fi
+
+# Run the math questions command
+log_message "Running math questions command..."
+php bin/console app:create-math-questions 2>&1 | tee -a "$LOG_FILE"
+
+# Check if the math questions command was successful
+if [ $? -eq 0 ]; then
+    log_message "Math questions creation process completed successfully"
+else
+    log_message "Error: Math questions creation process failed"
+    exit 1
+fi
+
+log_message "All question creation processes completed successfully" 
