@@ -243,8 +243,6 @@ class CreateMathsQuestionsCommand extends Command
                         throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg() . "\nContent: " . $questionContent);
                     }
 
-
-
                     // Validate parent question data
                     if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
                         throw new \Exception("Missing or invalid parent question data for $parentNumber");
@@ -277,6 +275,9 @@ class CreateMathsQuestionsCommand extends Command
 
                     // Format LaTeX in question text
                     $questionText = $this->formatLatex($questionText, $output);
+
+                    //check if is latex and also does not have newlines and also very long
+                    $questionText = $this->formatLongLatexForMobile($questionText, $output);
 
                     // Create question entity if not already created
                     if (!$question) {
@@ -376,6 +377,10 @@ class CreateMathsQuestionsCommand extends Command
                     $answerContent = $this->formatLatex($answerJson['answer'] ?? '', $output);
                     $calculations = $this->formatLatex($answerJson['calculations'] ?? '', $output);
 
+                    // Format long LaTeX in answer content
+                    $answerContent = $this->formatLongLatexForMobile($answerContent, $output);
+                    $calculations = $this->formatLongLatexForMobile($calculations, $output);
+
                     $question->setAnswer($answerContent);
                     $question->setExplanation($calculations);
 
@@ -457,6 +462,7 @@ class CreateMathsQuestionsCommand extends Command
                         $context = str_replace('SIX', '', $context);
                         // Format LaTeX in context
                         $context = $this->formatLatex($context, $output);
+                        $context = $this->formatLongLatexForMobile($context, $output);
                     }
 
                     //remove all text after 'next to the question numbers', including 'next to the question numbers'
@@ -613,7 +619,6 @@ class CreateMathsQuestionsCommand extends Command
 
     private function formatLatex(string $text, ?OutputInterface $output = null): string
     {
-
         // Replace any lowercase letter followed by '\\%' with the same letter followed by '%'
         $text = preg_replace('/([a-z])\\\\%/', '$1%', $text);
 
@@ -627,8 +632,6 @@ class CreateMathsQuestionsCommand extends Command
                 break;
             }
         }
-
-
 
         // If no LaTeX indicators found, return as is
         if (!$containsLatex) {
@@ -654,8 +657,6 @@ class CreateMathsQuestionsCommand extends Command
         // Fix any broken LaTeX commands
         $text = str_replace(' eq ', ' \\neq ', $text);  // Fix \neq
         $text = preg_replace('/\\\\(text\{[^}]+\})\s*\\\\text/', '\\$1', $text);  // Fix double \text commands
-
-
 
         // Clean up extra spaces and fix text formatting
         $text = preg_replace('/\s+/', ' ', $text);  // Replace multiple spaces with single space
@@ -883,5 +884,81 @@ class CreateMathsQuestionsCommand extends Command
         }
 
         return $formatted;
+    }
+
+    private function formatLatexWithAIForMobile(string $text, ?OutputInterface $output = null): string
+    {
+        if (empty($text)) {
+            return '';
+        }
+
+        $apiKey = $this->params->get('openai_api_key');
+        $apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+        $response = $this->httpClient->request('POST', $apiUrl, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type' => 'application/json',
+            ],
+            'json' => [
+                'model' => 'gpt-4.1-mini',
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => 'Format the given LaTeX text for optimal display on mobile screens. Add \newline commands at logical break points to ensure the text fits well on narrow screens. Break at operators (+, -, =, etc.) and after logical groups of terms. Preserve all mathematical expressions and use \text{} for human words. Wrap the entire expression in a single pair of $ signs. Do not add any additional content or explanations.'
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => "Format this LaTeX text for mobile display: " . $text
+                    ]
+                ]
+            ]
+        ])->toArray(false);
+
+        $formatted = $response['choices'][0]['message']['content'] ?? $text;
+
+        // Log the AI response if output is provided
+        if ($output) {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+            $output->writeln("[$timestamp] AI Mobile Format Response:");
+            $output->writeln("Original: " . $text);
+            $output->writeln("Formatted: " . $formatted);
+        }
+
+        // Remove any extra content after the original text
+        $formatted = preg_replace('/If.*$/', '', $formatted);
+
+        // Fix any broken LaTeX delimiters
+        $formatted = str_replace(['\[', '\]'], ['$', '$'], $formatted);
+        $formatted = str_replace(['\(', '\)'], ['$', '$'], $formatted);
+
+        // Ensure only one pair of dollar signs wraps the entire expression
+        $formatted = preg_replace('/\$\s*(.*?)\s*\$/s', '$1', $formatted);
+        if (!str_starts_with(trim($formatted), '$')) {
+            $formatted = '$' . $formatted . '$';
+        }
+
+        return $formatted;
+    }
+
+    private function formatLongLatexForMobile(string $text, ?OutputInterface $output = null): string
+    {
+        if (
+            str_starts_with(trim($text), '$') &&
+            str_ends_with(trim($text), '$') &&
+            !str_contains($text, '\\newline') &&
+            strlen($text) > 40
+        ) {
+            if ($output) {
+                $output->writeln("Text is LaTeX, very long, and has no newlines: " . $text);
+            }
+            // If it's LaTeX, very long, and has no newlines, use AI to format it with proper line breaks for mobile
+            return $this->formatLatexWithAIForMobile($text, $output);
+        } else {
+            if ($output) {
+                $output->writeln("Text is not LaTeX, very long, and has no newlines: " . $text);
+            }
+            return $text;
+        }
     }
 }
