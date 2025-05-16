@@ -44,14 +44,6 @@ class CreateQuestionsCommand extends Command
         $apiUrl = 'https://api.openai.com/v1/chat/completions';
         $questionNumberFilter = $input->getArgument('question-number');
 
-        // Check for papers in progress
-        $papersInProgress = $this->examPaperRepository->findBy(['status' => ['in_progress']]);
-        if (!empty($papersInProgress)) {
-            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
-            $output->writeln("[$timestamp] Found papers in progress. Exiting to prevent concurrent processing.");
-            return Command::SUCCESS;
-        }
-
         $papers = $this->examPaperRepository->createQueryBuilder('p')
             ->where('p.status IN (:statuses)')
             ->andWhere('LOWER(p.subjectName) NOT LIKE :subject')
