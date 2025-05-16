@@ -702,6 +702,9 @@ class CreateMathsQuestionsCommand extends Command
             $processedContent .= ' ' . trim($line);
         }
 
+        // Check if correct answer is wrapped in dollar signs
+        $shouldWrap = str_starts_with(trim($answerContent), '$') && str_ends_with(trim($answerContent), '$');
+
         // Handle both single-line and multi-line responses
         $pattern = '/(first_option|second_option|third_option):\s*(?:"?\$)?(.*?)(?:\$"?)(?=\s*(?:first_option|second_option|third_option):|$)/s';
         if (preg_match_all($pattern, $processedContent, $matches, PREG_SET_ORDER)) {
@@ -716,8 +719,8 @@ class CreateMathsQuestionsCommand extends Command
                 $value = preg_replace('/\newline.*$/', '', $value);
                 // Replace \\% with %
                 $value = preg_replace('/([a-z])\\\\%/', '$1%', $value);
-                // Wrap in single dollar signs
-                $options[] = '$' . $value . '$';
+                // Wrap in single dollar signs only if correct answer is wrapped
+                $options[] = $shouldWrap ? '$' . $value . '$' : $value;
             }
         }
 
@@ -733,13 +736,13 @@ class CreateMathsQuestionsCommand extends Command
                     $value = preg_replace('/\newline.*$/', '', $value);
                     // Replace \\% with %
                     $value = preg_replace('/([a-z])\\\\%/', '$1%', $value);
-                    // Wrap in single dollar signs
-                    $options[] = '$' . $value . '$';
+                    // Wrap in single dollar signs only if correct answer is wrapped
+                    $options[] = $shouldWrap ? '$' . $value . '$' : $value;
                 }
             }
         }
 
-        // Add the correct answer with single dollar signs
+        // Add the correct answer
         $correctAnswer = str_replace(['"', "'"], '', trim($answerContent));
         $correctAnswer = str_replace('\text', '\\text', $correctAnswer);
         // Remove any existing dollar signs before adding new ones
@@ -748,7 +751,7 @@ class CreateMathsQuestionsCommand extends Command
         $correctAnswer = preg_replace('/\newline.*$/', '', $correctAnswer);
         // Replace \\% with %
         $correctAnswer = preg_replace('/([a-z])\\\\%/', '$1%', $correctAnswer);
-        $options[] = '$' . $correctAnswer . '$';
+        $options[] = $shouldWrap ? '$' . $correctAnswer . '$' : $correctAnswer;
 
         return $options;
     }
