@@ -33,7 +33,7 @@ class CreateMathsQuestionsCommand extends Command
                 '4. Do not prefix the json with any text',
                 '5. DO NOT use markdown code blocks or ```json in your response',
                 '6. dont include more information in brackets e.g. (answers correct to TWO decimal places)',
-                '7. Use \newline for line breaks in calculations',
+                '7. Use \newline for line breaks in calculations. add line breaks for a mobile screen',
                 '8. IMPORTANT:  Use \text{} for text in the same line as mathematical expressions e.g.: 
                     \n A and B are independent events. P(A) = \frac{1}{3}, must be \text { A and B are independent events. } P(A) = \frac{1}{3}
                     \n Calculate the value of n for which T_n = 517, must be \text { Calculate the value of n for which } T_n = 517',
@@ -42,13 +42,14 @@ class CreateMathsQuestionsCommand extends Command
         'answer' => [
             'system' => 'You are a document analysis assistant. Your task is to extract specific answer content from answer memos. Return the answer and calculations in a JSON format with two nodes: "answer" and "calculations". if content is a math fomula, then both should be in latex inline math mode. No introductions, explanations, or formatting.',
             'instructions' => [
-                '1. Don\'t include any other text or formatting',
-                '2. Don\'t include the correct sign or marks number in brackets',
-                '3. Format all mathematical expressions in LaTeX',
-                '4. IMPORTANT:  Use \text{} for text within mathematical expressions e.g. A and B are independent events. P(A) = \frac{1}{3}',
-                '5. Include all necessary working steps',
-                '6. Ensure the final answer is clearly marked',
-                '7. Use \newline for line breaks in calculations',
+                '1. return the english answer',
+                '2. Don\'t include any other text or formatting',
+                '3. Don\'t include the correct sign or marks number in brackets',
+                '4. Format all mathematical expressions in LaTeX',
+                '5. IMPORTANT:  Use \text{} for text within mathematical expressions e.g. A and B are independent events. P(A) = \frac{1}{3}',
+                '6. Include all necessary working steps',
+                '7. Ensure the final answer is clearly marked',
+                '8. Use \newline for line breaks in calculations. add line breaks for a mobile screen',
             ]
         ],
         'wrong_answers' => [
@@ -62,7 +63,7 @@ class CreateMathsQuestionsCommand extends Command
                 '6. If correct answer has 2 answers, make sure that the wrong answers have 2 answers as well. e.g. x=2 or x=-5',
                 '7. Do not number the answers, do not return the string as json, do not add new line to the string',
                 '8. IMPORTANT:  Use \text{} for text within mathematical expressions e.g. A and B are independent events. P(A) = \frac{1}{3}',
-                '9. Use \newline for line breaks if formula is on multiple lines',
+                '9. Use \newline for line breaks in calculations. add line breaks for a mobile screen',
             ],
             'latex_instructions' => 'IMPORTANT: Format all mathematical expressions in LaTeX using $$ delimiters. Use \\text{} for text within mathematical expressions.',
             'non_latex_instructions' => 'IMPORTANT: Do not use LaTeX formatting. Return plain text answers.'
@@ -145,7 +146,7 @@ class CreateMathsQuestionsCommand extends Command
                 }
 
                 // Apply question number filter if provided
-                if ($questionNumberFilter && !str_contains($questionNumber, $questionNumberFilter)) {
+                if ($questionNumberFilter && $questionNumber !== $questionNumberFilter) {
                     $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
                     $output->writeln("[$timestamp] Skipping question $questionNumber (does not match filter: $questionNumberFilter)");
                     continue;
@@ -173,12 +174,14 @@ class CreateMathsQuestionsCommand extends Command
                                 'type' => 'text',
                                 'text' => "From the question paper, extract the full text of question $questionNumber" .
                                     ($grandParentNumber && str_contains($grandParentNumber, '.') ? ", its grandparent $grandParentNumber" : "") .
-                                    ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
+                                    (($parentNumber && str_contains($parentNumber, '.')) || (substr_count($questionNumber, '.') === 1) ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
                                     implode("\n", self::PROMPT_RULES['question']['instructions'])
                             ]
                         ]
                     ]
                 ];
+
+                $output->writeln("Question Prompt: " . json_encode($questionPrompt));
 
                 // Extract answer
                 $answerPrompt = [
@@ -721,7 +724,12 @@ class CreateMathsQuestionsCommand extends Command
                 // Replace \\% with %
                 $value = preg_replace('/([a-z])\\\\%/', '$1%', $value);
                 // Wrap in single dollar signs only if correct answer is wrapped
-                $options[] = $shouldWrap ? '$' . $value . '$' : $value;
+                $value = $shouldWrap ? '$' . $value . '$' : $value;
+                // Format for mobile if it's LaTeX
+                if ($shouldWrap) {
+                    $value = $this->formatLongLatexForMobile($value);
+                }
+                $options[] = $value;
             }
         }
 
@@ -738,7 +746,12 @@ class CreateMathsQuestionsCommand extends Command
                     // Replace \\% with %
                     $value = preg_replace('/([a-z])\\\\%/', '$1%', $value);
                     // Wrap in single dollar signs only if correct answer is wrapped
-                    $options[] = $shouldWrap ? '$' . $value . '$' : $value;
+                    $value = $shouldWrap ? '$' . $value . '$' : $value;
+                    // Format for mobile if it's LaTeX
+                    if ($shouldWrap) {
+                        $value = $this->formatLongLatexForMobile($value);
+                    }
+                    $options[] = $value;
                 }
             }
         }
@@ -752,7 +765,12 @@ class CreateMathsQuestionsCommand extends Command
         $correctAnswer = preg_replace('/\newline.*$/', '', $correctAnswer);
         // Replace \\% with %
         $correctAnswer = preg_replace('/([a-z])\\\\%/', '$1%', $correctAnswer);
-        $options[] = $shouldWrap ? '$' . $correctAnswer . '$' : $correctAnswer;
+        $correctAnswer = $shouldWrap ? '$' . $correctAnswer . '$' : $correctAnswer;
+        // Format for mobile if it's LaTeX
+        if ($shouldWrap) {
+            $correctAnswer = $this->formatLongLatexForMobile($correctAnswer);
+        }
+        $options[] = $correctAnswer;
 
         return $options;
     }

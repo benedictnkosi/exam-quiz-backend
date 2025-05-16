@@ -125,7 +125,7 @@ class CreateQuestionsCommand extends Command
                                 'type' => 'text',
                                 'text' => "From the question paper, extract the full text of question $questionNumber" .
                                     ($grandParentNumber && str_contains($grandParentNumber, '.') ? ", its grandparent $grandParentNumber" : "") .
-                                    ($parentNumber && str_contains($parentNumber, '.') ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
+                                    (($parentNumber && str_contains($parentNumber, '.')) || (substr_count($questionNumber, '.') === 1) ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
                                     "1. Do not include any other questions. \n" .
                                     "2. Return only the raw question text. \n" .
                                     "3. Do not include quotaiton marks in the question text. \n" .
@@ -157,7 +157,7 @@ class CreateQuestionsCommand extends Command
                             ],
                             [
                                 'type' => 'text',
-                                'text' => "From the question answer book, extract the first correct answer from the answer memo pdf for question $questionNumber \n do not prefix the answer. \n just return the answer as is. \n if answer contains multiple lines, return the first line only. \n dont introduce the answer or comment on the answer \n do not include the correct sign or marks number in brackets"
+                                'text' => "From the question answer book, extract the first correct answer from the answer memo pdf for question $questionNumber \n do not prefix the answer. \n return the answer in english. \n just return the answer as is. \n if answer contains multiple lines, return the first line only. \n dont introduce the answer or comment on the answer \n do not include the correct sign or marks number in brackets"
                             ]
                         ]
                     ]
