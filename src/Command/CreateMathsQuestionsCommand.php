@@ -100,9 +100,9 @@ class CreateMathsQuestionsCommand extends Command
         }
 
         $papers = $this->examPaperRepository->createQueryBuilder('p')
-            ->where('p.status = :status')
+            ->where('p.status IN (:statuses)')
             ->andWhere('LOWER(p.subjectName) LIKE :subject')
-            ->setParameter('status', 'pending')
+            ->setParameter('statuses', ['pending', 'in_progress'])
             ->setParameter('subject', '%mathematics%')
             ->getQuery()
             ->getResult();

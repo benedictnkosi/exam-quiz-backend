@@ -52,10 +52,14 @@ class CreateQuestionsCommand extends Command
             return Command::SUCCESS;
         }
 
-        $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
-        $papers = array_filter($papers, function ($paper) {
-            return stripos(strtolower($paper->getSubjectName()), 'mathematics') === false;
-        });
+        $papers = $this->examPaperRepository->createQueryBuilder('p')
+            ->where('p.status IN (:statuses)')
+            ->andWhere('LOWER(p.subjectName) NOT LIKE :subject')
+            ->setParameter('statuses', ['pending', 'in_progress'])
+            ->setParameter('subject', '%mathematics%')
+            ->orderBy('p.subjectName', 'ASC')
+            ->getQuery()
+            ->getResult();
 
         if (empty($papers)) {
             $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
