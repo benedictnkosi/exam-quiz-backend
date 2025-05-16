@@ -40,16 +40,20 @@ class CareerAdviceService
         }, $subjectPerformance);
     }
 
-    public function getCareerAdvice(string $learnerUid): array
+    public function getCareerAdvice(string $id): array
     {
         try {
             // Find the learner
-            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['id' => $id]);
             if (!$learner) {
-                return [
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                ];
+                //use follow me code
+                $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+                if (!$learner) {
+                    return [
+                        'status' => 'NOK',
+                        'message' => 'Learner not found'
+                    ];
+                }
             }
 
             // Get learner's subject performance

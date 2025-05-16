@@ -21,7 +21,7 @@ use Symfony\Component\Console\Input\InputArgument;
     name: 'app:create-math-questions',
     description: 'Extracts and creates questions for each innermost child question number using OpenAI.'
 )]
-class CreateMathsQuestionsCommand extends Command
+class CreatePhysicsQuestionsCommand extends Command
 {
     private const PROMPT_RULES = [
         'question' => [
@@ -43,6 +43,8 @@ class CreateMathsQuestionsCommand extends Command
             'system' => 'You are a document analysis assistant. Your task is to extract specific answer content from answer memos. Return the answer and calculations in a JSON format with two nodes: "answer" and "calculations". if content is a math fomula, then both should be in latex inline math mode. No introductions, explanations, or formatting.',
             'instructions' => [
                 '1. return the english answer',
+                '2. return the first option of the answer, if there are multiple options',
+                '3. summarise the answer if its too long > 100 characters, and its not latex',
                 '2. Don\'t include any other text or formatting',
                 '3. Don\'t include the correct sign or marks number in brackets',
                 '4. Format all mathematical expressions in LaTeX',

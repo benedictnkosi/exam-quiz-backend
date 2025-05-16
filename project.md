@@ -116,3 +116,6 @@ cd public/assets/lectures/
 ../../../scripts/fiels-to-convert-count.sh
 
 php bin/console app:generate-question-topics 1  # For grade 1
+
+### send message to a grade
+php bin/console app:send-grade-message 12 "Important Announcement" "Hey Grade 12 learners! Don't forget about the upcoming exam preparation session tomorrow at 2 PM. Bring your questions!"
