@@ -40,7 +40,10 @@ class GenerateLectureCommand extends Command
             // Find topics with null lecture (limit to 100)
             $topics = $this->entityManager->getRepository(Topic::class)
                 ->createQueryBuilder('t')
+                ->join('t.subject', 's')
                 ->where('t.lecture IS NULL')
+                ->andWhere('s.name NOT LIKE :mathematics')
+                ->setParameter('mathematics', '%Mathematics%')
                 ->setMaxResults(500)
                 ->getQuery()
                 ->getResult();
