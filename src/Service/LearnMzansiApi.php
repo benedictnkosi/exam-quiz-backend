@@ -20,6 +20,16 @@ use App\Entity\ReportedMessages;
 use App\Entity\RecordedQuestion;
 use App\Entity\Message;
 use App\Entity\Topic;
+use App\Entity\LearnerBadge;
+use App\Entity\LearnerNote;
+use App\Entity\Todo;
+use App\Entity\LearnerFollowing;
+use App\Entity\Learnersubjects;
+use App\Entity\SubjectPoints;
+use App\Entity\Favorites;
+use App\Entity\LearnerReading;
+use App\Entity\LearnerStreak;
+use App\Entity\LearnerAdTracking;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -34,6 +44,7 @@ class LearnMzansiApi extends AbstractController
         string $projectDir,
         string $openAiKey,
         private readonly PushNotificationService $pushNotificationService,
+        private readonly LearnerDeletionService $learnerDeletionService,
     ) {
         $this->em = $em;
         $this->logger = $logger;
@@ -2935,7 +2946,7 @@ class LearnMzansiApi extends AbstractController
     public function deleteLearner(Request $request): array
     {
         try {
-            $uid = $request->query->get('uid');
+            $uid = $request->get('uid');
 
             if (!$uid) {
                 return [
@@ -2955,14 +2966,7 @@ class LearnMzansiApi extends AbstractController
             // Begin transaction
             $this->em->beginTransaction();
             try {
-                // Delete associated results first
-                $results = $this->em->getRepository(Result::class)->findBy(['learner' => $learner->getId()]);
-                foreach ($results as $result) {
-                    $this->em->remove($result);
-                }
-
-                //delete learner
-                $this->em->remove($learner);
+                $this->learnerDeletionService->deleteLearnerData($learner);
                 $this->em->flush();
                 $this->em->commit();
 
@@ -2975,12 +2979,10 @@ class LearnMzansiApi extends AbstractController
                 $this->em->rollback();
                 throw $e;
             }
-
         } catch (\Exception $e) {
-            $this->logger->error('Error deleting learner: ' . $e->getMessage());
             return [
                 'status' => 'NOK',
-                'message' => 'Error deleting learner'
+                'message' => $e->getMessage()
             ];
         }
     }

@@ -173,6 +173,10 @@ class Learner
     #[Serializer\Type('array')]
     private ?array $careerAdvice = null;
 
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 1])]
+    #[Serializer\Groups(['learner:read'])]
+    private int $readingLevel = 1;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -647,6 +651,17 @@ class Learner
     public function setCareerAdvice(?array $careerAdvice): self
     {
         $this->careerAdvice = $careerAdvice;
+        return $this;
+    }
+
+    public function getReadingLevel(): int
+    {
+        return $this->readingLevel;
+    }
+
+    public function setReadingLevel(int $readingLevel): self
+    {
+        $this->readingLevel = $readingLevel;
         return $this;
     }
 }

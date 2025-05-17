@@ -88,7 +88,7 @@ class LearnerFollowingService
             $this->pushNotificationService->sendUnfollowNotification($follower, $following);
             return null;
         }
-        
+
         $relationship->setStatus($status);
         $this->entityManager->flush();
 
@@ -110,13 +110,14 @@ class LearnerFollowingService
         $result = [];
         foreach ($following as $follow) {
             $followingLearner = $follow->getFollowing();
-            
+
             // Get last result entry
             $lastResult = $this->entityManager->getRepository(Result::class)
                 ->findOneBy(['learner' => $followingLearner], ['created' => 'DESC']);
-            
+
             $firstResult = $this->entityManager->getRepository(Result::class)
                 ->findOneBy(['learner' => $followingLearner], ['created' => 'ASC']);
+
             // Get questions answered today
             $today = new \DateTime();
             $today->setTime(0, 0, 0);
@@ -129,7 +130,7 @@ class LearnerFollowingService
                 ->setParameter('today', $today)
                 ->getQuery()
                 ->getSingleScalarResult();
-            
+
             // Get questions answered this week
             $weekStart = clone $today;
             $weekStart->modify('-' . $today->format('w') . ' days');
@@ -142,7 +143,33 @@ class LearnerFollowingService
                 ->setParameter('weekStart', $weekStart)
                 ->getQuery()
                 ->getSingleScalarResult();
-            
+
+            // Get chapters completed today
+            $chaptersToday = $this->entityManager->getRepository('App\Entity\LearnerReading')
+                ->createQueryBuilder('lr')
+                ->select('COUNT(lr.id)')
+                ->where('lr.learner = :learner')
+                ->andWhere('lr.status = :status')
+                ->andWhere('lr.date >= :today')
+                ->setParameter('learner', $followingLearner)
+                ->setParameter('status', 'completed')
+                ->setParameter('today', $today)
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            // Get chapters completed this week
+            $chaptersThisWeek = $this->entityManager->getRepository('App\Entity\LearnerReading')
+                ->createQueryBuilder('lr')
+                ->select('COUNT(lr.id)')
+                ->where('lr.learner = :learner')
+                ->andWhere('lr.status = :status')
+                ->andWhere('lr.date >= :weekStart')
+                ->setParameter('learner', $followingLearner)
+                ->setParameter('status', 'completed')
+                ->setParameter('weekStart', $weekStart)
+                ->getQuery()
+                ->getSingleScalarResult();
+
             $result[] = [
                 'learner_uid' => $followingLearner->getUid(),
                 'learner_name' => $followingLearner->getName(),
@@ -161,7 +188,9 @@ class LearnerFollowingService
                     'duration' => $firstResult->getDuration()
                 ] : null,
                 'questionsAnsweredToday' => $questionsToday,
-                'questionsAnsweredThisWeek' => $questionsThisWeek
+                'questionsAnsweredThisWeek' => $questionsThisWeek,
+                'chaptersCompletedToday' => $chaptersToday,
+                'chaptersCompletedThisWeek' => $chaptersThisWeek
             ];
         }
 
@@ -204,4 +233,4 @@ class LearnerFollowingService
             'status' => 'active'
         ]);
     }
-} 
+}
