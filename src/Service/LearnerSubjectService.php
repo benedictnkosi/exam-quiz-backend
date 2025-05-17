@@ -14,7 +14,8 @@ class LearnerSubjectService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     public function addAllSubjectsForGrade(string $uid, string $gradeNumber): array
     {
@@ -150,4 +151,4 @@ class LearnerSubjectService
             ];
         }
     }
-} 
+}
