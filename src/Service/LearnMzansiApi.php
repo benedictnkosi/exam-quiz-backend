@@ -30,6 +30,8 @@ use App\Entity\Favorites;
 use App\Entity\LearnerReading;
 use App\Entity\LearnerStreak;
 use App\Entity\LearnerAdTracking;
+use App\Entity\LearnerDailyUsage;
+use Symfony\Component\HttpFoundation\Response;
 
 class LearnMzansiApi extends AbstractController
 {
@@ -45,6 +47,7 @@ class LearnMzansiApi extends AbstractController
         string $openAiKey,
         private readonly PushNotificationService $pushNotificationService,
         private readonly LearnerDeletionService $learnerDeletionService,
+        private readonly LearnerDailyUsageService $dailyUsageService
     ) {
         $this->em = $em;
         $this->logger = $logger;
@@ -329,6 +332,8 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
+
+
             if ($questionId !== 0) {
                 $question = $this->em->getRepository(Question::class)->find($questionId);
                 if (!$question) {
@@ -491,6 +496,12 @@ class LearnMzansiApi extends AbstractController
                         'image_path' => ''
                     );
                 }
+            }
+
+            // Check daily quiz limit
+            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+            if ($usageData['status'] === 'OK' && $usageData['data']['quiz'] <= 0) {
+                return new Response('Daily quiz limit reached', Response::HTTP_FORBIDDEN);
             }
 
             // For non-admin learners, continue with existing logic
@@ -3565,6 +3576,12 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Check daily quiz limit
+            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+            if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
+                return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
+            }
+
             // Get learner's grade
             $grade = $learner->getGrade();
             if (!$grade) {
@@ -3593,101 +3610,103 @@ class LearnMzansiApi extends AbstractController
 
             // Build optimized query to get a random question
             $qb = $this->em->createQueryBuilder();
-            $qb->select('q')
-                ->from('App\Entity\Question', 'q')
-                ->innerJoin('q.subject', 's')
-                ->where('s.grade = :grade')
+            $qb->select('COUNT(q.id)')
+                ->from(Question::class, 'q')
+                ->join('q.subject', 's')
+                ->where('s.name = :subjectName')
+                ->andWhere('s.grade = :grade')
                 ->andWhere('q.active = :active')
-                ->andWhere('q.status = :status');
+                ->andWhere('q.status = :status')
+                ->setParameter('subjectName', $subjectName . ' ' . $paperName)
+                ->setParameter('grade', $grade)
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved');
 
-            if ($topic) {
-                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
-                    ->andWhere('t.name = :mainTopic')
-                    ->andWhere('s.name LIKE :subjectName')
-                    ->setParameter('mainTopic', $topic)
-                    ->setParameter('subjectName', '%' . $subjectName . '%');
-            } else {
-                $qb->andWhere('s.name = :subjectName')
-                    ->setParameter('subjectName', $subjectName . ' ' . $paperName);
+            // Add term and curriculum conditions if they exist
+            $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
+                return trim(str_replace('"', '', $term));
+            }, explode(',', $learner->getTerms())) : [];
+
+            $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
+                return trim(str_replace('"', '', $curr));
+            }, explode(',', $learner->getCurriculum())) : [];
+
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)')
+                    ->setParameter('terms', $learnerTerms);
             }
 
-            // Exclude previously viewed questions if any
+            if (!empty($learnerCurriculum)) {
+                $qb->andWhere('q.curriculum IN (:curriculum)')
+                    ->setParameter('curriculum', $learnerCurriculum);
+            }
+
+            // Exclude questions that have been shown in this topic
             if (!empty($excludedQuestionIds)) {
                 $qb->andWhere('q.id NOT IN (:excludedIds)')
                     ->setParameter('excludedIds', $excludedQuestionIds);
             }
 
-            $qb->setParameter('grade', $grade)
-                ->setParameter('active', true)
-                ->setParameter('status', 'approved');
-
-            // Get count of matching questions
+            // Get count first
             $countQb = clone $qb;
-            $count = $countQb->select('COUNT(q.id)')->getQuery()->getSingleScalarResult();
+            $count = $countQb->select('COUNT(q.id)')
+                ->getQuery()
+                ->getSingleScalarResult();
 
             if ($count === 0) {
-                // If we have excluded questions and found nothing, reset the tracker and try again
-                if (!empty($excludedQuestionIds) && $topic) {
-                    $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
-                    $topicLessonsTracker[$topic] = [];
-                    $learner->setTopicLessonsTracker($topicLessonsTracker);
-                    $this->em->flush();
+                // If no questions found and topic is set, reset the topic_lessons_tracker and try again
+                if ($topic) {
+                    $topicLessonsTracker = $learner->getTopicLessonsTracker();
+                    if ($topicLessonsTracker && isset($topicLessonsTracker[$topic])) {
+                        // Reset the tracker for this topic
+                        $topicLessonsTracker[$topic] = [];
+                        $learner->setTopicLessonsTracker($topicLessonsTracker);
+                        $this->em->flush();
 
-                    // Try the query again without exclusions
-                    $qb = $this->em->createQueryBuilder();
-                    $qb->select('q')
-                        ->from('App\Entity\Question', 'q')
-                        ->innerJoin('q.subject', 's')
-                        ->where('s.grade = :grade')
-                        ->andWhere('q.active = :active')
-                        ->andWhere('q.status = :status');
-
-                    if ($topic) {
-                        $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
-                            ->andWhere('t.name = :mainTopic')
-                            ->andWhere('s.name LIKE :subjectName')
-                            ->setParameter('mainTopic', $topic)
-                            ->setParameter('subjectName', '%' . $subjectName . '%');
-                    } else {
-                        $qb->andWhere('s.name = :subjectName')
-                            ->setParameter('subjectName', $subjectName . ' ' . $paperName);
+                        // Try again with the reset tracker
+                        return $this->getRandomQuestionWithRevision($request);
                     }
-
-                    $qb->setParameter('grade', $grade)
-                        ->setParameter('active', true)
-                        ->setParameter('status', 'approved');
-
-                    // Get count again
-                    $countQb = clone $qb;
-                    $count = $countQb->select('COUNT(q.id)')->getQuery()->getSingleScalarResult();
-
-                    if ($count === 0) {
-                        return [
-                            'status' => 'NOK',
-                            'message' => 'No questions available'
-                        ];
-                    }
-                } else {
-                    return [
-                        'status' => 'NOK',
-                        'message' => 'No questions available'
-                    ];
                 }
+
+                return [
+                    'status' => 'NOK',
+                    'message' => 'No questions available'
+                ];
             }
 
             // Get random offset
             $offset = random_int(0, $count - 1);
 
-            // Get single random question
-            $randomQuestion = $qb->setFirstResult($offset)
+            // Debug logging
+            $this->logger->info('Random question query parameters:', [
+                'subjectName' => $subjectName . ' ' . $paperName,
+                'grade' => $grade,
+                'count' => $count,
+                'offset' => $offset,
+                'terms' => $learnerTerms,
+                'curriculum' => $learnerCurriculum,
+                'excludedIds' => $excludedQuestionIds
+            ]);
+
+            // Get single random question - use the original query builder
+            $randomQuestion = $qb->select('q')
+                ->setFirstResult($offset)
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
 
             if (!$randomQuestion) {
+                $this->logger->error('Failed to get random question despite count > 0', [
+                    'count' => $count,
+                    'offset' => $offset,
+                    'query' => $qb->getQuery()->getSQL(),
+                    'parameters' => $qb->getQuery()->getParameters()->toArray()
+                ]);
+
                 return [
                     'status' => 'NOK',
-                    'message' => 'Failed to get random question'
+                    'message' => 'Failed to get random question -you have no questions',
+                    'count' => $count
                 ];
             }
 
@@ -3721,7 +3740,16 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
+            // Increment lesson usage
+            $this->dailyUsageService->incrementLessonUsage($learner);
+
             // Clear unnecessary relations
+            $randomQuestion->setCapturer(null);
+            $randomQuestion->setReviewer(null);
+            if ($randomQuestion->getSubject()) {
+                $randomQuestion->getSubject()->setCapturer(null);
+                $randomQuestion->getSubject()->setTopics(null);
+            }
 
             return $randomQuestion;
 

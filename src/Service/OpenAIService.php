@@ -83,7 +83,8 @@ At the end of the script, provide a search text for Google to find the best imag
         string $characterInfo,
         int $wordCountLimit,
         array $pastSummaries = [],
-        array $futurePlot = []
+        array $futurePlot = [],
+        ?string $previousChapterContent = null
     ): array {
         $minWords = $wordCountLimit - 50;
         $maxWords = $wordCountLimit + 50;
@@ -106,6 +107,12 @@ At the end of the script, provide a search text for Google to find the best imag
             }
         }
 
+        // Add previous chapter content if available
+        $previousChapterText = "";
+        if ($previousChapterContent) {
+            $previousChapterText = "\nPrevious Chapter Content:\n{$previousChapterContent}\n";
+        }
+
         $prompt = "You are a creative and engaging storyteller. Create a chapter for a story with the following details:
 
 Theme: {$theme}
@@ -113,7 +120,7 @@ Goal: {$goal}
 Chapter Name: {$chapterName}
 Outline: {$outline}
 Reading Level: {$readingLevel}
-Word Count Limit: min {$minWords} max {$maxWords} words{$pastSummariesText}{$futurePlotText}
+Word Count Limit: min {$minWords} max {$maxWords} words{$previousChapterText}{$pastSummariesText}{$futurePlotText}
 
 Main Character:
 {$characterInfo}
@@ -131,6 +138,7 @@ Please write a complete chapter that:
 10. Stays within the {$wordCountLimit} word limit
 11. Uses emojis sparingly and appropriately to enhance emotional moments, key events, or character expressions. Do not overuse emojis - they should complement the story, not overwhelm it.
 12. Maintains continuity with past chapters and sets up future plot developments naturally
+13. If a previous chapter is provided, ensure smooth transition and continuity from its events and character development
 
 The chapter should be well-structured and engaging, suitable for the target reading level. Focus on showing rather than telling, and use sensory details to bring the story to life. Adjust the complexity of language and concepts to match the {$readingLevel} reading level. Ensure the narrative voice and perspective align with the main character's age, personality, and experiences. Be concise and efficient with your word choice to stay within the word limit while maintaining the story's impact.
 

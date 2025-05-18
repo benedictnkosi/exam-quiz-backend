@@ -8,16 +8,24 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use App\Entity\Learner;
+use App\Entity\LearnerDailyUsage;
+use Doctrine\ORM\EntityManagerInterface;
 
 class TopicRecordingController extends AbstractController
 {
     private TopicRecordingService $topicRecordingService;
     private LoggerInterface $logger;
+    private EntityManagerInterface $entityManager;
 
-    public function __construct(TopicRecordingService $topicRecordingService, LoggerInterface $logger)
-    {
+    public function __construct(
+        TopicRecordingService $topicRecordingService,
+        LoggerInterface $logger,
+        EntityManagerInterface $entityManager
+    ) {
         $this->topicRecordingService = $topicRecordingService;
         $this->logger = $logger;
+        $this->entityManager = $entityManager;
     }
 
     #[Route('/api/topics/recordings/{subjectName}', name: 'get_topics_with_recordings', methods: ['GET'])]
@@ -104,15 +112,34 @@ class TopicRecordingController extends AbstractController
     }
 
     #[Route('/api/topics/recording/question/{questionId}', name: 'get_recording_by_question_id', methods: ['GET'])]
-    public function getRecordingByQuestionId(int $questionId): JsonResponse
+    public function getRecordingByQuestionId(int $questionId, Request $request): JsonResponse
     {
-        $topic = $this->topicRecordingService->findRecordingByQuestionId($questionId);
+        $uid = $request->query->get('uid');
+        $topic = $this->topicRecordingService->findRecordingByQuestionId($questionId, $uid);
 
         if (!$topic) {
             return $this->json([
                 'status' => 'error',
                 'message' => 'No recording found for the specified question ID'
             ], 404);
+        }
+
+        // Get remaining podcasts if uid is provided
+        $remainingPodcasts = 5;
+        if ($uid) {
+            $learner = $this->entityManager->getRepository(Learner::class)
+                ->findOneBy(['uid' => $uid]);
+
+            if ($learner) {
+                $today = new \DateTimeImmutable();
+                $today = $today->setTime(0, 0, 0);
+                $usage = $this->entityManager->getRepository(LearnerDailyUsage::class)
+                    ->findByLearnerAndDate($learner->getId(), $today);
+
+                if ($usage) {
+                    $remainingPodcasts = max(0, 20 - $usage->getPodcast());
+                }
+            }
         }
 
         return $this->json([
@@ -123,6 +150,7 @@ class TopicRecordingController extends AbstractController
                 'main_topic' => $topic->getName(),
                 'image' => $topic->getImageFileName(),
                 'id' => $topic->getId(),
+                'remaining_podcasts' => $remainingPodcasts
             ]
         ]);
     }

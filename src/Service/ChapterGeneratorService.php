@@ -127,18 +127,29 @@ class ChapterGeneratorService
         // Use the story arc's chapter number
         $chapterNumber = $arc->getChapterNumber();
 
-        // Get past 5 chapter summaries
+        // Get past 5 chapters
         $pastChapters = $this->bookRepository->findBy(
             ['storyArc' => $arc],
             ['chapterNumber' => 'DESC'],
             5
         );
-        $pastSummaries = array_map(function ($chapter) {
-            return [
-                'chapter_number' => $chapter->getChapterNumber(),
-                'summary' => $chapter->getSummary()
-            ];
-        }, $pastChapters);
+
+        // Get the previous chapter's full content and summaries for others
+        $previousChapterContent = null;
+        $pastSummaries = [];
+
+        foreach ($pastChapters as $index => $chapter) {
+            if ($index === 0) {
+                // For the most recent chapter, use full content
+                $previousChapterContent = $chapter->getContent();
+            } else {
+                // For older chapters, use summaries
+                $pastSummaries[] = [
+                    'chapter_number' => $chapter->getChapterNumber(),
+                    'summary' => $chapter->getSummary()
+                ];
+            }
+        }
 
         // Get future plot information
         $futureArcs = $this->storyArcRepository->findBy(
@@ -173,7 +184,8 @@ class ChapterGeneratorService
                     $characterInfo,
                     $level->getChapterWords(),
                     $pastSummaries,
-                    $futurePlot
+                    $futurePlot,
+                    $previousChapterContent
                 );
                 break; // Success, exit the retry loop
             } catch (\Exception $e) {

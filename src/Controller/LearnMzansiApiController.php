@@ -112,6 +112,10 @@ class LearnMzansiApiController extends AbstractController
         $topic = $request->query->get('topic');
         $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic);
 
+        if ($question instanceof Response && $question->getStatusCode() === Response::HTTP_FORBIDDEN) {
+            return new JsonResponse(['message' => 'Daily quiz limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);
+        }
+
         if ($question instanceof \App\Entity\Question) {
             $question->setCapturer(null);
             $question->setReviewer(null);
@@ -122,7 +126,6 @@ class LearnMzansiApiController extends AbstractController
         }
 
         $context = SerializationContext::create()->enableMaxDepthChecks();
-
         $jsonContent = $this->serializer->serialize($question, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
     }
@@ -914,6 +917,11 @@ class LearnMzansiApiController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         $response = $this->api->getRandomQuestionWithRevision($request);
+
+        if ($response instanceof Response && $response->getStatusCode() === Response::HTTP_FORBIDDEN) {
+            return new JsonResponse(['message' => 'Daily quiz limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);
+        }
+
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);

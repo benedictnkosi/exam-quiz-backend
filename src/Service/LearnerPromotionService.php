@@ -33,6 +33,7 @@ class LearnerPromotionService
             $lastReadings = $this->entityManager->getRepository(LearnerReading::class)
                 ->createQueryBuilder('lr')
                 ->join('lr.chapter', 'b')
+                ->join('b.readingLevel', 'rl')
                 ->where('lr.learner = :learner')
                 ->andWhere('lr.status = :status')
                 ->setParameter('learner', $learner)
@@ -54,12 +55,13 @@ class LearnerPromotionService
             $allReadingsMeetCriteria = true;
             foreach ($lastReadings as $reading) {
                 $book = $reading->getChapter();
-                $duration = $reading->getDuration();
+                $readingLevel = $book->getReadingLevel();
+                $speed = $reading->getSpeed();
                 $score = $reading->getScore();
-                $expectedDuration = $book->getReadingDuration();
+                $expectedSpeed = $readingLevel->getWordsPerMinute();
 
-                // Check if reading duration is below expected and score is 100
-                if ($duration > $expectedDuration || $score !== 100) {
+                // Check if reading speed meets or exceeds expected speed and score is 100
+                if ($speed < $expectedSpeed || $score !== 100) {
                     $allReadingsMeetCriteria = false;
                     break;
                 }

@@ -29,15 +29,41 @@ class CareerAdviceService
 
     /**
      * Clean subject performance data to only include essential information
+     * Groups P1 and P2 results for each subject and excludes subjects with less than 10 results
      */
     private function cleanSubjectPerformance(array $subjectPerformance): array
     {
-        return array_map(function ($subject) {
-            return [
-                'subject' => $subject['subject'],
-                'percentage' => $subject['percentage']
-            ];
-        }, $subjectPerformance);
+        // Group subjects by their base name (without P1/P2)
+        $groupedSubjects = [];
+        foreach ($subjectPerformance as $subject) {
+            $baseSubject = preg_replace('/\s+P[12]$/', '', $subject['subject']);
+
+            if (!isset($groupedSubjects[$baseSubject])) {
+                $groupedSubjects[$baseSubject] = [
+                    'totalAnswers' => 0,
+                    'correctAnswers' => 0,
+                    'incorrectAnswers' => 0
+                ];
+            }
+
+            $groupedSubjects[$baseSubject]['totalAnswers'] += $subject['totalAnswers'];
+            $groupedSubjects[$baseSubject]['correctAnswers'] += (int) $subject['correctAnswers'];
+            $groupedSubjects[$baseSubject]['incorrectAnswers'] += (int) $subject['incorrectAnswers'];
+        }
+
+        // Calculate percentages and filter out subjects with less than 10 total answers
+        $result = [];
+        foreach ($groupedSubjects as $subject => $data) {
+            if ($data['totalAnswers'] >= 10) {
+                $percentage = ($data['correctAnswers'] / $data['totalAnswers']) * 100;
+                $result[] = [
+                    'subject' => $subject,
+                    'percentage' => round($percentage, 2)
+                ];
+            }
+        }
+
+        return $result;
     }
 
     public function getCareerAdvice(string $id): array

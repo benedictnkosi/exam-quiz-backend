@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\ReadingLevelRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Doctrine\DBAL\Types\Types;
 
 #[ORM\Entity(repositoryClass: ReadingLevelRepository::class)]
 class ReadingLevel
@@ -27,6 +28,11 @@ class ReadingLevel
     #[Assert\NotBlank]
     #[Assert\Positive]
     private ?int $chapterWords = null;
+
+    #[ORM\Column(name: 'words_per_minute', type: Types::INTEGER)]
+    #[Assert\NotBlank]
+    #[Assert\Positive]
+    private ?int $wordsPerMinute = null;
 
     public function getId(): ?int
     {
@@ -63,6 +69,17 @@ class ReadingLevel
     public function setChapterWords(int $chapterWords): static
     {
         $this->chapterWords = $chapterWords;
+        return $this;
+    }
+
+    public function getWordsPerMinute(): ?int
+    {
+        return $this->wordsPerMinute;
+    }
+
+    public function setWordsPerMinute(int $wordsPerMinute): static
+    {
+        $this->wordsPerMinute = $wordsPerMinute;
         return $this;
     }
 }

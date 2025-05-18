@@ -16,7 +16,8 @@ class CheckAnswerService
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private PushNotificationService $pushNotificationService,
-        private LearnerAdTrackingService $adTrackingService
+        private LearnerAdTrackingService $adTrackingService,
+        private LearnerDailyUsageService $dailyUsageService
     ) {
     }
 
@@ -69,7 +70,6 @@ class CheckAnswerService
                 ]);
 
             // Check the answer
-
             if ($question->getAnswerSheet() === null) {
                 $this->logger->info("Question {$questionId} has no answer sheet");
                 $isCorrect = $this->validateAnswer($answer, $question->getAnswer());
@@ -93,9 +93,11 @@ class CheckAnswerService
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                     'is_favorited' => false,
                     'topic' => $topic,
-                    'recordingFileName' => $recordingFileName
+                    'recordingFileName' => $recordingFileName,
+                    'remaining_quizzes' => 20
                 ];
             }
+
             // If the question is favorited, return the result without recording or awarding points
             if ($isFavorited) {
                 $this->logger->info("Question {$questionId} is favorited by learner {$uid}. Skipping points and results.");
@@ -112,7 +114,8 @@ class CheckAnswerService
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                     'is_favorited' => true,
                     'topic' => $topic,
-                    'recordingFileName' => $recordingFileName
+                    'recordingFileName' => $recordingFileName,
+                    'remaining_quizzes' => 20
                 ];
             }
 
@@ -131,7 +134,8 @@ class CheckAnswerService
                     'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                     'is_favorited' => false,
                     'topic' => $topic,
-                    'recordingFileName' => $recordingFileName
+                    'recordingFileName' => $recordingFileName,
+                    'remaining_quizzes' => 20
                 ];
             }
 
@@ -199,6 +203,9 @@ class CheckAnswerService
                 }
             }
 
+            // Increment quiz usage
+            $this->dailyUsageService->incrementQuizUsage($learner);
+
             $this->entityManager->flush();
 
             // Update ad tracking for questions answered
@@ -208,6 +215,20 @@ class CheckAnswerService
             $learner->setLastSeen($date);
             $this->entityManager->persist($learner);
             $this->entityManager->flush();
+
+            // Calculate remaining quizzes
+            $today = new \DateTime();
+            $today->setTime(0, 0, 0);
+            $todayResults = $this->entityManager->getRepository(Result::class)
+                ->createQueryBuilder('r')
+                ->where('r.learner = :learner')
+                ->andWhere('r.created >= :today')
+                ->setParameter('learner', $learner)
+                ->setParameter('today', $today)
+                ->getQuery()
+                ->getResult();
+
+            $remainingQuizzes = max(0, 20 - count($todayResults));
 
             return [
                 'status' => 'OK',
@@ -222,7 +243,8 @@ class CheckAnswerService
                 'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                 'is_favorited' => false,
                 'topic' => $topic,
-                'recordingFileName' => $recordingFileName
+                'recordingFileName' => $recordingFileName,
+                'remaining_quizzes' => $remainingQuizzes
             ];
 
         } catch (\Exception $e) {

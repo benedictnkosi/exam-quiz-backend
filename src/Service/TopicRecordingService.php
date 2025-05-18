@@ -6,14 +6,22 @@ use App\Entity\Subject;
 use App\Entity\Topic;
 use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 class TopicRecordingService
 {
     private EntityManagerInterface $entityManager;
+    private LoggerInterface $logger;
+    private LearnerDailyUsageService $dailyUsageService;
 
-    public function __construct(EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        LoggerInterface $logger,
+        LearnerDailyUsageService $dailyUsageService
+    ) {
         $this->entityManager = $entityManager;
+        $this->logger = $logger;
+        $this->dailyUsageService = $dailyUsageService;
     }
 
     public function findTopicsWithRecordings(string $uid, string $subjectName): array
@@ -101,7 +109,7 @@ class TopicRecordingService
             ->getOneOrNullResult();
     }
 
-    public function findRecordingByQuestionId(int $questionId): ?Topic
+    public function findRecordingByQuestionId(int $questionId, ?string $uid = null): ?Topic
     {
         $question = $this->entityManager->getRepository('App\Entity\Question')
             ->find($questionId);
@@ -110,7 +118,7 @@ class TopicRecordingService
             return null;
         }
 
-        return $this->entityManager->getRepository(Topic::class)
+        $topic = $this->entityManager->getRepository(Topic::class)
             ->createQueryBuilder('t')
             ->join('t.subject', 's')
             ->where('s.id = :subjectId')
@@ -120,5 +128,20 @@ class TopicRecordingService
             ->setParameter('subTopic', $question->getTopic())
             ->getQuery()
             ->getOneOrNullResult();
+
+        if ($topic) {
+            // Get the learner by UID if provided, otherwise try to get from subject
+            $learner = null;
+            if ($uid) {
+                $learner = $this->entityManager->getRepository(Learner::class)
+                    ->findOneBy(['uid' => $uid]);
+
+                if ($learner) {
+                    $this->dailyUsageService->incrementPodcastUsage($learner);
+                }
+            }
+        }
+
+        return $topic;
     }
 }
