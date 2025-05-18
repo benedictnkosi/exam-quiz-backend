@@ -24,7 +24,7 @@ class ChapterGeneratorService
     public function generateChaptersForNewArcs(): array
     {
         $newArcs = $this->storyArcRepository->findBy(['status' => StoryArc::STATUS_NEW]);
-        $readingLevels = $this->readingLevelRepository->findBy(['level' => [1, 2]]);
+        $readingLevels = $this->readingLevelRepository->findBy(['level' => [1, 2, 3, 4]]);
         $generatedChapters = [];
 
         error_log("Starting chapter generation for " . count($newArcs) . " new story arcs");
@@ -165,7 +165,7 @@ class ChapterGeneratorService
         }, $futureArcs);
 
         // Character information
-        $characterInfo = "Nelo is a curious 12-year-old boy from Johannesburg, South Africa, with a quiet strength and a big heart. He lives in a vibrant township where the sounds of kwaito music and the smell of braai often fill the air. He loves asking questions—even the ones adults don't want to answer—and keeps a small notebook where he writes down thoughts, dreams, and drawings. Though he's not the loudest in class, his friends rely on him for his honesty and calm presence. Nelo enjoys playing soccer in the dusty streets with his friends, listening to Amapiano music on his cheap but beloved headphones, and spending time with his grandmother, who always has a story or riddle to share. He doesn't know it yet, but this year will shape him in ways he never imagined.";
+        $characterInfo = "Dimpo is a curious 12-year-old boy from Johannesburg, South Africa, with a quiet strength and a big heart. He lives in a vibrant township where the sounds of kwaito music and the smell of braai often fill the air. He loves asking questions—even the ones adults don't want to answer—and keeps a small notebook where he writes down thoughts, dreams, and drawings. Though he's not the loudest in class, his friends rely on him for his honesty and calm presence. Dimpo enjoys playing soccer in the dusty streets with his friends, listening to Amapiano music on his cheap but beloved headphones, and spending time with his grandmother, who always has a story or riddle to share. He doesn't know it yet, but this year will shape him in ways he never imagined.";
 
         // Generate chapter content using OpenAI with retry logic
         $maxRetries = 3;

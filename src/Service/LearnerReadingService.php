@@ -160,6 +160,18 @@ class LearnerReadingService
 
                 $isPublished = $publishDate <= $today;
 
+                // Get the next chapter information
+                $nextChapter = $this->entityManager->getRepository(Book::class)
+                    ->createQueryBuilder('b')
+                    ->where('b.level = :level')
+                    ->andWhere('b.status = :active')
+                    ->andWhere('b.chapterNumber = :chapterNumber')
+                    ->setParameter('level', $readingLevel)
+                    ->setParameter('active', 'active')
+                    ->setParameter('chapterNumber', $book->getChapterNumber() + 1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
+
                 return [
                     'status' => 'OK',
                     'chapter' => [
@@ -173,7 +185,13 @@ class LearnerReadingService
                         'publishDate' => $book->getPublishDate()?->format('Y-m-d H:i:s'),
                         'image' => $book->getImage(),
                         'wordCount' => $book->getWordCount()
-                    ]
+                    ],
+                    'nextChapter' => $nextChapter ? [
+                        'id' => $nextChapter->getId(),
+                        'chapterName' => $nextChapter->getChapterName(),
+                        'status' => 'locked',
+                        'publishDate' => $nextChapter->getPublishDate()?->format('Y-m-d H:i:s'),
+                    ] : null
                 ];
             }
 
@@ -224,39 +242,15 @@ class LearnerReadingService
 
             // Check if the chapter is published
             $today = new \DateTimeImmutable('now', new \DateTimeZone('Africa/Johannesburg'));
-            $this->logger->debug('Current time in JHB', [
-                'time' => $today->format('Y-m-d H:i:s'),
-                'timezone' => $today->getTimezone()->getName(),
-                'method' => 'getNextChapter'
-            ]);
 
             $publishDate = $nextBook->getPublishDate();
-            $this->logger->debug('Chapter publish date', [
-                'publishDate' => $publishDate ? $publishDate->format('Y-m-d H:i:s') : 'null',
-                'timezone' => $publishDate ? $publishDate->getTimezone()->getName() : 'null',
-                'method' => 'getNextChapter',
-                'chapterId' => $nextBook->getId()
-            ]);
 
             // If publish date is in future, use today's date
             if ($publishDate > $today) {
-                $this->logger->debug('Publish date is in future, using today', [
-                    'originalPublishDate' => $publishDate->format('Y-m-d H:i:s'),
-                    'newPublishDate' => $today->format('Y-m-d H:i:s'),
-                    'method' => 'getNextChapter',
-                    'chapterId' => $nextBook->getId()
-                ]);
                 $publishDate = $today;
             }
 
             $isPublished = $publishDate <= $today;
-            $this->logger->debug('Publish check result', [
-                'isPublished' => $isPublished,
-                'publishDate' => $publishDate->format('Y-m-d H:i:s'),
-                'currentTime' => $today->format('Y-m-d H:i:s'),
-                'method' => 'getNextChapter',
-                'chapterId' => $nextBook->getId()
-            ]);
 
             // Create a new reading record for the book
             $reading = new LearnerReading();
@@ -540,9 +534,29 @@ class LearnerReadingService
             $stats = $this->calculateReadingStats($learner);
 
             $learnerReadingLevel = $learner->getReadingLevel();
-            //get next level
+
+            // Get current level and next level
+            $currentLevel = $this->entityManager->getRepository(ReadingLevel::class)
+                ->findOneBy(['level' => $learnerReadingLevel]);
             $nextLevel = $this->entityManager->getRepository(ReadingLevel::class)
                 ->findOneBy(['level' => $learnerReadingLevel + 1]);
+
+            // Calculate chapters completed at current level
+            $completedChaptersAtLevel = $this->entityManager->getRepository(LearnerReading::class)
+                ->createQueryBuilder('lr')
+                ->join('lr.chapter', 'b')
+                ->where('lr.learner = :learner')
+                ->andWhere('lr.status = :status')
+                ->andWhere('b.level = :level')
+                ->setParameter('learner', $learner)
+                ->setParameter('status', 'completed')
+                ->setParameter('level', $learnerReadingLevel)
+                ->getQuery()
+                ->getResult();
+
+            $chaptersCompletedAtLevel = count($completedChaptersAtLevel);
+            $chaptersRequiredForPromotion = 3;
+            $chaptersRemainingForPromotion = max(0, $chaptersRequiredForPromotion - $chaptersCompletedAtLevel);
 
             return [
                 'status' => 'OK',
@@ -550,8 +564,13 @@ class LearnerReadingService
                 'points' => $learner->getPoints() ?? 0,
                 'readingPoints' => $learner->getReadingPoints() ?? 0,
                 'stats' => $stats,
-                'nextLevelWPM' => $nextLevel->getWordsPerMinute(),
-                'nextLevelNumber' => $nextLevel->getLevel()
+                'nextLevelWPM' => $nextLevel ? $nextLevel->getWordsPerMinute() : null,
+                'nextLevelNumber' => $nextLevel ? $nextLevel->getLevel() : null,
+                'promotionProgress' => [
+                    'chaptersCompleted' => $chaptersCompletedAtLevel,
+                    'chaptersRequired' => $chaptersRequiredForPromotion,
+                    'chaptersRemaining' => $chaptersRemainingForPromotion
+                ]
             ];
 
         } catch (\Exception $e) {
