@@ -196,15 +196,6 @@ class LearnMzansiApiController extends AbstractController
 
 
 
-    #[Route('/learn/learner/set-higher-grade-flag', name: 'set_higher_grade', methods: ['POST'])]
-    public function setHigherGradeFlag(Request $request): JsonResponse
-    {
-        $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->setHigherGradeFlag($request);
-        $context = SerializationContext::create()->enableMaxDepthChecks();
-        $jsonContent = $this->serializer->serialize($response, 'json', $context);
-        return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);
-    }
 
     #[Route('/learn/subjects/active', name: 'get_active_subjects', methods: ['GET'])]
     public function getAllActiveSubjects(Request $request): JsonResponse

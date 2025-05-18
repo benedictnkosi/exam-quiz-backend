@@ -18,7 +18,7 @@ class LectureRecordingService
         $this->lecturesDirectory = $params->get('kernel.project_dir') . '/public/assets/lectures';
     }
 
-    public function getRecordingResponse(string $filename, string $uid = null): Response
+    public function getRecordingResponse(string $filename, ?string $uid = null): Response
     {
         // Check remaining podcast usage if uid is provided
         if ($uid) {

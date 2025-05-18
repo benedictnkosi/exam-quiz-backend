@@ -3576,6 +3576,12 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Check daily lesson limit
+            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+            if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
+                return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
+            }
+
             // Get learner's grade
             $grade = $learner->getGrade();
             if (!$grade) {
@@ -3602,6 +3608,18 @@ class LearnMzansiApi extends AbstractController
                 }
             }
 
+            // First, get the IDs of mastered questions (answered correctly 3 times in a row)
+            $masteredQuestionIds = [];
+
+            // Check if this is an accounting subject
+            $subject = $this->em->getRepository('App\Entity\Subject')->findOneBy(['name' => $subjectName . ' ' . $paperName]);
+            if ($subject && str_contains($subject->getName(), 'Accounting')) {
+                $masteredQuestionIds = $this->getMasteredAccountingQuestions($learner, $subject);
+            } else {
+                $masteredQuestions = $this->getMasteredQuestions($learner);
+                $masteredQuestionIds = array_column($masteredQuestions, 'questionId');
+            }
+
             // Build optimized query to get a random question
             $qb = $this->em->createQueryBuilder();
             $qb->select('q')
@@ -3626,6 +3644,12 @@ class LearnMzansiApi extends AbstractController
             if (!empty($excludedQuestionIds)) {
                 $qb->andWhere('q.id NOT IN (:excludedIds)')
                     ->setParameter('excludedIds', $excludedQuestionIds);
+            }
+
+            // Exclude mastered questions if any exist
+            if (!empty($masteredQuestionIds)) {
+                $qb->andWhere('q.id NOT IN (:masteredIds)')
+                    ->setParameter('masteredIds', $masteredQuestionIds);
             }
 
             $qb->setParameter('grade', $grade)
@@ -3768,11 +3792,7 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
-            // Check daily quiz limit
-            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
-            if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
-                return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
-            }
+
 
             // Get the learner's grade
             $grade = $learner->getGrade();
