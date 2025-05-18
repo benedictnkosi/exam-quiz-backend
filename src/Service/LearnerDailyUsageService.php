@@ -12,8 +12,8 @@ use Psr\Log\LoggerInterface;
 class LearnerDailyUsageService
 {
 
-    private $DAILY_QUIZ_LIMIT = 15;
-    private $DAILY_LESSON_LIMIT = 10;
+    private $DAILY_QUIZ_LIMIT = 20;
+    private $DAILY_LESSON_LIMIT = 15;
     private $DAILY_PODCAST_LIMIT = 5;
 
     public function __construct(
