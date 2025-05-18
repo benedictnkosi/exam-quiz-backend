@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="/var/www/exam-quiz-backend/scripts"
 
 # Change to the project root directory (one level up from scripts)
 cd "$SCRIPT_DIR/.."
