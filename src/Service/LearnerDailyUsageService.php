@@ -12,9 +12,12 @@ use Psr\Log\LoggerInterface;
 class LearnerDailyUsageService
 {
 
-    private $DAILY_QUIZ_LIMIT = 20;
+    private $DAILY_QUIZ_LIMIT = 15;
+    private $SILVER_DAILY_QUIZ_LIMIT = 50;
+    private $BRONZE_DAILY_QUIZ_LIMIT = 30;
+    private $GOLD_DAILY_QUIZ_LIMIT = 100;
     private $DAILY_LESSON_LIMIT = 15;
-    private $DAILY_PODCAST_LIMIT = 5;
+    private $DAILY_PODCAST_LIMIT = 15;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -52,12 +55,35 @@ class LearnerDailyUsageService
                 $this->entityManager->flush();
             }
 
+            $subscription = $learner->getSubscription();
+            $remainingQuiz = 0;
+            $remainingLesson = 0;
+            $remainingPodcast = 0;
+            if (str_contains($subscription, 'silver')) {
+                $remainingQuiz = $this->SILVER_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingLesson = 999;
+                $remainingPodcast = 999;
+            } else if (str_contains($subscription, 'gold')) {
+                $remainingQuiz = $this->GOLD_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingLesson = 999;
+                $remainingPodcast = 999;
+            } else if (str_contains($subscription, 'bronze')) {
+                $remainingQuiz = $this->BRONZE_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingLesson = 999;
+                $remainingPodcast = 999;
+            } else if (str_contains($subscription, 'free')) {
+                $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
+                $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $usage->getPodcast();
+            }
+
+
             return [
                 'status' => 'OK',
                 'data' => [
-                    'quiz' => $this->DAILY_QUIZ_LIMIT - $usage->getQuiz(),
-                    'lesson' => $this->DAILY_LESSON_LIMIT - $usage->getLesson(),
-                    'podcast' => $this->DAILY_PODCAST_LIMIT - $usage->getPodcast(),
+                    'quiz' => $remainingQuiz,
+                    'lesson' => $remainingLesson,
+                    'podcast' => $remainingPodcast,
                     'date' => $usage->getDate()->format('Y-m-d')
                 ]
             ];

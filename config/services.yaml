@@ -94,3 +94,9 @@ services:
         arguments:
             $targetDirectory: "%kernel.project_dir%/public/assets/images/learnMzansi"
             $slugger: '@Symfony\Component\String\Slugger\SluggerInterface'
+
+    App\Service\SubscriptionService:
+        arguments:
+            $entityManager: '@Doctrine\ORM\EntityManagerInterface'
+            $httpClient: '@Symfony\Contracts\HttpClient\HttpClientInterface'
+            $revenueCatApiKey: "%env(REVENUECAT_API_KEY)%"

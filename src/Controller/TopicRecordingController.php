@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\TopicRecordingService;
+use App\Service\LearnerDailyUsageService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
@@ -17,15 +18,18 @@ class TopicRecordingController extends AbstractController
     private TopicRecordingService $topicRecordingService;
     private LoggerInterface $logger;
     private EntityManagerInterface $entityManager;
+    private LearnerDailyUsageService $learnerDailyUsageService;
 
     public function __construct(
         TopicRecordingService $topicRecordingService,
         LoggerInterface $logger,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        LearnerDailyUsageService $learnerDailyUsageService
     ) {
         $this->topicRecordingService = $topicRecordingService;
         $this->logger = $logger;
         $this->entityManager = $entityManager;
+        $this->learnerDailyUsageService = $learnerDailyUsageService;
     }
 
     #[Route('/api/topics/recordings/{subjectName}', name: 'get_topics_with_recordings', methods: ['GET'])]
@@ -137,7 +141,7 @@ class TopicRecordingController extends AbstractController
                     ->findByLearnerAndDate($learner->getId(), $today);
 
                 if ($usage) {
-                    $remainingPodcasts = max(0, 20 - $usage->getPodcast());
+                    $remainingPodcasts = $this->learnerDailyUsageService->getDailyUsageByLearnerUid($uid)['data']['podcast'];
                 }
             }
         }

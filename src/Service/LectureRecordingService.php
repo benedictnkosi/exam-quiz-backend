@@ -18,16 +18,18 @@ class LectureRecordingService
         $this->lecturesDirectory = $params->get('kernel.project_dir') . '/public/assets/lectures';
     }
 
-    public function getRecordingResponse(string $filename, ?string $uid = null): Response
+    public function getRecordingResponse(string $filename, ?string $uid = null, ?string $subscriptionCheck = null): Response
     {
         // Check remaining podcast usage if uid is provided
         if ($uid) {
-            $usageCheck = $this->learnerDailyUsageService->hasRemainingPodcastUsage($uid);
-            if ($usageCheck['status'] === 'NOK') {
-                return new Response($usageCheck['message'], Response::HTTP_BAD_REQUEST);
-            }
-            if (!$usageCheck['hasRemaining']) {
-                return new Response('Daily podcast limit reached', Response::HTTP_FORBIDDEN);
+            if ($subscriptionCheck) {
+                $usageCheck = $this->learnerDailyUsageService->hasRemainingPodcastUsage($uid);
+                if ($usageCheck['status'] === 'NOK') {
+                    return new Response($usageCheck['message'], Response::HTTP_BAD_REQUEST);
+                }
+                if (!$usageCheck['hasRemaining']) {
+                    return new Response('Daily podcast limit reached', Response::HTTP_FORBIDDEN);
+                }
             }
         }
 

@@ -320,7 +320,8 @@ class LearnMzansiApi extends AbstractController
         string $uid,
         int $questionId,
         string $platform = 'app',
-        ?string $topic = null
+        ?string $topic = null,
+        ?string $subscriptionCheck = null
     ) {
         try {
             // Get the learner first
@@ -499,9 +500,13 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Check daily quiz limit
-            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
-            if ($usageData['status'] === 'OK' && $usageData['data']['quiz'] <= 0) {
-                return new Response('Daily quiz limit reached', Response::HTTP_FORBIDDEN);
+
+            $subscription = $learner->getSubscription();
+            if ($subscription === 'free' || $subscription) {
+                $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+                if ($usageData['status'] === 'OK' && $usageData['data']['quiz'] <= 0) {
+                    return new Response('Daily quiz limit reached', Response::HTTP_FORBIDDEN);
+                }
             }
 
             // For non-admin learners, continue with existing logic
@@ -3559,7 +3564,7 @@ class LearnMzansiApi extends AbstractController
             $uid = $request->query->get('uid');
             $isRevision = $request->query->get('revision', false);
             $topic = $request->query->get('topic');
-
+            $subscriptionCheck = $request->query->get('subscriptionCheck');
             if (empty($subjectName) || empty($uid)) {
                 return [
                     'status' => 'NOK',
@@ -3577,9 +3582,12 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Check daily lesson limit
-            $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
-            if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
-                return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
+            $subscription = $learner->getSubscription();
+            if ($subscription === 'free' || $subscription) {
+                $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+                if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
+                    return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
+                }
             }
 
             // Get learner's grade

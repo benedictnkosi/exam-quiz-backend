@@ -181,6 +181,10 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private int $readingLevel = 1;
 
+    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
+    #[Serializer\Groups(['learner:read'])]
+    private ?string $subscription = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -677,6 +681,17 @@ class Learner
     public function setReadingLevel(int $readingLevel): self
     {
         $this->readingLevel = $readingLevel;
+        return $this;
+    }
+
+    public function getSubscription(): ?string
+    {
+        return $this->subscription;
+    }
+
+    public function setSubscription(?string $subscription): self
+    {
+        $this->subscription = $subscription;
         return $this;
     }
 }

@@ -216,19 +216,6 @@ class CheckAnswerService
             $this->entityManager->persist($learner);
             $this->entityManager->flush();
 
-            // Calculate remaining quizzes
-            $today = new \DateTime();
-            $today->setTime(0, 0, 0);
-            $todayResults = $this->entityManager->getRepository(Result::class)
-                ->createQueryBuilder('r')
-                ->where('r.learner = :learner')
-                ->andWhere('r.created >= :today')
-                ->setParameter('learner', $learner)
-                ->setParameter('today', $today)
-                ->getQuery()
-                ->getResult();
-
-            $remainingQuizzes = max(0, 20 - count($todayResults));
 
             return [
                 'status' => 'OK',
@@ -243,8 +230,7 @@ class CheckAnswerService
                 'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                 'is_favorited' => false,
                 'topic' => $topic,
-                'recordingFileName' => $recordingFileName,
-                'remaining_quizzes' => $remainingQuizzes
+                'recordingFileName' => $recordingFileName
             ];
 
         } catch (\Exception $e) {
