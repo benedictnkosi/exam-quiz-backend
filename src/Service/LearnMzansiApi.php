@@ -563,8 +563,10 @@ class LearnMzansiApi extends AbstractController
 
             if ($topic) {
                 // Join with Topic entity to filter by main topic
-                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
-                    ->andWhere('t.name = :mainTopic');
+                $qb->join('q.subject', 's')
+                    ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                    ->andWhere('t.name = :mainTopic')
+                    ->setParameter('mainTopic', $topic);
             }
 
             // Exclude previously viewed questions if any

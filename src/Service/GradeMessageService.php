@@ -54,6 +54,14 @@ class GradeMessageService
                 ->setParameter('role', 'learner')
                 ->setParameter('sevenDaysAgo', new \DateTime('-7 days'));
 
+            // Get the SQL query
+            $sql = $qb->getQuery()->getSQL();
+            $params = $qb->getQuery()->getParameters();
+            $this->logger->info('Generated SQL Query:', [
+                'sql' => $sql,
+                'parameters' => array_map(fn($param) => $param->getValue(), $params->toArray())
+            ]);
+
             $learners = $qb->getQuery()->getResult();
             $notificationsSent = 0;
             $errors = [];
