@@ -2673,6 +2673,7 @@ class LearnMzansiApi extends AbstractController
                 $learner->setCreated(created: $date);
                 $learner->setCurriculum(curriculum: "IEB,CAPS");
                 $learner->setNewThreadNotification(1);
+                $learner->setSubscription('free');
 
                 if ($curriculum == "IEB") {
                     $learner->setPrivateSchool(true);

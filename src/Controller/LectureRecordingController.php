@@ -20,6 +20,7 @@ class LectureRecordingController extends AbstractController
     public function getRecording(string $filename, Request $request): Response
     {
         $uid = $request->query->get('uid', null);
-        return $this->lectureRecordingService->getRecordingResponse($filename, $uid);
+        $subscriptionCheck = $request->query->get('subscriptionCheck', null);
+        return $this->lectureRecordingService->getRecordingResponse($filename, $uid, $subscriptionCheck);
     }
 }

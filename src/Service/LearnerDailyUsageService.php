@@ -172,7 +172,7 @@ class LearnerDailyUsageService
 
         if (!$usage) {
             $usage = new LearnerDailyUsage();
-            $usage->setLearner($learner->getId());
+            $usage->setLearner($learner);
             $this->entityManager->persist($usage);
         }
 
