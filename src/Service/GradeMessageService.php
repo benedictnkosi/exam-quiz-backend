@@ -43,13 +43,16 @@ class GradeMessageService
             }
 
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l')
+            $qb->select('DISTINCT l')
                 ->from(Learner::class, 'l')
+                ->innerJoin('App\Entity\Result', 'r', 'WITH', 'r.learner = l')
                 ->andWhere('l.grade = :grade')
                 ->andWhere('l.expoPushToken IS NOT NULL')
                 ->andWhere('l.role = :role')
+                ->andWhere('r.created >= :sevenDaysAgo')
                 ->setParameter('grade', $grade)
-                ->setParameter('role', 'learner');
+                ->setParameter('role', 'learner')
+                ->setParameter('sevenDaysAgo', new \DateTime('-7 days'));
 
             $learners = $qb->getQuery()->getResult();
             $notificationsSent = 0;
