@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Change to the project directory
-cd "$(dirname "$0")/.."
+cd /var/www/exam-quiz-backend
 
 # Run the Symfony console command
 php bin/console app:send-inactive-learner-notifications

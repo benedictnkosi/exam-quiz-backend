@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+echo "Starting quiz weekend notification script"
+PROJECT_DIR="/var/www/exam-quiz-backend"
 
 # Change to the project directory
 cd "$PROJECT_DIR" || exit

@@ -4,6 +4,7 @@
 
 echo "Starting content generation process..."
 
+cd /var/www/exam-quiz-backend
 echo "Generating question topics..."
 php bin/console app:generate-question-topics 1
 php bin/console app:generate-question-topics 2

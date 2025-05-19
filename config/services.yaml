@@ -89,3 +89,8 @@ services:
             $params: "@parameter_bag"
             $logger: "@logger"
             $httpClient: "@http_client"
+
+    App\Service\ImageUploadService:
+        arguments:
+            $targetDirectory: "%kernel.project_dir%/public/assets/images/learnMzansi"
+            $slugger: '@Symfony\Component\String\Slugger\SluggerInterface'

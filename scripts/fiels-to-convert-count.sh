@@ -5,7 +5,6 @@ BITRATE="128k"
 
 # Create an output folder (optional)
 OUTPUT_DIR="converted_m4a"
-mkdir -p "$OUTPUT_DIR"
 
 echo "Starting batch conversion of .opus files to .m4a..."
 

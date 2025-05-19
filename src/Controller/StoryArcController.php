@@ -43,6 +43,14 @@ class StoryArcController extends AbstractController
     {
         $storyArcs = $this->storyArcService->getAllStoryArcs();
         $data = array_map(function ($storyArc) {
+            $imageName = null;
+            $chapterNumber = $storyArc->getChapterNumber();
+            $imagePath = "public/images/chapter-{$chapterNumber}.png";
+
+            if (file_exists($imagePath)) {
+                $imageName = "chapter-{$chapterNumber}.png";
+            }
+
             return [
                 'id' => $storyArc->getId(),
                 'theme' => $storyArc->getTheme(),
@@ -51,7 +59,8 @@ class StoryArcController extends AbstractController
                 'chapter_name' => $storyArc->getChapterName(),
                 'outline' => $storyArc->getOutline(),
                 'status' => $storyArc->getStatus(),
-                'chapter_number' => $storyArc->getChapterNumber()
+                'chapter_number' => $storyArc->getChapterNumber(),
+                'image' => $imageName
             ];
         }, $storyArcs);
 
