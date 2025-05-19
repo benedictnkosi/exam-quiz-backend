@@ -38,8 +38,18 @@ class ImageUploadController extends AbstractController
                 return $this->json(['error' => 'No image file provided'], 400);
             }
 
+            if (!$file->isValid()) {
+                return $this->json(['error' => 'Invalid file upload: ' . $file->getErrorMessage()], 400);
+            }
+
             if (!$imageName) {
                 return $this->json(['error' => 'Image name is required'], 400);
+            }
+
+            // Validate file type
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($file->getMimeType(), $allowedTypes)) {
+                return $this->json(['error' => 'Invalid file type. Only JPEG, PNG, and GIF files are allowed.'], 400);
             }
 
             $filename = $this->imageUploadService->upload($file, $imageName);
