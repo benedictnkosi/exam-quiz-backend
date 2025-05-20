@@ -501,8 +501,7 @@ class LearnMzansiApi extends AbstractController
 
             // Check daily quiz limit
 
-            $subscription = $learner->getSubscription();
-            if ($subscription === 'free' && $subscriptionCheck) {
+            if ($subscriptionCheck) {
                 $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
                 if ($usageData['status'] === 'OK' && $usageData['data']['quiz'] <= 0) {
                     return new Response('Daily quiz limit reached', Response::HTTP_FORBIDDEN);
