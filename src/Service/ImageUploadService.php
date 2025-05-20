@@ -112,12 +112,12 @@ class ImageUploadService
                     break;
                 case 'image/png':
                     // Convert PNG to JPEG for better compression
-                    $jpegPath = $this->targetDirectory . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . '.jpg';
+                    $jpegPath = $this->targetDirectory . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . '.png';
                     imagejpeg($newImage, $jpegPath, 50);
                     if (file_exists($targetPath)) {
                         unlink($targetPath);
                     }
-                    $newFilename = pathinfo($newFilename, PATHINFO_FILENAME) . '.jpg';
+                    $newFilename = pathinfo($newFilename, PATHINFO_FILENAME) . '.png';
                     $targetPath = $jpegPath;
                     break;
                 case 'image/gif':
