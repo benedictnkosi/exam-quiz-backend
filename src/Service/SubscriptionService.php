@@ -16,6 +16,13 @@ class SubscriptionService
     private const REVENUECAT_API_BASE_URL = 'https://api.revenuecat.com/v1';
     private const FREE_SUBSCRIPTION_IDENTIFIER = 'free';
 
+    private const SUBSCRIPTION_PRIORITY = [
+        'dimpo_gold_annual' => 3,
+        'dimpo_silver_annual' => 2,
+        'dimpo_bronze_annual' => 1,
+        'free' => 0
+    ];
+
     public function __construct(EntityManagerInterface $entityManager, HttpClientInterface $httpClient, string $revenueCatApiKey)
     {
         $this->entityManager = $entityManager;
@@ -124,6 +131,8 @@ class SubscriptionService
             $now = new DateTime('now', new \DateTimeZone('UTC'));
             error_log("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
             $activeFreeEntitlementEncountered = false;
+            $highestPrioritySubscription = null;
+            $highestPriority = -1;
 
             foreach ($entitlements as $entitlementData) {
                 if (!is_array($entitlementData) || !isset($entitlementData['product_identifier']) || !array_key_exists('expires_date', $entitlementData)) {
@@ -151,31 +160,35 @@ class SubscriptionService
                 }
 
                 if ($isActive) {
-                    if ($productIdentifier !== self::FREE_SUBSCRIPTION_IDENTIFIER) {
-                        // Active PAID entitlement found
-                        try {
-                            if ($identifierType === 'uid') {
-                                $this->updateLearnerSubscriptionByUid($resolvedLearnerIdentifier, $productIdentifier);
-                            } elseif ($identifierType === 'email') {
-                                $this->updateLearnerSubscriptionByEmail($resolvedLearnerIdentifier, $productIdentifier);
-                            }
-                            error_log("RevenueCat: Successfully updated learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with PAID subscription \'{$productIdentifier}\'.");
-                            return $productIdentifier; // Paid subscription set, primary goal achieved.
-                        } catch (\Exception $learnerUpdateException) {
-                            error_log("RevenueCat: Failed to update learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with PAID subscription \'{$productIdentifier}\'. Error: " . $learnerUpdateException->getMessage());
-                            return null; // Critical failure updating a paid subscription.
-                        }
-                    } else {
-                        // Active FREE entitlement found ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER)
+                    if ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER) {
                         $activeFreeEntitlementEncountered = true;
-                        // Do not return; continue checking for paid entitlements as they take precedence.
+                    } else {
+                        $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
+                        if ($priority > $highestPriority) {
+                            $highestPriority = $priority;
+                            $highestPrioritySubscription = $productIdentifier;
+                        }
                     }
                 }
             }
 
-            // If loop completes, no active PAID subscription was successfully set and returned.
-            // Now, set to FREE_SUBSCRIPTION_IDENTIFIER by default or if an active free one was seen.
-            // $resolvedLearnerIdentifier is guaranteed to be non-null here due to the check after identification logic.
+            // If we found a paid subscription, use it
+            if ($highestPrioritySubscription !== null) {
+                try {
+                    if ($identifierType === 'uid') {
+                        $this->updateLearnerSubscriptionByUid($resolvedLearnerIdentifier, $highestPrioritySubscription);
+                    } elseif ($identifierType === 'email') {
+                        $this->updateLearnerSubscriptionByEmail($resolvedLearnerIdentifier, $highestPrioritySubscription);
+                    }
+                    error_log("RevenueCat: Successfully updated learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'.");
+                    return $highestPrioritySubscription;
+                } catch (\Exception $learnerUpdateException) {
+                    error_log("RevenueCat: Failed to update learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'. Error: " . $learnerUpdateException->getMessage());
+                    return null;
+                }
+            }
+
+            // If no paid subscription found, set to FREE_SUBSCRIPTION_IDENTIFIER
             try {
                 if ($identifierType === 'uid') {
                     $this->updateLearnerSubscriptionByUid($resolvedLearnerIdentifier, self::FREE_SUBSCRIPTION_IDENTIFIER);
