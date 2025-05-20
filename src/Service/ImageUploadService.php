@@ -106,6 +106,12 @@ class ImageUploadService
 
             // Save compressed image with higher compression
             $targetPath = $this->targetDirectory . '/' . $newFilename;
+
+            // Ensure the target directory exists
+            if (!file_exists(dirname($targetPath))) {
+                mkdir(dirname($targetPath), 0777, true);
+            }
+
             switch ($file->getMimeType()) {
                 case 'image/jpeg':
                     imagejpeg($newImage, $targetPath, 50); // Reduced quality to 50%
@@ -129,8 +135,21 @@ class ImageUploadService
             imagedestroy($source);
             imagedestroy($newImage);
 
+            // Verify the compressed file exists and is readable
+            if (!file_exists($targetPath)) {
+                throw new \Exception('Failed to save the compressed image file');
+            }
+
+            if (!is_readable($targetPath)) {
+                throw new \Exception('The saved image file is not readable');
+            }
+
             // Verify the compressed file size
             $compressedSize = filesize($targetPath);
+            if ($compressedSize === false) {
+                throw new \Exception('Failed to get the size of the compressed file');
+            }
+
             $this->logger->info('Original size: ' . $file->getSize() . ' bytes, Compressed size: ' . $compressedSize . ' bytes');
 
             $this->logger->info('File compressed and saved successfully');
