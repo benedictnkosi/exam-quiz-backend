@@ -30,7 +30,7 @@ class SubscriptionService
         $this->revenueCatApiKey = $revenueCatApiKey;
     }
 
-    public function updateLearnerSubscriptionByUid(int $learnerUid, ?string $subscription): Learner
+    public function updateLearnerSubscriptionByUid(string $learnerUid, ?string $subscription): Learner
     {
         $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
 
@@ -86,53 +86,7 @@ class SubscriptionService
             error_log("RevenueCat: Entitlements array found for appUser '{$appUserId}\'. Response: " . json_encode($data['subscriber']['entitlements']));
 
             $resolvedLearnerIdentifier = null;
-            $identifierType = null;
 
-            // START OF EXISTING LEARNER IDENTIFICATION LOGIC (Copied from previous correct state)
-            if (isset($data['subscriber']['other_aliases']) && is_array($data['subscriber']['other_aliases']) && !empty($data['subscriber']['other_aliases'])) {
-                $firstAlias = $data['subscriber']['other_aliases'][0];
-                if (is_numeric($firstAlias)) {
-                    $resolvedLearnerIdentifier = (int) $firstAlias;
-                    $identifierType = 'uid';
-                    error_log("RevenueCat: Using first alias \'{$firstAlias}\' (UID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\'.");
-                } else {
-                    error_log("RevenueCat: First alias \'{$firstAlias}\' for appUser \'{$appUserId}\' is not numeric. Skipping as UID.");
-                }
-            }
-            if ($identifierType === null) {
-                if (is_numeric($appUserId)) {
-                    $resolvedLearnerIdentifier = (int) $appUserId;
-                    $identifierType = 'uid';
-                    error_log("RevenueCat: Using input appUser ID \'{$appUserId}\' (UID: {$resolvedLearnerIdentifier}) as fallback for appUser \'{$appUserId}\'.");
-                } else {
-                    error_log("RevenueCat: Input appUser ID \'{$appUserId}\' is not numeric. Skipping as UID.");
-                }
-            }
-            if ($identifierType === null && isset($data['subscriber']['original_app_user_id'])) {
-                $rcOriginalAppUserId = $data['subscriber']['original_app_user_id'];
-                if (is_numeric($rcOriginalAppUserId)) {
-                    $resolvedLearnerIdentifier = (int) $rcOriginalAppUserId;
-                    $identifierType = 'uid';
-                    error_log("RevenueCat: Using RC original_app_user_id \'{$rcOriginalAppUserId}\' (UID: {$resolvedLearnerIdentifier}) as fallback for appUser \'{$appUserId}\'.");
-                } else {
-                    error_log("RevenueCat: RC original_app_user_id \'{$rcOriginalAppUserId}\' for appUser \'{$appUserId}\' is not numeric. Skipping as UID.");
-                }
-            }
-            if ($identifierType === null) {
-                if (isset($data['subscriber']['subscriber_attributes']['$email']['value'])) {
-                    $learnerEmail = $data['subscriber']['subscriber_attributes']['$email']['value'];
-                    $resolvedLearnerIdentifier = $learnerEmail;
-                    $identifierType = 'email';
-                    error_log("RevenueCat: No numeric UID found. Using email \'{$learnerEmail}\' for appUser \'{$appUserId}\'.");
-                } else {
-                    error_log("RevenueCat: No numeric UID and no email attribute found for appUser \'{$appUserId}\'. Cannot identify learner to update subscription.");
-                    return [
-                        'success' => false,
-                        'error' => 'Learner identification failed',
-                        'details' => 'No numeric UID and no email attribute found for learner identification'
-                    ];
-                }
-            }
             // END OF EXISTING LEARNER IDENTIFICATION LOGIC
 
             $entitlements = $data['subscriber']['entitlements'];
@@ -183,18 +137,15 @@ class SubscriptionService
             // If we found a paid subscription, use it
             if ($highestPrioritySubscription !== null) {
                 try {
-                    if ($identifierType === 'uid') {
-                        $this->updateLearnerSubscriptionByUid($resolvedLearnerIdentifier, $highestPrioritySubscription);
-                    } elseif ($identifierType === 'email') {
-                        $this->updateLearnerSubscriptionByEmail($resolvedLearnerIdentifier, $highestPrioritySubscription);
-                    }
-                    error_log("RevenueCat: Successfully updated learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'.");
+                    $this->updateLearnerSubscriptionByUid($appUserId, $highestPrioritySubscription);
+
+                    error_log("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'.");
                     return [
                         'success' => true,
                         'subscription' => $highestPrioritySubscription
                     ];
                 } catch (\Exception $learnerUpdateException) {
-                    error_log("RevenueCat: Failed to update learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'. Error: " . $learnerUpdateException->getMessage());
+                    error_log("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'. Error: " . $learnerUpdateException->getMessage());
                     return [
                         'success' => false,
                         'error' => 'Learner update failed',
@@ -205,14 +156,11 @@ class SubscriptionService
 
             // If no paid subscription found, set to FREE_SUBSCRIPTION_IDENTIFIER
             try {
-                if ($identifierType === 'uid') {
-                    $this->updateLearnerSubscriptionByUid($resolvedLearnerIdentifier, self::FREE_SUBSCRIPTION_IDENTIFIER);
-                } elseif ($identifierType === 'email') {
-                    $this->updateLearnerSubscriptionByEmail($resolvedLearnerIdentifier, self::FREE_SUBSCRIPTION_IDENTIFIER);
-                }
+                $this->updateLearnerSubscriptionByUid($appUserId, self::FREE_SUBSCRIPTION_IDENTIFIER);
+
 
                 if ($activeFreeEntitlementEncountered) {
-                    error_log("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}) based on an active free entitlement.");
+                    error_log("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}) based on an active free entitlement.");
                 } else {
                     error_log("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}).");
                 }
@@ -221,7 +169,7 @@ class SubscriptionService
                     'subscription' => self::FREE_SUBSCRIPTION_IDENTIFIER
                 ];
             } catch (\Exception $learnerUpdateException) {
-                error_log("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}). Error: " . $learnerUpdateException->getMessage());
+                error_log("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, . Error: " . $learnerUpdateException->getMessage());
                 return [
                     'success' => false,
                     'error' => 'Free subscription update failed',

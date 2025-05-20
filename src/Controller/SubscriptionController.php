@@ -27,8 +27,7 @@ class SubscriptionController extends AbstractController
                 throw new \Exception('app_user_id is required in the payload');
             }
 
-            $appUserId = $data['event']['app_user_id'];
-            $subscription = $data['event'] ?? null;
+            $appUserId = $data['event']['aliases'][0];
 
             $learner = $subscriptionService->updateRevenueCatSubscription($appUserId);
 
