@@ -85,8 +85,8 @@ class ImageUploadService
             $width = imagesx($source);
             $height = imagesy($source);
 
-            // Calculate new dimensions (max width 800px while maintaining aspect ratio)
-            $maxWidth = 800;
+            // Calculate new dimensions (max width 600px while maintaining aspect ratio)
+            $maxWidth = 300;
             $newWidth = min($width, $maxWidth);
             $newHeight = ($newWidth / $width) * $height;
 
@@ -106,50 +106,32 @@ class ImageUploadService
 
             // Save compressed image with higher compression
             $targetPath = $this->targetDirectory . '/' . $newFilename;
-
-            // Ensure the target directory exists
-            if (!file_exists(dirname($targetPath))) {
-                mkdir(dirname($targetPath), 0777, true);
-            }
-
             switch ($file->getMimeType()) {
                 case 'image/jpeg':
-                    imagejpeg($newImage, $targetPath, 50); // Reduced quality to 50%
-                    break;
                 case 'image/png':
-                    // Convert PNG to JPEG for better compression
-                    $jpegPath = $this->targetDirectory . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . '.png';
-                    imagejpeg($newImage, $jpegPath, 50);
-                    if (file_exists($targetPath)) {
-                        unlink($targetPath);
-                    }
-                    $newFilename = pathinfo($newFilename, PATHINFO_FILENAME) . '.png';
-                    $targetPath = $jpegPath;
-                    break;
                 case 'image/gif':
-                    imagegif($newImage, $targetPath);
+                    // Always save as PNG
+                    $pngFilename = pathinfo($newFilename, PATHINFO_FILENAME) . '.png';
+                    $targetPath = $this->targetDirectory . '/' . $pngFilename;
+
+                    // Ensure transparency is preserved
+                    imagealphablending($newImage, false);
+                    imagesavealpha($newImage, true);
+
+                    // Save as PNG with maximum compression
+                    imagepng($newImage, $targetPath, 9);
+                    $newFilename = $pngFilename;
                     break;
+                default:
+                    throw new \Exception('Unsupported image format');
             }
 
             // Free up memory
             imagedestroy($source);
             imagedestroy($newImage);
 
-            // Verify the compressed file exists and is readable
-            if (!file_exists($targetPath)) {
-                throw new \Exception('Failed to save the compressed image file');
-            }
-
-            if (!is_readable($targetPath)) {
-                throw new \Exception('The saved image file is not readable');
-            }
-
             // Verify the compressed file size
             $compressedSize = filesize($targetPath);
-            if ($compressedSize === false) {
-                throw new \Exception('Failed to get the size of the compressed file');
-            }
-
             $this->logger->info('Original size: ' . $file->getSize() . ' bytes, Compressed size: ' . $compressedSize . ' bytes');
 
             $this->logger->info('File compressed and saved successfully');
