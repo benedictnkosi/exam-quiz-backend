@@ -16,7 +16,7 @@ class LearnerDailyUsageService
     private $SILVER_DAILY_QUIZ_LIMIT = 50;
     private $BRONZE_DAILY_QUIZ_LIMIT = 30;
     private $GOLD_DAILY_QUIZ_LIMIT = 100;
-    private $DAILY_LESSON_LIMIT = 30;
+    private $DAILY_LESSON_LIMIT = 15;
     private $DAILY_PODCAST_LIMIT = 15;
 
     public function __construct(
