@@ -60,7 +60,7 @@ class SubscriptionService
         return $learner;
     }
 
-    public function updateRevenueCatSubscription(string $appUserId): ?string
+    public function updateRevenueCatSubscription(string $appUserId): array
     {
         $url = self::REVENUECAT_API_BASE_URL . '/subscribers/' . $appUserId;
         $headers = [
@@ -76,7 +76,11 @@ class SubscriptionService
 
             if (!isset($data['subscriber']['entitlements']) || !is_array($data['subscriber']['entitlements'])) {
                 error_log("RevenueCat: No entitlements array found or it\'s not an array for appUser '{$appUserId}\'. Response: " . json_encode($data));
-                return null;
+                return [
+                    'success' => false,
+                    'error' => 'No entitlements found',
+                    'details' => 'No entitlements array found in RevenueCat response'
+                ];
             }
 
             error_log("RevenueCat: Entitlements array found for appUser '{$appUserId}\'. Response: " . json_encode($data['subscriber']['entitlements']));
@@ -122,7 +126,11 @@ class SubscriptionService
                     error_log("RevenueCat: No numeric UID found. Using email \'{$learnerEmail}\' for appUser \'{$appUserId}\'.");
                 } else {
                     error_log("RevenueCat: No numeric UID and no email attribute found for appUser \'{$appUserId}\'. Cannot identify learner to update subscription.");
-                    return null; // Cannot proceed without a resolved learner identifier
+                    return [
+                        'success' => false,
+                        'error' => 'Learner identification failed',
+                        'details' => 'No numeric UID and no email attribute found for learner identification'
+                    ];
                 }
             }
             // END OF EXISTING LEARNER IDENTIFICATION LOGIC
@@ -181,10 +189,17 @@ class SubscriptionService
                         $this->updateLearnerSubscriptionByEmail($resolvedLearnerIdentifier, $highestPrioritySubscription);
                     }
                     error_log("RevenueCat: Successfully updated learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'.");
-                    return $highestPrioritySubscription;
+                    return [
+                        'success' => true,
+                        'subscription' => $highestPrioritySubscription
+                    ];
                 } catch (\Exception $learnerUpdateException) {
                     error_log("RevenueCat: Failed to update learner (Type: {$identifierType}, ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'. Error: " . $learnerUpdateException->getMessage());
-                    return null;
+                    return [
+                        'success' => false,
+                        'error' => 'Learner update failed',
+                        'details' => $learnerUpdateException->getMessage()
+                    ];
                 }
             }
 
@@ -201,18 +216,33 @@ class SubscriptionService
                 } else {
                     error_log("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}).");
                 }
-                return self::FREE_SUBSCRIPTION_IDENTIFIER;
+                return [
+                    'success' => true,
+                    'subscription' => self::FREE_SUBSCRIPTION_IDENTIFIER
+                ];
             } catch (\Exception $learnerUpdateException) {
                 error_log("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}). Error: " . $learnerUpdateException->getMessage());
-                return null;
+                return [
+                    'success' => false,
+                    'error' => 'Free subscription update failed',
+                    'details' => $learnerUpdateException->getMessage()
+                ];
             }
 
         } catch (\Symfony\Contracts\HttpClient\Exception\ExceptionInterface $e) {
             error_log("RevenueCat: HTTP Client Exception for appUser \'{$appUserId}\'. Error: " . $e->getMessage());
-            return null;
+            return [
+                'success' => false,
+                'error' => 'HTTP Client Error',
+                'details' => $e->getMessage()
+            ];
         } catch (\Exception $e) {
             error_log("RevenueCat: General Exception for appUser \'{$appUserId}\'. Error: " . $e->getMessage());
-            return null;
+            return [
+                'success' => false,
+                'error' => 'General Error',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }
