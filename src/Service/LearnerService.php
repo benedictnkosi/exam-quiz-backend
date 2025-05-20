@@ -27,6 +27,11 @@ class LearnerService
             throw new NotFoundHttpException('Learner not found');
         }
 
-        return $learner->getGrade();
+        $grade = $learner->getGrade();
+        if (!$grade) {
+            throw new NotFoundHttpException('Learner grade not found');
+        }
+
+        return $grade->getNumber();
     }
 }

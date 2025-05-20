@@ -22,6 +22,7 @@
         "symfony/monolog-bundle": "^3.10",
         "symfony/runtime": "6.4.*",
         "symfony/serializer": "6.4.*",
+        "symfony/uid": "6.4.*",
         "symfony/validator": "6.4.*",
         "symfony/yaml": "6.4.*"
     },

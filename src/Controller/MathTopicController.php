@@ -6,6 +6,7 @@ use App\Service\LearnerService;
 use App\Service\MathsService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use OpenApi\Attributes as OA;
 
@@ -48,8 +49,13 @@ class MathTopicController extends AbstractController
         response: 404,
         description: 'Learner not found'
     )]
-    public function getTopicHierarchy(string $learnerUid): JsonResponse
+    public function getTopicHierarchy(Request $request): JsonResponse
     {
+        $learnerUid = $request->query->get('learnerUid');
+        if (!$learnerUid) {
+            return $this->json(['error' => 'learnerUid parameter is required'], 400);
+        }
+
         $grade = $this->learnerService->getLearnerGrade($learnerUid);
         $hierarchy = $this->mathsService->getTopicHierarchy($grade);
         return $this->json($hierarchy);

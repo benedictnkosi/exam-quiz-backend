@@ -3582,6 +3582,9 @@ class LearnMzansiApi extends AbstractController
                 ];
             }
 
+            // Increment lesson usage
+            $this->dailyUsageService->incrementLessonUsage($learner);
+
             // Check daily lesson limit
             $subscription = $learner->getSubscription();
             if ($subscription === 'free' && $subscriptionCheck) {
