@@ -41,6 +41,26 @@ class TestApiEndpointsCommand extends Command
         return $randomString;
     }
 
+    private function generateUidWithTimestamp(): string
+    {
+        $timestamp = time();
+        $random = bin2hex(random_bytes(4));
+        return sprintf('%x%s', $timestamp, $random);
+    }
+
+    private function generateUidWithUniqid(): string
+    {
+        return uniqid('', true);
+    }
+
+    private function generateUidWithCombined(): string
+    {
+        $timestamp = time();
+        $random = bin2hex(random_bytes(4));
+        $uniq = substr(uniqid('', true), -6);
+        return sprintf('%x%s%s', $timestamp, $random, $uniq);
+    }
+
     private function cleanupLearner(SymfonyStyle $io, string $uid): void
     {
         try {
@@ -73,7 +93,7 @@ class TestApiEndpointsCommand extends Command
             // Step 1: Create a learner
             $io->section('Step 1: Creating a learner');
             $learnerData = [
-                "uid" => $this->generateRandomUid(),
+                "uid" => $this->generateUidWithCombined(),
                 'name' => 'Automation',
                 'grade' => '12',
                 'school_name' => 'Parkhill',
