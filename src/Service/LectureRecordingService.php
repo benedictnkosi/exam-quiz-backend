@@ -6,6 +6,8 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use App\Entity\Learner;
+use Doctrine\ORM\EntityManagerInterface;
 
 class LectureRecordingService
 {
@@ -13,7 +15,8 @@ class LectureRecordingService
 
     public function __construct(
         ParameterBagInterface $params,
-        private readonly LearnerDailyUsageService $learnerDailyUsageService
+        private readonly LearnerDailyUsageService $learnerDailyUsageService,
+        private readonly EntityManagerInterface $em
     ) {
         $this->lecturesDirectory = $params->get('kernel.project_dir') . '/public/assets/lectures';
     }
@@ -46,6 +49,13 @@ class LectureRecordingService
             $filename
         );
 
+        //if uid is provided, increment the podcast usage
+        if ($uid) {
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            if ($learner) {
+                $this->learnerDailyUsageService->incrementPodcastUsage($learner);
+            }
+        }
         return $response;
     }
 

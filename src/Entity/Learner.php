@@ -185,6 +185,10 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private ?string $subscription = null;
 
+    #[ORM\Column(type: Types::STRING, length: 20, options: ['default' => 'active'])]
+    #[Serializer\Groups(['learner:read'])]
+    private string $status = 'active';
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -692,6 +696,17 @@ class Learner
     public function setSubscription(?string $subscription): self
     {
         $this->subscription = $subscription;
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): self
+    {
+        $this->status = $status;
         return $this;
     }
 }

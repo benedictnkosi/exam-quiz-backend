@@ -129,18 +129,6 @@ class TopicRecordingService
             ->getQuery()
             ->getOneOrNullResult();
 
-        if ($topic) {
-            // Get the learner by UID if provided, otherwise try to get from subject
-            $learner = null;
-            if ($uid) {
-                $learner = $this->entityManager->getRepository(Learner::class)
-                    ->findOneBy(['uid' => $uid]);
-
-                if ($learner) {
-                    $this->dailyUsageService->incrementPodcastUsage($learner);
-                }
-            }
-        }
 
         return $topic;
     }

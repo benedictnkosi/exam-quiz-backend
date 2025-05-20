@@ -2963,15 +2963,24 @@ class LearnMzansiApi extends AbstractController
     {
         try {
             $uid = $request->get('uid');
+            $email = $request->get('email');
 
-            if (!$uid) {
+            if (!$uid && !$email) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'Missing required parameter: uid'
+                    'message' => 'Either uid or email parameter is required'
                 ];
             }
 
-            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            $learner = null;
+            if ($uid) {
+                $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+            }
+
+            if ($email) {
+                $learner = $this->em->getRepository(Learner::class)->findOneBy(['email' => $email]);
+            }
+
             if (!$learner) {
                 return [
                     'status' => 'NOK',
@@ -2982,15 +2991,28 @@ class LearnMzansiApi extends AbstractController
             // Begin transaction
             $this->em->beginTransaction();
             try {
-                $this->learnerDeletionService->deleteLearnerData($learner);
-                $this->em->flush();
-                $this->em->commit();
+                if ($email) {
+                    // If email is used, set status to pending_deletion
+                    $learner->setStatus('pending_deletion');
+                    $this->em->persist($learner);
+                    $this->em->flush();
+                    $this->em->commit();
 
-                return [
-                    'status' => 'OK',
-                    'message' => 'Learner and associated data deleted successfully'
-                ];
+                    return [
+                        'status' => 'OK',
+                        'message' => 'Learner marked for deletion'
+                    ];
+                } else {
+                    // If uid is used, proceed with full deletion
+                    $this->learnerDeletionService->deleteLearnerData($learner);
+                    $this->em->flush();
+                    $this->em->commit();
 
+                    return [
+                        'status' => 'OK',
+                        'message' => 'Learner and associated data deleted successfully'
+                    ];
+                }
             } catch (\Exception $e) {
                 $this->em->rollback();
                 throw $e;
