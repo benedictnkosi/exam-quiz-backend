@@ -65,7 +65,7 @@ class ExamPaperUploadService
         $questionCount = $qb->getQuery()->getSingleScalarResult();
 
         if ($questionCount >= 5) {
-            throw new \InvalidArgumentException('Maximum number of questions (5) already reached for this subject, grade, year, and term combination.');
+            throw new \InvalidArgumentException('found ' . $questionCount . ' questions for this subject, grade, year, and term combination.');
         }
     }
 
