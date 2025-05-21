@@ -268,9 +268,24 @@ PROMPT . implode("\n", self::PROMPT_RULES['steps']['instructions']);
             $step['hint'] = $this->formatLatex($step['hint']);
             $step['teach'] = $this->formatLatex($step['teach']);
 
-            // Format options
+            // Format options - handle both string and array options
             foreach ($step['options'] as &$option) {
-                $option = $this->formatLatex($option);
+                if (is_array($option)) {
+                    foreach ($option as &$subOption) {
+                        $subOption = $this->formatLatex($subOption);
+                    }
+                } else {
+                    $option = $this->formatLatex($option);
+                }
+            }
+
+            // Format answer - handle both string and array answers
+            if (is_array($step['answer'])) {
+                foreach ($step['answer'] as &$subAnswer) {
+                    $subAnswer = $this->formatLatex($subAnswer);
+                }
+            } else {
+                $step['answer'] = $this->formatLatex($step['answer']);
             }
         }
 
