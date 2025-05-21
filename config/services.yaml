@@ -6,6 +6,8 @@
 parameters:
     upload_directory: "%kernel.project_dir%/public/assets/images/learnMzansi"
     openai_api_key: "%env(OPENAI_API_KEY)%"
+    app.ai_endpoint: "%env(AI_ENDPOINT)%"
+    app.ai_api_key: "%env(AI_API_KEY)%"
 
 services:
     # default configuration for services in *this* file
