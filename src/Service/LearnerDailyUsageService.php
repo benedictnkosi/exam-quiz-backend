@@ -43,7 +43,6 @@ class LearnerDailyUsageService
 
             // Get today's date
             $today = new \DateTimeImmutable();
-            $today->setTime(0, 0, 0);
 
             // Get or create today's usage record
             $usage = $this->usageRepository->findByLearnerAndDate($learner->getId(), $today);
