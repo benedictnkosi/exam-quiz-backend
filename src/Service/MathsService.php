@@ -2,67 +2,48 @@
 
 namespace App\Service;
 
-use App\Dto\TopicHierarchyDto;
 use App\Entity\Question;
-use App\Repository\MathLessonRepository;
+use App\Entity\Learner;
 use App\Repository\QuestionRepository;
-use Doctrine\ORM\Query\Expr\OrderBy;
+use Doctrine\ORM\EntityManagerInterface;
 
 class MathsService
 {
     public function __construct(
-        private readonly MathLessonRepository $mathLessonRepository,
-        private readonly QuestionRepository $questionRepository
+        private readonly QuestionRepository $questionRepository,
+        private readonly EntityManagerInterface $entityManager
     ) {
     }
 
     /**
-     * Get all topics with their subtopics organized in a hierarchical structure
+     * Get all unique topics from questions where steps is not null and subject grade matches learner grade
      * 
-     * @param int|null $grade Filter topics by grade level
-     * @return TopicHierarchyDto[]
+     * @param string $learnerUid The learner's UID
+     * @return array Array of unique topics
      */
-    public function getTopicHierarchy(?int $grade = null): array
+    public function getTopicsWithSteps(string $learnerUid): array
     {
-        $criteria = [];
-        if ($grade !== null) {
-            $criteria['grade'] = $grade;
+        // Get the learner
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
+        if (!$learner) {
+            return [];
         }
 
-        $lessons = $this->mathLessonRepository->findBy($criteria, ['topic' => 'ASC', 'subTopic' => 'ASC']);
-
-        $topicHierarchy = [];
-
-        foreach ($lessons as $lesson) {
-            $topic = $lesson->getTopic();
-            $subTopic = $lesson->getSubTopic();
-
-            if (!isset($topicHierarchy[$topic])) {
-                $topicHierarchy[$topic] = new TopicHierarchyDto($topic);
-            }
-
-            $topicHierarchy[$topic]->addSubTopic($subTopic);
+        $grade = $learner->getGrade();
+        if (!$grade) {
+            return [];
         }
 
-        return array_values($topicHierarchy);
-    }
-
-    /**
-     * Get all unique topics
-     * 
-     * @param int|null $grade Filter topics by grade level
-     * @return string[]
-     */
-    public function getAllTopics(?int $grade = null): array
-    {
-        $qb = $this->mathLessonRepository->createQueryBuilder('ml')
-            ->select('DISTINCT ml.topic')
-            ->orderBy('ml.topic', 'ASC');
-
-        if ($grade !== null) {
-            $qb->where('ml.grade = :grade')
-                ->setParameter('grade', $grade);
-        }
+        // Create query to get unique topics
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('DISTINCT q.topic')
+            ->from(Question::class, 'q')
+            ->join('q.subject', 's')
+            ->where('q.steps IS NOT NULL')
+            ->andWhere('s.grade = :grade')
+            ->andWhere('q.topic IS NOT NULL')
+            ->setParameter('grade', $grade)
+            ->orderBy('q.topic', 'ASC');
 
         $result = $qb->getQuery()->getResult();
 
@@ -70,55 +51,31 @@ class MathsService
     }
 
     /**
-     * Get all subtopics for a specific topic
+     * Get question IDs with steps for a specific topic and grade
      * 
-     * @param string $topic
-     * @param int|null $grade Filter subtopics by grade level
-     * @return string[]
+     * @param string $topic The topic to filter by
+     * @param int $grade The grade number to filter by
+     * @return array Array of question IDs
      */
-    public function getSubTopicsForTopic(string $topic, ?int $grade = null): array
+    public function getQuestionIdsWithSteps(string $topic, int $grade): array
     {
-        $qb = $this->mathLessonRepository->createQueryBuilder('ml')
-            ->select('DISTINCT ml.subTopic')
-            ->where('ml.topic = :topic')
+        // Create query to get question IDs
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('q.id')
+            ->from(Question::class, 'q')
+            ->join('q.subject', 's')
+            ->join('s.grade', 'g')
+            ->where('q.steps IS NOT NULL')
+            ->andWhere('q.topic = :topic')
+            ->andWhere('g.number = :grade')
+            ->andWhere('q.active = :active')
             ->setParameter('topic', $topic)
-            ->orderBy('ml.subTopic', 'ASC');
-
-        if ($grade !== null) {
-            $qb->andWhere('ml.grade = :grade')
-                ->setParameter('grade', $grade);
-        }
+            ->setParameter('grade', $grade)
+            ->setParameter('active', true)
+            ->orderBy('q.id', 'ASC');
 
         $result = $qb->getQuery()->getResult();
 
-        return array_column($result, 'subTopic');
-    }
-
-    /**
-     * Get lessons filtered by subtopic and grade
-     * 
-     * @param string $subTopic
-     * @param int $grade
-     * @return array
-     */
-    public function getLessonsByFilters(string $subTopic, int $grade): array
-    {
-        $lessons = $this->mathLessonRepository->findBy(
-            [
-                'subTopic' => $subTopic,
-                'grade' => $grade
-            ],
-            ['id' => 'ASC']
-        );
-
-        // Ensure questions are loaded
-        foreach ($lessons as $lesson) {
-            if ($lesson->getQuestion() === null) {
-                continue;
-            }
-            $this->mathLessonRepository->getEntityManager()->refresh($lesson->getQuestion());
-        }
-
-        return $lessons;
+        return array_column($result, 'id');
     }
 }

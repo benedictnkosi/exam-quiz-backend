@@ -109,6 +109,9 @@ class Question
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
     private ?string $questionNumber = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $steps = null;
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -471,6 +474,17 @@ class Question
     public function setQuestionNumber(?string $questionNumber): static
     {
         $this->questionNumber = $questionNumber;
+        return $this;
+    }
+
+    public function getSteps(): ?array
+    {
+        return $this->steps;
+    }
+
+    public function setSteps(?array $steps): static
+    {
+        $this->steps = $steps;
         return $this;
     }
 }

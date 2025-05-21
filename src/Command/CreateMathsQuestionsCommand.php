@@ -320,27 +320,17 @@ class CreateMathsQuestionsCommand extends Command
                                 $output->writeln("[$timestamp] Warning: Invalid images data format for paper ID: {$paper->getId()}");
                             } else {
                                 // Check current question number
-                                $output->writeln("Images: " . json_encode($images));
 
                                 if (isset($images[$questionNumber])) {
-                                    $output->writeln("[$timestamp] Image found for question number: {$questionNumber}");
                                     $questionImagePath = $images[$questionNumber];
-                                } else {
-                                    $output->writeln("[$timestamp] Warning: No image found for question number: {$questionNumber}");
                                 }
                                 // Check parent question number
                                 if (isset($images[$parentNumber])) {
-                                    $output->writeln("[$timestamp] Image found for parent question number: {$parentNumber}");
                                     $imagePath = $images[$parentNumber];
-                                } else {
-                                    $output->writeln("[$timestamp] Warning: No image found for parent question number: {$parentNumber}");
                                 }
                                 // Check grandparent question number
                                 if ($grandParentNumber && isset($images[$grandParentNumber])) {
-                                    $output->writeln("[$timestamp] Image found for grandparent question number: {$grandParentNumber}");
                                     $imagePath = $images[$grandParentNumber];
-                                } else {
-                                    $output->writeln("[$timestamp] Warning: No image found for grandparent question number: {$grandParentNumber}");
                                 }
                             }
                         }

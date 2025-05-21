@@ -51,10 +51,14 @@ class CheckAnswerService
             $recordingFileName = null;
             if ($question->getTopic()) {
                 $topicEntity = $this->entityManager->getRepository(Topic::class)
-                    ->findOneBy([
-                        'subTopic' => $question->getTopic(),
-                        'subject' => $question->getSubject()
-                    ]);
+                    ->createQueryBuilder('t')
+                    ->where('t.subTopic = :subTopic')
+                    ->andWhere('t.subject = :subject')
+                    ->setParameter('subTopic', $question->getTopic())
+                    ->setParameter('subject', $question->getSubject())
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
 
                 if ($topicEntity) {
                     $topic = $topicEntity->getName();
