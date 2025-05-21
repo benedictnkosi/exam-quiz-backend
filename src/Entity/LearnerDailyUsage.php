@@ -8,6 +8,7 @@ use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity(repositoryClass: LearnerDailyUsageRepository::class)]
 #[ORM\Table(name: 'learner_daily_usage')]
+#[ORM\UniqueConstraint(name: 'learner_date_unique', columns: ['learner', 'date'])]
 class LearnerDailyUsage
 {
     #[ORM\Id]
