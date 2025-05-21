@@ -90,7 +90,7 @@ class StepGenerationService
                         'Content-Type' => 'application/json',
                     ],
                     'json' => [
-                        'model' => 'gpt-4.1-mini',
+                        'model' => 'gpt-4.1',
                         'messages' => $messages
                     ]
                 ]);
