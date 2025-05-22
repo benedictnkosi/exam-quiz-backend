@@ -38,10 +38,21 @@ class LearnerPracticeService
             $currentProgress = $practice->getProgress();
             $questionId = $progressData['completed_questions'];
 
+            // Calculate incorrect count if not provided
+            $incorrectCount = isset($progressData['incorrect_answers'])
+                ? $progressData['incorrect_answers']
+                : 0;
+
             $currentProgress[$questionId] = [
                 'correct' => $progressData['correct_answers'],
+                'incorrect' => $incorrectCount,
                 'last_attempt' => $progressData['last_attempt']
             ];
+
+            // Set topic if provided
+            if (isset($progressData['topic'])) {
+                $practice->setTopic($progressData['topic']);
+            }
 
             $practice->setProgress($currentProgress);
             $practice->setLastSeen(new \DateTime());
@@ -53,6 +64,7 @@ class LearnerPracticeService
                 'message' => 'Practice progress updated successfully',
                 'practice' => [
                     'subject_name' => $practice->getSubjectName(),
+                    'topic' => $practice->getTopic(),
                     'progress' => $practice->getProgress(),
                     'last_seen' => $practice->getLastSeen()->format('Y-m-d H:i:s')
                 ]
@@ -65,7 +77,7 @@ class LearnerPracticeService
         }
     }
 
-    public function getProgress(string $uid, string $subjectName): array
+    public function getProgress(string $uid, string $subjectName, string $topic): array
     {
         try {
             $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
@@ -78,12 +90,13 @@ class LearnerPracticeService
 
             $practice = $this->learnerPracticeRepository->findByLearnerAndSubject($learner->getId(), $subjectName);
 
-            if (!$practice) {
+            if (!$practice || $practice->getTopic() !== $topic) {
                 return [
                     'status' => 'OK',
                     'message' => 'No practice record found',
                     'practice' => [
                         'subject_name' => $subjectName,
+                        'topic' => $topic,
                         'progress' => [],
                         'last_seen' => null
                     ]
@@ -95,6 +108,7 @@ class LearnerPracticeService
                 'message' => 'Practice progress retrieved successfully',
                 'practice' => [
                     'subject_name' => $practice->getSubjectName(),
+                    'topic' => $practice->getTopic(),
                     'progress' => $practice->getProgress(),
                     'last_seen' => $practice->getLastSeen()->format('Y-m-d H:i:s')
                 ]
@@ -124,6 +138,7 @@ class LearnerPracticeService
             foreach ($practices as $practice) {
                 $result[] = [
                     'subject_name' => $practice->getSubjectName(),
+                    'topic' => $practice->getTopic(),
                     'progress' => $practice->getProgress(),
                     'last_seen' => $practice->getLastSeen()->format('Y-m-d H:i:s')
                 ];

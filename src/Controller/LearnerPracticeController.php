@@ -48,6 +48,7 @@ class LearnerPracticeController extends AbstractController
     public function getProgress(string $subjectName, Request $request): JsonResponse
     {
         $uid = $request->query->get('uid');
+        $topic = $request->query->get('topic');
 
         if (!$uid) {
             return $this->json([
@@ -56,7 +57,14 @@ class LearnerPracticeController extends AbstractController
             ], 400);
         }
 
-        $result = $this->learnerPracticeService->getProgress($uid, $subjectName);
+        if (!$topic) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Topic is required'
+            ], 400);
+        }
+
+        $result = $this->learnerPracticeService->getProgress($uid, $subjectName, $topic);
 
         if ($result['status'] === 'NOK') {
             return $this->json($result, 404);

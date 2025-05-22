@@ -18,6 +18,9 @@ class LearnerPractice
     #[ORM\Column(type: Types::STRING, length: 100)]
     private string $subject_name;
 
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private ?string $topic = null;
+
     #[ORM\ManyToOne(targetEntity: Learner::class)]
     #[ORM\JoinColumn(name: 'learner_id', referencedColumnName: 'id')]
     private Learner $learner;
@@ -46,6 +49,17 @@ class LearnerPractice
     public function setSubjectName(string $subject_name): static
     {
         $this->subject_name = $subject_name;
+        return $this;
+    }
+
+    public function getTopic(): ?string
+    {
+        return $this->topic;
+    }
+
+    public function setTopic(?string $topic): static
+    {
+        $this->topic = $topic;
         return $this;
     }
 
