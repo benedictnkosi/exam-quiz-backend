@@ -44,10 +44,7 @@ class StepGenerationService
             try {
                 $prompt = $this->buildPrompt($question);
 
-                $outputText = "Prompt: " . $prompt;
-                if ($output) {
-                    $output->writeln($outputText);
-                }
+
 
                 // Prepare messages array
                 $messages = [
@@ -123,10 +120,6 @@ class StepGenerationService
                 }
 
                 $content = $result['choices'][0]['message']['content'];
-
-                if ($output) {
-                    $output->writeln("AI Response Content: " . $content);
-                }
 
                 // Clean up the response content
                 $content = $this->cleanResponseContent($content);
