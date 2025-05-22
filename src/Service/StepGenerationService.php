@@ -198,17 +198,15 @@ class StepGenerationService
         $explanation = $question->getExplanation();
         $context = $question->getContext();
 
-        // Add image URLs if they exist
-        $imageUrls = [];
-        if ($question->getImagePath()) {
-            $imageUrls[] = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getImagePath();
-        }
-        if ($question->getQuestionImagePath()) {
-            $imageUrls[] = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getQuestionImagePath();
-        }
 
         return <<<PROMPT
 Given a math question, break it down into multiple logical steps. Each step should be educational and interactive.
+
+IMPORTANT: Latex Rules:
+1. Do not use \\text{} for chemical elements.
+2. Format it as an inline equation with $...$.
+3. Use a single backslash for LaTeX commands.
+4. Replace new lines with \\newline if needed.
 
 For each step, return:
 - step_number: number
