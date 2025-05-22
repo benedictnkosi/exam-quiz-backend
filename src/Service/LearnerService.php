@@ -34,4 +34,24 @@ class LearnerService
 
         return $grade->getNumber();
     }
+
+    /**
+     * Update learner's terms
+     * 
+     * @param string $uid
+     * @param string $terms
+     * @return void
+     * @throws NotFoundHttpException if learner not found
+     */
+    public function updateLearnerTerms(string $uid, string $terms): void
+    {
+        $learner = $this->learnerRepository->findOneBy(['uid' => $uid]);
+
+        if (!$learner) {
+            throw new NotFoundHttpException('Learner not found');
+        }
+
+        $learner->setTerms($terms);
+        $this->learnerRepository->save($learner, true);
+    }
 }

@@ -3588,7 +3588,7 @@ class LearnMzansiApi extends AbstractController
 
     public function getRandomQuestionWithRevision(Request $request): mixed
     {
-        $this->logger->info("Starting Method: " . __METHOD__);
+        $this->logger->info("Starting Method: random lesson " . __METHOD__);
         try {
             $subjectName = $request->query->get('subject_name');
             $paperName = $request->query->get('paper_name');
@@ -3620,7 +3620,11 @@ class LearnMzansiApi extends AbstractController
             if ($subscription === 'free' && $subscriptionCheck) {
                 $usageData = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
                 if ($usageData['status'] === 'OK' && $usageData['data']['lesson'] <= 0) {
-                    return new Response('Daily lesson limit reached', Response::HTTP_FORBIDDEN);
+                    return [
+                        'status' => 'NOK',
+                        'message' => 'Daily lesson limit reached',
+                        'data' => $usageData['data']
+                    ];
                 }
             }
 

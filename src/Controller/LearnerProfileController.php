@@ -43,4 +43,31 @@ class LearnerProfileController extends AbstractController
             ]
         ]);
     }
+
+    #[Route('/terms/{uid}', name: 'learner_profile_update_terms', methods: ['PUT'])]
+    public function updateTerms(string $uid, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $terms = $data['terms'] ?? null;
+
+        if ($terms === null) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Terms parameter is required'
+            ], 400);
+        }
+
+        try {
+            $this->learnerProfileService->updateLearnerTerms($uid, $terms);
+            return $this->json([
+                'success' => true,
+                'message' => 'Terms updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 404);
+        }
+    }
 }

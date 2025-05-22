@@ -20,4 +20,17 @@ class LearnerProfileService
 
         return $learner;
     }
+
+    public function updateLearnerTerms(string $uid, string $terms): void
+    {
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+
+        if (!$learner) {
+            throw new \Exception('Learner not found');
+        }
+
+        $learner->setTerms($terms);
+        $this->entityManager->persist($learner);
+        $this->entityManager->flush();
+    }
 }

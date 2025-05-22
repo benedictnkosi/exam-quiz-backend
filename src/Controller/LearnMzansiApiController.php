@@ -915,7 +915,7 @@ class LearnMzansiApiController extends AbstractController
         $response = $this->api->getRandomQuestionWithRevision($request);
 
         if ($response instanceof Response && $response->getStatusCode() === Response::HTTP_FORBIDDEN) {
-            return new JsonResponse(['message' => 'Daily quiz limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);
+            return new JsonResponse(['message' => 'Daily lesson limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);
         }
 
         $context = SerializationContext::create()->enableMaxDepthChecks();
