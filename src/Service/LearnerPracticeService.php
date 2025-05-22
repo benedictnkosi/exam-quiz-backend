@@ -34,10 +34,16 @@ class LearnerPracticeService
                 $practice->setSubjectName($subjectName);
             }
 
-            // Merge new progress data with existing progress
+            // Update progress with new format
             $currentProgress = $practice->getProgress();
-            $mergedProgress = array_merge_recursive($currentProgress, $progressData);
-            $practice->setProgress($mergedProgress);
+            $questionId = $progressData['completed_questions'];
+
+            $currentProgress[$questionId] = [
+                'correct' => $progressData['correct_answers'],
+                'last_attempt' => $progressData['last_attempt']
+            ];
+
+            $practice->setProgress($currentProgress);
             $practice->setLastSeen(new \DateTime());
 
             $this->learnerPracticeRepository->save($practice, true);

@@ -19,7 +19,7 @@ class LearnerPractice
     private string $subject_name;
 
     #[ORM\ManyToOne(targetEntity: Learner::class)]
-    #[ORM\JoinColumn(name: 'learner', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'learner_id', referencedColumnName: 'id')]
     private Learner $learner;
 
     #[ORM\Column(type: Types::JSON)]
