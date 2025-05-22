@@ -13,7 +13,7 @@ class TextToSpeechService
 
     public function __construct(ParameterBagInterface $params)
     {
-        $this->apiKey = $params->get('openai.api_key');
+        $this->apiKey = $params->get('openai_api_key');
         $this->lecturesDirectory = $params->get('kernel.project_dir') . '/public/assets/lectures';
 
         // Ensure the lectures directory exists

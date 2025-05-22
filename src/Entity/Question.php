@@ -112,6 +112,9 @@ class Question
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $steps = null;
 
+    #[ORM\Column(type: Types::STRING, length: 10, nullable: false, options: ['default' => 'new'])]
+    private string $practice_status = 'new';
+
     public function __construct()
     {
         $now = new \DateTime();
@@ -485,6 +488,17 @@ class Question
     public function setSteps(?array $steps): static
     {
         $this->steps = $steps;
+        return $this;
+    }
+
+    public function getPracticeStatus(): string
+    {
+        return $this->practice_status;
+    }
+
+    public function setPracticeStatus(string $practice_status): static
+    {
+        $this->practice_status = $practice_status;
         return $this;
     }
 }

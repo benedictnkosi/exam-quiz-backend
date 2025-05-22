@@ -124,6 +124,10 @@ class StepGenerationService
 
                 // If we get here, the steps were generated successfully
                 $shouldRetry = false;
+
+                // Set the practice status to 'ready' since steps were successfully generated
+                $question->setPracticeStatus('new');
+
                 return $steps;
 
             } catch (\Exception $e) {
