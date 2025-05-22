@@ -220,6 +220,7 @@ class LearnMzansiApi extends AbstractController
                 }
             } else {
                 $question = new Question();
+                $question->setPracticeStatus('new'); // Set default practice status
             }
 
             $data['options']['option1'] = str_replace('{"answers":"', '', $data['options']['option1']);
