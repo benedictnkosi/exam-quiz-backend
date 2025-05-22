@@ -16,14 +16,12 @@ class StepGenerationService
                 '1. Break down the question into multiple logical steps.',
                 '2. Each step should be educational and interactive.',
                 '3. Use LaTeX for all mathematical expressions.',
-                '4. Wrap plain English in \\text{} commands.',
-                '5. Include common misconceptions as distractors.',
-                '6. Provide clear hints and explanations.',
-                '7. Format for mobile display with \\newline where needed.',
-                '8. Return the result in the specified JSON format.',
-                '9. DO NOT use markdown code blocks or ```json in your response.',
-                '10. Return ONLY the JSON object, no additional text or formatting.',
-                '11. DO NOT wrap LaTeX expressions in dollar signs ($).'
+                '4. Include common misconceptions as distractors.',
+                '5. Provide clear hints and explanations.',
+                '6. Format for mobile display with \\newline where needed.',
+                '7. Return the result in the specified JSON format.',
+                '8. DO NOT use markdown code blocks or ```json in your response.',
+                '9. Return ONLY the JSON object, no additional text or formatting.',
             ]
         ]
     ];
@@ -46,8 +44,9 @@ class StepGenerationService
             try {
                 $prompt = $this->buildPrompt($question);
 
+                $outputText = "Prompt: " . $prompt;
                 if ($output) {
-                    $output->writeln("Generating steps for question ID: " . $question->getId());
+                    $output->writeln($outputText);
                 }
 
                 // Prepare messages array
@@ -69,14 +68,14 @@ class StepGenerationService
                 ];
 
                 // Add image URLs if they exist
-                if ($question->getImagePath()) {
+                if ($question->getImagePath() && $question->getImagePath() !== 'NULL') {
                     $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getImagePath();
                     $messages[1]['content'][] = [
                         'type' => 'image_url',
                         'image_url' => ['url' => $imageUrl]
                     ];
                 }
-                if ($question->getQuestionImagePath()) {
+                if ($question->getQuestionImagePath() && $question->getQuestionImagePath() !== 'NULL') {
                     $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getQuestionImagePath();
                     $messages[1]['content'][] = [
                         'type' => 'image_url',
@@ -95,16 +94,38 @@ class StepGenerationService
                     ]
                 ]);
 
-                $result = $response->toArray();
+                // Log HTTP status code
+                if ($output) {
+                    $output->writeln("HTTP Status Code: " . $response->getStatusCode());
+                }
+
+                try {
+                    $result = $response->toArray();
+                } catch (\Exception $e) {
+                    $error = 'Failed to decode response: ' . $e->getMessage() . "\nResponse content: " . $response->getContent(false);
+                    if ($output) {
+                        $output->writeln("Error: " . $error);
+                    }
+                    throw new \Exception($error);
+                }
+
+                // Log the full response
+                if ($output) {
+                    $output->writeln("Full AI Response: " . json_encode($result, JSON_PRETTY_PRINT));
+                }
 
                 if (!isset($result['choices'][0]['message']['content'])) {
-                    throw new \Exception('Invalid response format from OpenAI API');
+                    $error = 'Invalid response format from OpenAI API. Response: ' . json_encode($result);
+                    if ($output) {
+                        $output->writeln("Error: " . $error);
+                    }
+                    throw new \Exception($error);
                 }
 
                 $content = $result['choices'][0]['message']['content'];
 
                 if ($output) {
-                    $output->writeln("AI Response: " . $content);
+                    $output->writeln("AI Response Content: " . $content);
                 }
 
                 // Clean up the response content
@@ -193,8 +214,6 @@ class StepGenerationService
             $imageUrls[] = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getQuestionImagePath();
         }
 
-        $imageUrlsText = !empty($imageUrls) ? "\nImage URLs:\n" . implode("\n", $imageUrls) : '';
-
         return <<<PROMPT
 Given a math question, break it down into multiple logical steps. Each step should be educational and interactive.
 
@@ -209,9 +228,6 @@ For each step, return:
 - teach: a short explanation of the concept being tested
 - final_expression: the fully correct version of the LaTeX expression after the learner selects the right answer
 
-⚠️ Use LaTeX for all maths. Wrap  plain English inside LaTeX expressions with `\\text{...}`. Only if its on the same line as the LaTeX expression. Example: `\\text{Simplify } \\sin(30^{\\circ})`
-⚠️ DO NOT wrap LaTeX expressions in dollar signs ($). Return raw LaTeX expressions.
-
 Wrap the result in a JSON object with:
 - id: short unique string (e.g., "trig1")
 - grade: the grade level
@@ -225,7 +241,7 @@ Context: {$context}
 Answer: {$answer}
 Explanation: {$explanation}
 Grade: {$grade}
-Topic: {$topic}{$imageUrlsText}
+Topic: {$topic}
 
 
 Instructions:
@@ -303,61 +319,64 @@ PROMPT . implode("\n", self::PROMPT_RULES['steps']['instructions']);
         }
 
         // Remove any dollar sign wrapping
-        $text = preg_replace('/^\$|\$$/', '', $text);
+        // $text = preg_replace('/^\$|\$$/', '', $text);
+
+        // Replace single letters or numbers wrapped in dollar signs with just the letter/number
+        $text = preg_replace('/\$([a-zA-Z0-9])\$/', '$1', $text);
 
         // Replace any lowercase letter followed by '\\%' with the same letter followed by '%'
-        $text = preg_replace('/([a-z])\\\\%/', '$1%', $text);
+        // $text = preg_replace('/([a-z])\\\\%/', '$1%', $text);
 
-        // Check for actual LaTeX commands or mathematical expressions
-        $latexIndicators = ['\\frac', '\\sum', '\\int', '\\sqrt', '\\begin', '\\end', '^', '_', '{', '}', '\\', '\left', '\right'];
-        $containsLatex = false;
+        // // Check for actual LaTeX commands or mathematical expressions
+        // $latexIndicators = ['\\frac', '\\sum', '\\int', '\\sqrt', '\\begin', '\\end', '^', '_', '{', '}', '\\', '\left', '\right'];
+        // $containsLatex = false;
 
-        foreach ($latexIndicators as $indicator) {
-            if (strpos($text, $indicator) !== false) {
-                $containsLatex = true;
-                break;
-            }
-        }
+        // foreach ($latexIndicators as $indicator) {
+        //     if (strpos($text, $indicator) !== false) {
+        //         $containsLatex = true;
+        //         break;
+        //     }
+        // }
 
-        // If no LaTeX indicators found, return as is
-        if (!$containsLatex) {
-            return $text;
-        }
+        // // If no LaTeX indicators found, return as is
+        // if (!$containsLatex) {
+        //     return $text;
+        // }
 
-        // First handle any standalone \text commands
-        $text = preg_replace('/\\\\text/', '\\text', $text);
+        // // First handle any standalone \text commands
+        // $text = preg_replace('/\\\\text/', '\\text', $text);
 
-        // Handle newlines - preserve \newline commands and convert AI's double backslashes
-        $text = preg_replace('/\\\\newline\s*/', '\\newline ', $text);
-        $text = preg_replace('/\n\s*ewline/', '\\newline', $text);
-        $text = preg_replace('/\s*\\\\\s*\\\\\s*/', ' \\newline ', $text);
+        // // Handle newlines - preserve \newline commands and convert AI's double backslashes
+        // $text = preg_replace('/\\\\newline\s*/', '\\newline ', $text);
+        // $text = preg_replace('/\n\s*ewline/', '\\newline', $text);
+        // $text = preg_replace('/\s*\\\\\s*\\\\\s*/', ' \\newline ', $text);
 
-        // Fix any broken LaTeX commands
-        $text = str_replace(' eq ', ' \\neq ', $text);
-        $text = preg_replace('/\\\\(text\{[^}]+\})\s*\\\\text/', '\\$1', $text);
+        // // Fix any broken LaTeX commands
+        // $text = str_replace(' eq ', ' \\neq ', $text);
+        // $text = preg_replace('/\\\\(text\{[^}]+\})\s*\\\\text/', '\\$1', $text);
 
-        // Clean up extra spaces and fix text formatting
-        $text = preg_replace('/\s+/', ' ', $text);
-        $text = preg_replace('/\\text\{\s*\\text\{([^}]+)\}\s*\}/', '\\text{$1}', $text);
-        $text = preg_replace('/\\text\{\s*or\s*\}/', '\\text{ or }', $text);
-        $text = preg_replace('/(?<!\{)\s+or\s+(?!\})/', ' \\text{ or } ', $text);
+        // // Clean up extra spaces and fix text formatting
+        // $text = preg_replace('/\s+/', ' ', $text);
+        // $text = preg_replace('/\\text\{\s*\\text\{([^}]+)\}\s*\}/', '\\text{$1}', $text);
+        // $text = preg_replace('/\\text\{\s*or\s*\}/', '\\text{ or }', $text);
+        // $text = preg_replace('/(?<!\{)\s+or\s+(?!\})/', ' \\text{ or } ', $text);
 
         // Apply final formatting
-        $text = preg_replace([
-            '/\\\\\(/',
-            '/\\\\\),/',
-            '/\\\\\)\./',
-            '/\\\\\)/',
-            '/\\\\\\\\/',
-            '/\\[[\]]/'
-        ], [
-            '',
-            '',
-            '',
-            '',
-            '\\',
-            '',
-        ], $text);
+        // $text = preg_replace([
+        //     '/\\\\\(/',
+        //     '/\\\\\),/',
+        //     '/\\\\\)\./',
+        //     '/\\\\\)/',
+        //     '/\\\\\\\\/',
+        //     '/\\[[\]]/'
+        // ], [
+        //     '',
+        //     '',
+        //     '',
+        //     '',
+        //     '\\',
+        //     '',
+        // ], $text);
 
         return $text;
     }
