@@ -21,7 +21,7 @@ class MathsService
      * @param string $learnerUid The learner's UID
      * @return array Array of unique topics
      */
-    public function getTopicsWithSteps(string $learnerUid): array
+    public function getTopicsWithSteps(string $learnerUid, string $subjectName): array
     {
         // Get the learner
         $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
@@ -42,7 +42,9 @@ class MathsService
             ->where('q.steps IS NOT NULL')
             ->andWhere('s.grade = :grade')
             ->andWhere('q.topic IS NOT NULL')
+            ->andWhere('s.name = :subjectName')
             ->setParameter('grade', $grade)
+            ->setParameter('subjectName', $subjectName)
             ->orderBy('q.topic', 'ASC');
 
         $result = $qb->getQuery()->getResult();

@@ -2647,6 +2647,14 @@ class LearnMzansiApi extends AbstractController
             $schoolAddress = $requestBody['school_address'] ?? null;
             $email = $requestBody['email'];
 
+            // Set terms based on current month
+            $currentMonth = (int) date('m');
+            if ($currentMonth < 7) {
+                $terms = '1,2';
+            } else {
+                $terms = '1,2,3,4';
+            }
+
             if (empty($uid) || empty($terms) || empty($curriculum)) {
                 return array(
                     'status' => 'NOK',

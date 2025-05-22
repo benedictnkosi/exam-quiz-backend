@@ -20,6 +20,7 @@ class MathsController extends AbstractController
     public function getTopicsWithSteps(Request $request): JsonResponse
     {
         $learnerUid = $request->query->get('uid');
+        $subjectName = $request->query->get('subject_name');
 
         if (empty($learnerUid)) {
             return $this->json([
@@ -28,7 +29,7 @@ class MathsController extends AbstractController
             ], 400);
         }
 
-        $topics = $this->mathsService->getTopicsWithSteps($learnerUid);
+        $topics = $this->mathsService->getTopicsWithSteps($learnerUid, $subjectName);
 
         return $this->json([
             'status' => 'OK',
