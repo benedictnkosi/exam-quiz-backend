@@ -57,10 +57,8 @@ class GenerateMathStepsCommand extends Command
         foreach ($questions as $question) {
             try {
                 // Skip if required fields are missing
-                if (!($question->getQuestion() && $question->getContext()) || !$question->getAnswer()) {
-                    $io->warning(sprintf('question is %s', $question->getQuestion()));
-                    $io->warning(sprintf('context is %s', $question->getContext()));
-                    $io->warning(sprintf('answer is %s', $question->getAnswer()));
+                if (!($question->getQuestion() || $question->getContext()) || !$question->getAnswer()) {
+
                     $io->warning(sprintf('Skipping question %d: Missing required fields', $question->getId()));
                     $skippedCount++;
                     $progress->advance();
