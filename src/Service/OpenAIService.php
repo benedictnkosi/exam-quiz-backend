@@ -145,6 +145,12 @@ The chapter should be well-structured and engaging, suitable for the target read
 After writing the chapter, provide:
 1. A concise summary (maximum 50 words) that captures the key events and emotional journey of the chapter
 2. A quiz with 3 questions that test comprehension of the chapter's key events and themes. Each question should have 4 multiple-choice options, with only one correct answer.
+3. A chat thread title and initial content that will drive engagement and discussion among readers. The chat thread should:
+   - Have an attention-grabbing title that hints at a key moment or theme from the chapter
+   - Include an opening post that poses an interesting question or observation about the chapter
+   - Encourage readers to share their thoughts, predictions, or personal connections to the story
+   - Be written in a conversational, engaging tone that matches the chapter's style
+   - Include 2-3 follow-up discussion points or questions to keep the conversation going
 
 Format your response as follows:
 
@@ -153,6 +159,12 @@ Format your response as follows:
 
 [SUMMARY]
 [Your 50-word summary here]
+
+[CHAT_THREAD_TITLE]
+[Your engaging chat thread title here]
+
+[CHAT_THREAD_CONTENT]
+[Your initial chat thread post and discussion points here]
 
 [QUIZ]
 [

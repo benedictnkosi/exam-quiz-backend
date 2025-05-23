@@ -78,6 +78,10 @@ class TopicPopulationService
             return $existingTopic;
         }
 
+        if (str_contains($mainTopic, 'Topic Group')) {
+            $mainTopic = $subTopic;
+        }
+
         $topic = new Topic();
         $topic->setName($mainTopic);
         $topic->setSubTopic($subTopic);

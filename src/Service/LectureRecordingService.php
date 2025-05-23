@@ -49,8 +49,8 @@ class LectureRecordingService
             $filename
         );
 
-        //if uid is provided, increment the podcast usage
-        if ($uid) {
+        // Only increment podcast usage if this is not a range request (i.e., not a partial content request)
+        if ($uid && !isset($_SERVER['HTTP_RANGE'])) {
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if ($learner) {
                 $this->learnerDailyUsageService->incrementPodcastUsage($learner);
