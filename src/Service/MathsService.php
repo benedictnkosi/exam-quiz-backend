@@ -42,9 +42,9 @@ class MathsService
             ->where('q.steps IS NOT NULL')
             ->andWhere('s.grade = :grade')
             ->andWhere('q.topic IS NOT NULL')
-            ->andWhere('s.name = :subjectName')
+            ->andWhere('s.name LIKE :subjectName')
             ->setParameter('grade', $grade)
-            ->setParameter('subjectName', $subjectName)
+            ->setParameter('subjectName', '%' . $subjectName . '%')
             ->orderBy('q.topic', 'ASC');
 
         $result = $qb->getQuery()->getResult();
