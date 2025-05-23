@@ -165,28 +165,45 @@ class LearnerDailyUsageService
     {
         $this->logger->info("Incrementing podcast usage for learner {$learner->getId()} with file {$podcastFileId}");
 
-        $today = new \DateTimeImmutable('today');
+        try {
+            $today = new \DateTimeImmutable('today');
 
-        // Check if a request for this podcast file already exists today
-        $existingRequest = $this->podcastRequestRepository->findOneBy([
-            'learner' => $learner,
-            'podcastFileId' => $podcastFileId,
-            'requestedAt' => $today
-        ]);
+            // Check if a request for this podcast file already exists today
+            $existingRequest = $this->podcastRequestRepository->findOneBy([
+                'learner' => $learner,
+                'podcastFileId' => $podcastFileId,
+                'requestedAt' => $today
+            ]);
 
-        if ($existingRequest) {
-            $this->logger->info("Podcast request already exists for today, skipping creation");
-            return;
+            if ($existingRequest) {
+                $this->logger->info("Podcast request already exists for today, skipping creation");
+                return;
+            }
+
+            // Create new podcast request record
+            $podcastRequest = new LearnerPodcastRequest();
+            $podcastRequest->setLearner($learner);
+            $podcastRequest->setPodcastFileId($podcastFileId);
+            $podcastRequest->setRequestedAt(new \DateTimeImmutable());
+
+            $this->entityManager->persist($podcastRequest);
+            $this->entityManager->flush();
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+            // Log the duplicate entry attempt
+            $this->logger->info("Duplicate podcast request detected and prevented", [
+                'learner_id' => $learner->getId(),
+                'podcast_file_id' => $podcastFileId
+            ]);
+            // No need to rethrow as this is an expected case
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            $this->logger->error("Error incrementing podcast usage", [
+                'error' => $e->getMessage(),
+                'learner_id' => $learner->getId(),
+                'podcast_file_id' => $podcastFileId
+            ]);
+            throw $e; // Re-throw unexpected errors
         }
-
-        // Create new podcast request record
-        $podcastRequest = new LearnerPodcastRequest();
-        $podcastRequest->setLearner($learner);
-        $podcastRequest->setPodcastFileId($podcastFileId);
-        $podcastRequest->setRequestedAt(new \DateTimeImmutable());
-
-        $this->entityManager->persist($podcastRequest);
-        $this->entityManager->flush();
     }
 
     private function getOrCreateDailyUsage(Learner $learner): LearnerDailyUsage
