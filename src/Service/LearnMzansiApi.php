@@ -346,6 +346,27 @@ class LearnMzansiApi extends AbstractController
                 }
                 // Remove answer before returning
                 //$question->setAnswer(null);
+
+                // Replace =\frac with =\\frac in steps if they exist
+                if ($question->getSteps()) {
+                    $steps = $question->getSteps();
+                    $this->logger->info('Processing steps: ' . json_encode($steps));
+
+                    if (isset($steps['steps']) && is_array($steps['steps'])) {
+                        foreach ($steps['steps'] as &$step) {
+                            foreach ($step as $key => &$value) {
+                                if (is_string($value)) {
+                                    // Handle LaTeX expressions
+                                    $value = preg_replace('/\\\\frac/', '\\\\frac', $value);
+                                    $value = preg_replace('/\\frac/', '\\\\frac', $value);
+                                }
+                            }
+                        }
+                    }
+                    $this->logger->info('After processing: ' . json_encode($steps));
+                    $question->setSteps($steps);
+                }
+
                 return $question;
             }
 
