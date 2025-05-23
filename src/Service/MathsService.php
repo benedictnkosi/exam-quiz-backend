@@ -59,7 +59,7 @@ class MathsService
      * @param int $grade The grade number to filter by
      * @return array Array of question IDs
      */
-    public function getQuestionIdsWithSteps(string $topic, int $grade): array
+    public function getQuestionIdsWithSteps(string $topic, int $grade, string $subjectName): array
     {
         // Create query to get question IDs
         $qb = $this->entityManager->createQueryBuilder();
@@ -71,6 +71,7 @@ class MathsService
             ->andWhere('q.topic = :topic')
             ->andWhere('g.number = :grade')
             ->andWhere('q.active = :active')
+            ->andWhere('s.name = :subjectName')
             ->setParameter('topic', $topic)
             ->setParameter('grade', $grade)
             ->setParameter('active', true)

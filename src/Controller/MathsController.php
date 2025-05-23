@@ -42,6 +42,7 @@ class MathsController extends AbstractController
     {
         $topic = $request->query->get('topic');
         $grade = $request->query->get('grade');
+        $subjectName = $request->query->get('subject_name');
 
         if (empty($topic)) {
             return $this->json([
@@ -57,7 +58,7 @@ class MathsController extends AbstractController
             ], 400);
         }
 
-        $questionIds = $this->mathsService->getQuestionIdsWithSteps($topic, (int) $grade);
+        $questionIds = $this->mathsService->getQuestionIdsWithSteps($topic, (int) $grade, $subjectName);
 
         return $this->json([
             'status' => 'OK',
