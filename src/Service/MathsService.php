@@ -75,6 +75,7 @@ class MathsService
             ->setParameter('topic', $topic)
             ->setParameter('grade', $grade)
             ->setParameter('active', true)
+            ->setParameter('subjectName', $subjectName)
             ->orderBy('q.id', 'ASC');
 
         $result = $qb->getQuery()->getResult();
