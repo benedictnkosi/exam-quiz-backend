@@ -4,7 +4,9 @@ namespace App\Service;
 
 use App\Entity\Learner;
 use App\Entity\LearnerDailyUsage;
+use App\Entity\LearnerPodcastRequest;
 use App\Repository\LearnerDailyUsageRepository;
+use App\Repository\LearnerPodcastRequestRepository;
 use App\Repository\LearnerRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -23,6 +25,7 @@ class LearnerDailyUsageService
         private readonly EntityManagerInterface $entityManager,
         private readonly LearnerRepository $learnerRepository,
         private readonly LearnerDailyUsageRepository $usageRepository,
+        private readonly LearnerPodcastRequestRepository $podcastRequestRepository,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -54,6 +57,9 @@ class LearnerDailyUsageService
                 $this->entityManager->flush();
             }
 
+            // Get podcast usage from podcast requests
+            $dailyPodcastRequests = $this->podcastRequestRepository->countDailyRequests($learner->getId(), $today);
+
             $subscription = $learner->getSubscription();
             $remainingQuiz = 0;
             $remainingLesson = 0;
@@ -73,9 +79,8 @@ class LearnerDailyUsageService
             } else if (str_contains($subscription, 'free')) {
                 $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
                 $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
-                $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $usage->getPodcast();
+                $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $dailyPodcastRequests;
             }
-
 
             return [
                 'status' => 'OK',
@@ -156,11 +161,31 @@ class LearnerDailyUsageService
         $this->entityManager->flush();
     }
 
-    public function incrementPodcastUsage(Learner $learner): void
+    public function incrementPodcastUsage(Learner $learner, string $podcastFileId): void
     {
-        $this->logger->info("Incrementing podcast usage for learner {$learner->getId()}");
-        $usage = $this->getOrCreateDailyUsage($learner);
-        $usage->incrementPodcast();
+        $this->logger->info("Incrementing podcast usage for learner {$learner->getId()} with file {$podcastFileId}");
+
+        $today = new \DateTimeImmutable('today');
+
+        // Check if a request for this podcast file already exists today
+        $existingRequest = $this->podcastRequestRepository->findOneBy([
+            'learner' => $learner,
+            'podcastFileId' => $podcastFileId,
+            'requestedAt' => $today
+        ]);
+
+        if ($existingRequest) {
+            $this->logger->info("Podcast request already exists for today, skipping creation");
+            return;
+        }
+
+        // Create new podcast request record
+        $podcastRequest = new LearnerPodcastRequest();
+        $podcastRequest->setLearner($learner);
+        $podcastRequest->setPodcastFileId($podcastFileId);
+        $podcastRequest->setRequestedAt(new \DateTimeImmutable());
+
+        $this->entityManager->persist($podcastRequest);
         $this->entityManager->flush();
     }
 
@@ -182,18 +207,44 @@ class LearnerDailyUsageService
     {
         $this->logger->info("Checking remaining podcast usage for learner {$learnerUid}");
 
-        $usageData = $this->getDailyUsageByLearnerUid($learnerUid);
+        try {
+            $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
 
-        if ($usageData['status'] === 'NOK') {
-            return $usageData;
+            $today = new \DateTimeImmutable();
+            $dailyRequests = $this->podcastRequestRepository->countDailyRequests($learner->getId(), $today);
+
+            $subscription = $learner->getSubscription();
+            $dailyLimit = $this->DAILY_PODCAST_LIMIT;
+
+            if (
+                str_contains($subscription, 'silver') ||
+                str_contains($subscription, 'gold') ||
+                str_contains($subscription, 'bronze')
+            ) {
+                $dailyLimit = 999; // Unlimited for paid subscriptions
+            }
+
+            $remainingPodcasts = $dailyLimit - $dailyRequests;
+
+            $this->logger->info("Remaining podcasts: " . $remainingPodcasts);
+            return [
+                'status' => 'OK',
+                'hasRemaining' => $remainingPodcasts > 0,
+                'remainingCount' => $remainingPodcasts
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Error checking podcast usage'
+            ];
         }
-
-        $remainingPodcasts = $usageData['data']['podcast'];
-
-        return [
-            'status' => 'OK',
-            'hasRemaining' => $remainingPodcasts > 0,
-            'remainingCount' => $remainingPodcasts
-        ];
     }
 }

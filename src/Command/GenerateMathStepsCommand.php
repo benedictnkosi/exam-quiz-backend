@@ -36,7 +36,8 @@ class GenerateMathStepsCommand extends Command
             ->join('q.subject', 's')
             ->where('s.name LIKE :subject')
             ->andWhere('q.steps IS NULL')
-            ->setParameter('subject', '%Mathematics P1%');
+            ->andWhere('q.practice_status IS NULL')
+            ->setParameter('subject', '%Mathematics%');
 
         $questions = $qb->getQuery()->getResult();
         $total = count($questions);
@@ -56,7 +57,7 @@ class GenerateMathStepsCommand extends Command
         foreach ($questions as $question) {
             try {
                 // Skip if required fields are missing
-                if (!($question->getQuestion() && $question->getContext()) || !$question->getAnswer() || !$question->getExplanation()) {
+                if (!($question->getQuestion() && $question->getContext()) || !$question->getAnswer()) {
                     $io->warning(sprintf('Skipping question %d: Missing required fields', $question->getId()));
                     $skippedCount++;
                     $progress->advance();
@@ -68,16 +69,23 @@ class GenerateMathStepsCommand extends Command
 
                 if ($steps) {
                     $question->setSteps($steps);
+                    $question->setPracticeStatus('pass');
                     $this->entityManager->persist($question);
                     $this->entityManager->flush(); // Flush after each question
                     $successCount++;
                     $io->writeln("\n[OK] Successfully generated steps for question " . $question->getId());
                 } else {
+                    $question->setPracticeStatus('fail');
+                    $this->entityManager->persist($question);
+                    $this->entityManager->flush();
                     $errorCount++;
                     $io->error(sprintf('Failed to generate steps for question %d', $question->getId()));
                 }
             } catch (\Exception $e) {
                 $errorCount++;
+                $question->setPracticeStatus('fail');
+                $this->entityManager->persist($question);
+                $this->entityManager->flush();
                 $io->error(sprintf('Error processing question %d: %s', $question->getId(), $e->getMessage()));
             }
 

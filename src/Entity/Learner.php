@@ -189,6 +189,9 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private string $status = 'active';
 
+    #[ORM\OneToMany(mappedBy: 'learner', targetEntity: LearnerPodcastRequest::class)]
+    private Collection $podcastRequests;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -199,6 +202,7 @@ class Learner
         $this->todos = new ArrayCollection();
         $this->following = new ArrayCollection();
         $this->followers = new ArrayCollection();
+        $this->podcastRequests = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -707,6 +711,33 @@ class Learner
     public function setStatus(string $status): self
     {
         $this->status = $status;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, LearnerPodcastRequest>
+     */
+    public function getPodcastRequests(): Collection
+    {
+        return $this->podcastRequests;
+    }
+
+    public function addPodcastRequest(LearnerPodcastRequest $podcastRequest): static
+    {
+        if (!$this->podcastRequests->contains($podcastRequest)) {
+            $this->podcastRequests->add($podcastRequest);
+            $podcastRequest->setLearner($this);
+        }
+        return $this;
+    }
+
+    public function removePodcastRequest(LearnerPodcastRequest $podcastRequest): static
+    {
+        if ($this->podcastRequests->removeElement($podcastRequest)) {
+            if ($podcastRequest->getLearner() === $this) {
+                $podcastRequest->setLearner(null);
+            }
+        }
         return $this;
     }
 }

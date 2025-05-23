@@ -36,140 +36,108 @@ class StepGenerationService
     {
         $apiKey = $this->params->get('openai_api_key');
         $apiUrl = 'https://api.openai.com/v1/chat/completions';
-        $maxRetries = 1;
-        $retryCount = 0;
-        $shouldRetry = true;
 
-        while ($shouldRetry) {
-            try {
-                $prompt = $this->buildPrompt($question);
+        try {
+            $prompt = $this->buildPrompt($question);
 
+            // Prepare messages array
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => self::PROMPT_RULES['steps']['system']
+                ],
+                [
+                    'role' => 'user',
+                    'content' => []
+                ]
+            ];
 
+            // Add text content
+            $messages[1]['content'][] = [
+                'type' => 'text',
+                'text' => $prompt
+            ];
 
-                // Prepare messages array
-                $messages = [
-                    [
-                        'role' => 'system',
-                        'content' => self::PROMPT_RULES['steps']['system']
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => []
-                    ]
-                ];
-
-                // Add text content
+            // Add image URLs if they exist
+            if ($question->getImagePath() && $question->getImagePath() !== 'NULL') {
+                $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getImagePath();
                 $messages[1]['content'][] = [
-                    'type' => 'text',
-                    'text' => $prompt
+                    'type' => 'image_url',
+                    'image_url' => ['url' => $imageUrl]
                 ];
-
-                // Add image URLs if they exist
-                if ($question->getImagePath() && $question->getImagePath() !== 'NULL') {
-                    $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getImagePath();
-                    $messages[1]['content'][] = [
-                        'type' => 'image_url',
-                        'image_url' => ['url' => $imageUrl]
-                    ];
-                }
-                if ($question->getQuestionImagePath() && $question->getQuestionImagePath() !== 'NULL') {
-                    $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getQuestionImagePath();
-                    $messages[1]['content'][] = [
-                        'type' => 'image_url',
-                        'image_url' => ['url' => $imageUrl]
-                    ];
-                }
-
-                $response = $this->httpClient->request('POST', $apiUrl, [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . $apiKey,
-                        'Content-Type' => 'application/json',
-                    ],
-                    'json' => [
-                        'model' => 'gpt-4.1',
-                        'messages' => $messages
-                    ]
-                ]);
-
-                // Log HTTP status code
-                if ($output) {
-                    $output->writeln("HTTP Status Code: " . $response->getStatusCode());
-                }
-
-                try {
-                    $result = $response->toArray();
-                } catch (\Exception $e) {
-                    $error = 'Failed to decode response: ' . $e->getMessage() . "\nResponse content: " . $response->getContent(false);
-                    if ($output) {
-                        $output->writeln("Error: " . $error);
-                    }
-                    throw new \Exception($error);
-                }
-
-                // Log the full response
-                if ($output) {
-                    $output->writeln("Full AI Response: " . json_encode($result, JSON_PRETTY_PRINT));
-                }
-
-                if (!isset($result['choices'][0]['message']['content'])) {
-                    $error = 'Invalid response format from OpenAI API. Response: ' . json_encode($result);
-                    if ($output) {
-                        $output->writeln("Error: " . $error);
-                    }
-                    throw new \Exception($error);
-                }
-
-                $content = $result['choices'][0]['message']['content'];
-
-                // Clean up the response content
-                $content = $this->cleanResponseContent($content);
-
-                // Parse and validate the JSON response
-                $steps = json_decode($content, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception('Failed to parse steps JSON: ' . json_last_error_msg() . "\nContent: " . $content);
-                }
-
-                // Validate required fields
-                $this->validateSteps($steps);
-
-                // Format LaTeX expressions
-                $steps = $this->formatStepsLatex($steps);
-
-                // If we get here, the steps were generated successfully
-                $shouldRetry = false;
-
-                // Set the practice status to 'ready' since steps were successfully generated
-                $question->setPracticeStatus('new');
-
-                return $steps;
-
-            } catch (\Exception $e) {
-                if ($output) {
-                    $output->writeln("Error: " . $e->getMessage());
-                }
-
-                if ($retryCount < $maxRetries) {
-                    $retryCount++;
-                    if ($output) {
-                        $output->writeln("Retrying (Attempt $retryCount of $maxRetries)");
-                    }
-
-                    // Sleep for a short duration before retrying (exponential backoff)
-                    $sleepTime = pow(2, $retryCount) * 1000000; // Convert to microseconds
-                    usleep($sleepTime);
-
-                    continue;
-                } else {
-                    if ($output) {
-                        $output->writeln("Max retries reached. Giving up.");
-                    }
-                    return null;
-                }
             }
-        }
+            if ($question->getQuestionImagePath() && $question->getQuestionImagePath() !== 'NULL') {
+                $imageUrl = 'https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=' . $question->getQuestionImagePath();
+                $messages[1]['content'][] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => $imageUrl]
+                ];
+            }
 
-        return null;
+            $response = $this->httpClient->request('POST', $apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4.1',
+                    'messages' => $messages
+                ]
+            ]);
+
+            // Log HTTP status code
+            if ($output) {
+                $output->writeln("HTTP Status Code: " . $response->getStatusCode());
+            }
+
+            try {
+                $result = $response->toArray();
+            } catch (\Exception $e) {
+                $error = 'Failed to decode response: ' . $e->getMessage() . "\nResponse content: " . $response->getContent(false);
+                if ($output) {
+                    $output->writeln("Error: " . $error);
+                }
+                throw new \Exception($error);
+            }
+
+            // Log the full response
+            if ($output) {
+                $output->writeln("Full AI Response: " . json_encode($result, JSON_PRETTY_PRINT));
+            }
+
+            if (!isset($result['choices'][0]['message']['content'])) {
+                $error = 'Invalid response format from OpenAI API. Response: ' . json_encode($result);
+                if ($output) {
+                    $output->writeln("Error: " . $error);
+                }
+                throw new \Exception($error);
+            }
+
+            $content = $result['choices'][0]['message']['content'];
+
+            // Clean up the response content
+            $content = $this->cleanResponseContent($content);
+
+            // Parse and validate the JSON response
+            $steps = json_decode($content, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('Failed to parse steps JSON: ' . json_last_error_msg() . "\nContent: " . $content);
+            }
+
+            // Validate required fields
+            $this->validateSteps($steps);
+
+            // Format LaTeX expressions
+            $steps = $this->formatStepsLatex($steps);
+
+            return $steps;
+
+        } catch (\Exception $e) {
+            if ($output) {
+                $output->writeln("Error: " . $e->getMessage());
+            }
+            return null;
+        }
     }
 
     private function cleanResponseContent(string $content): string

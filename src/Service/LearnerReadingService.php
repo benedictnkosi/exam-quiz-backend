@@ -330,7 +330,23 @@ class LearnerReadingService
             $speed = 0;
             if ($duration > 0) {
                 // Convert duration from seconds to minutes for WPM calculation
-                $speed = (int) round(($wordCount / ($duration / 60)));
+                $calculatedSpeed = (int) round(($wordCount / ($duration / 60)));
+
+                // Get the learner's last recorded speed
+                $lastReading = $this->entityManager->getRepository(LearnerReading::class)
+                    ->createQueryBuilder('lr')
+                    ->where('lr.learner = :learner')
+                    ->andWhere('lr.speed > 0')
+                    ->setParameter('learner', $learner)
+                    ->orderBy('lr.date', 'DESC')
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
+
+                $lastSpeed = $lastReading ? $lastReading->getSpeed() : 0;
+
+                // Use last speed if calculated speed is > 200
+                $speed = $calculatedSpeed > 200 ? $lastSpeed : $calculatedSpeed;
             }
 
             // Update the status to completed and set duration, score, and speed
