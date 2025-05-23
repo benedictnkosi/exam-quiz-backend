@@ -90,7 +90,7 @@ class LearnerReadingService
             $date = $reading->getDate()->format('Y-m-d');
             $readingDays[$date] = true;
 
-            // Collect speed data with date and score
+            // Only collect speed data if speed is greater than 0
             if ($reading->getSpeed() > 0) {
                 $speeds[] = [
                     'date' => $date,
