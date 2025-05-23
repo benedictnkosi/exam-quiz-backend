@@ -44,7 +44,7 @@ class MathsService
             ->andWhere('q.topic IS NOT NULL')
             ->andWhere('s.name LIKE :subjectName')
             ->setParameter('grade', $grade)
-            ->setParameter('subjectName', '%' . $subjectName . '%')
+            ->setParameter('subjectName', $subjectName . '%')
             ->orderBy('q.topic', 'ASC');
 
         $result = $qb->getQuery()->getResult();
@@ -75,7 +75,7 @@ class MathsService
             ->setParameter('topic', $topic)
             ->setParameter('grade', $grade)
             ->setParameter('active', true)
-            ->setParameter('subjectName', '%' . $subjectName . '%')
+            ->setParameter('subjectName', $subjectName . '%')
             ->orderBy('q.id', 'ASC');
 
         $result = $qb->getQuery()->getResult();
