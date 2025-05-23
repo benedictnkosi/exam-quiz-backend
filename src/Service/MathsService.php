@@ -71,11 +71,11 @@ class MathsService
             ->andWhere('q.topic = :topic')
             ->andWhere('g.number = :grade')
             ->andWhere('q.active = :active')
-            ->andWhere('s.name = :subjectName')
+            ->andWhere('s.name LIKE :subjectName')
             ->setParameter('topic', $topic)
             ->setParameter('grade', $grade)
             ->setParameter('active', true)
-            ->setParameter('subjectName', $subjectName)
+            ->setParameter('subjectName', '%' . $subjectName . '%')
             ->orderBy('q.id', 'ASC');
 
         $result = $qb->getQuery()->getResult();
