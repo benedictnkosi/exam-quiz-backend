@@ -86,6 +86,8 @@ class ChapterGeneratorService
                 $book->setWordCount(str_word_count($rewrittenChapter['content']));
                 $book->setLevel($targetLevel->getLevel());
                 $book->setStatus(Book::STATUS_ACTIVE);
+                $book->setChatThreadTitle($rewrittenChapter['chat_thread_title'] ?? null);
+                $book->setChatThreadContent($rewrittenChapter['chat_thread_content'] ?? null);
                 $publishDate = $arc->getPublishDate();
                 if ($publishDate) {
                     $publishDate = new \DateTime($publishDate->format('Y-m-d'));
@@ -219,6 +221,8 @@ class ChapterGeneratorService
         $book->setWordCount($wordCount);
         $book->setLevel($level->getLevel());
         $book->setStatus(Book::STATUS_ACTIVE);
+        $book->setChatThreadTitle($result['chat_thread_title'] ?? null);
+        $book->setChatThreadContent($result['chat_thread_content'] ?? null);
         $publishDate = $arc->getPublishDate();
         if ($publishDate) {
             $publishDate = new \DateTime($publishDate->format('Y-m-d'));

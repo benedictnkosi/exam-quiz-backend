@@ -334,10 +334,14 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-
+            if (!$subscriptionCheck) {
+                $question = $this->em->getRepository(Question::class)->find(9097);
+                return $question;
+            }
 
             if ($questionId !== 0) {
-                $question = $this->em->getRepository(Question::class)->find($questionId);
+
+                $question = $this->em->getRepository(Question::class)->find(9097);
                 if (!$question) {
                     return array(
                         'status' => 'NOK',

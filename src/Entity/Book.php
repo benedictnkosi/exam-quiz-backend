@@ -66,6 +66,12 @@ class Book
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $image = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $chatThreadTitle = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $chatThreadContent = null;
+
     public function __construct()
     {
         $this->created = new \DateTime();
@@ -210,6 +216,28 @@ class Book
     public function setImage(?string $image): static
     {
         $this->image = $image;
+        return $this;
+    }
+
+    public function getChatThreadTitle(): ?string
+    {
+        return $this->chatThreadTitle;
+    }
+
+    public function setChatThreadTitle(?string $chatThreadTitle): static
+    {
+        $this->chatThreadTitle = $chatThreadTitle;
+        return $this;
+    }
+
+    public function getChatThreadContent(): ?string
+    {
+        return $this->chatThreadContent;
+    }
+
+    public function setChatThreadContent(?string $chatThreadContent): static
+    {
+        $this->chatThreadContent = $chatThreadContent;
         return $this;
     }
 }
