@@ -21,8 +21,7 @@ class QuestionAnswerStatsService
 
             // Calculate date range
             $endDate = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
-            $startDate = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
-            $startDate = ($startDate)->modify('-30 days');
+            $startDate = new \DateTime('2025-05-24', new \DateTimeZone('Africa/Johannesburg'));
 
             $sql = "
                 SELECT 
