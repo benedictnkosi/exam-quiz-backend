@@ -98,7 +98,7 @@ class CreateQuestionsCommand extends Command
                 }
 
                 // Apply question number filter if provided
-                if ($questionNumberFilter && !str_contains($questionNumber, $questionNumberFilter)) {
+                if ($questionNumberFilter && $questionNumber !== $questionNumberFilter) {
                     $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
                     $output->writeln("[$timestamp] Skipping question $questionNumber (does not match filter: $questionNumberFilter)");
                     continue;
@@ -111,7 +111,9 @@ class CreateQuestionsCommand extends Command
                     try {
                         // Extract question
                         $parentNumber = $this->getParentQuestion($questionNumber);
+                        $output->writeln("[$timestamp] Parent question number: {$parentNumber}");
                         $grandParentNumber = $this->getGrandParentQuestion($questionNumber);
+                        $output->writeln("[$timestamp] Grandparent question number: {$grandParentNumber}");
 
                         $questionPrompt = [
                             [
@@ -130,7 +132,7 @@ class CreateQuestionsCommand extends Command
                                     [
                                         'type' => 'text',
                                         'text' => "From the question paper, extract the full text of question $questionNumber" .
-                                            ($grandParentNumber && str_contains($grandParentNumber, '.') ? ", its grandparent $grandParentNumber" : "") .
+                                            ($grandParentNumber ? ", its grandparent $grandParentNumber" : "") .
                                             (($parentNumber && str_contains($parentNumber, '.')) || (substr_count($questionNumber, '.') === 1) ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
                                             "1. Do not include any other questions. \n" .
                                             "2. Return only the raw question text. \n" .
@@ -407,21 +409,21 @@ class CreateQuestionsCommand extends Command
 
                                 if (isset($images[$questionNumber])) {
                                     $output->writeln("[$timestamp] Image found for question number: {$questionNumber}");
-                                    $questionImagePath = $images[$questionNumber];
+                                    $questionImagePath = $images[$questionNumber]['path'];
                                 } else {
                                     $output->writeln("[$timestamp] Warning: No image found for question number: {$questionNumber}");
                                 }
                                 // Check parent question number
                                 if (isset($images[$parentNumber])) {
                                     $output->writeln("[$timestamp] Image found for parent question number: {$parentNumber}");
-                                    $imagePath = $images[$parentNumber];
+                                    $imagePath = $images[$parentNumber]['path'];
                                 } else {
                                     $output->writeln("[$timestamp] Warning: No image found for parent question number: {$parentNumber}");
                                 }
                                 // Check grandparent question number
                                 if ($grandParentNumber && isset($images[$grandParentNumber])) {
                                     $output->writeln("[$timestamp] Image found for grandparent question number: {$grandParentNumber}");
-                                    $imagePath = $images[$grandParentNumber];
+                                    $imagePath = $images[$grandParentNumber]['path'];
                                 } else {
                                     $output->writeln("[$timestamp] Warning: No image found for grandparent question number: {$grandParentNumber}");
                                 }
@@ -541,18 +543,26 @@ class CreateQuestionsCommand extends Command
                         $context = '';
                         if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                             $grandParentText = $questionJson[$grandParentNumber];
-                            // Only limit text if there's an image
-                            if ($imagePath && strlen($grandParentText) > 100) {
-                                $grandParentText = substr($grandParentText, 0, 100) . "...";
+                            // Check if we have a boundary for this question
+                            if ($imagePath && isset($images[$grandParentNumber]['boundary']) && $images[$grandParentNumber]['boundary']) {
+                                $boundary = $images[$grandParentNumber]['boundary'];
+                                $boundaryPos = strpos($grandParentText, $boundary);
+                                if ($boundaryPos !== false) {
+                                    $grandParentText = substr($grandParentText, 0, $boundaryPos + strlen($boundary));
+                                }
                             }
                             $context = $grandParentText;
                         }
 
                         if ($parentNumber && isset($questionJson[$parentNumber])) {
                             $parentText = $questionJson[$parentNumber];
-                            // Only limit text if there's an image
-                            if ($imagePath && strlen($parentText) > 100) {
-                                $parentText = substr($parentText, 0, 100) . "...";
+                            // Check if we have a boundary for this question
+                            if ($imagePath && isset($images[$parentNumber]['boundary']) && $images[$parentNumber]['boundary']) {
+                                $boundary = $images[$parentNumber]['boundary'];
+                                $boundaryPos = strpos($parentText, $boundary);
+                                if ($boundaryPos !== false) {
+                                    $parentText = substr($parentText, 0, $boundaryPos + strlen($boundary));
+                                }
                             }
                             $context = $context . "\n\n" . $parentText;
                         }

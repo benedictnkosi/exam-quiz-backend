@@ -99,6 +99,9 @@ class ExamPaperController extends AbstractController
                 return $this->json(['error' => 'Question number is required'], 400);
             }
 
+            // Get the boundary from the request
+            $boundary = $request->request->get('boundary');
+
             // Get the file
             $file = $request->files->get('image');
             if (!$file) {
@@ -143,7 +146,10 @@ class ExamPaperController extends AbstractController
             }
 
             // Add the new image
-            $images[$questionNumber] = $imagePath;
+            $images[$questionNumber] = [
+                'path' => $imagePath,
+                'boundary' => $boundary
+            ];
 
             // Update the exam paper
             $examPaper->setImages($images);

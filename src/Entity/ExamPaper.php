@@ -206,16 +206,19 @@ class ExamPaper
         return $this;
     }
 
-    public function addImage(string $questionNumber, string $imagePath): self
+    public function addImage(string $questionNumber, string $imagePath, ?string $boundary = null): self
     {
         if ($this->images === null) {
             $this->images = [];
         }
-        $this->images[$questionNumber] = $imagePath;
+        $this->images[$questionNumber] = [
+            'path' => $imagePath,
+            'boundary' => $boundary
+        ];
         return $this;
     }
 
-    public function getImageForQuestion(string $questionNumber): ?string
+    public function getImageForQuestion(string $questionNumber): ?array
     {
         return $this->images[$questionNumber] ?? null;
     }

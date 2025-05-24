@@ -312,7 +312,7 @@ class ExamPaperUploadService
         }
 
         // Get the image filename
-        $imageFilename = $images[$questionNumber];
+        $imageFilename = $images[$questionNumber]['path'];
 
         // Remove the image file from the filesystem
         $imagesDir = $this->uploadDir . '/images';
