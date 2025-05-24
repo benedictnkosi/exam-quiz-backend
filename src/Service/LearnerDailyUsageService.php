@@ -65,15 +65,15 @@ class LearnerDailyUsageService
             $remainingLesson = 0;
             $remainingPodcast = 0;
             if (str_contains($subscription, 'silver')) {
-                $remainingQuiz = $this->SILVER_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
             } else if (str_contains($subscription, 'gold')) {
-                $remainingQuiz = $this->GOLD_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
             } else if (str_contains($subscription, 'bronze')) {
-                $remainingQuiz = $this->BRONZE_DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
             } else if (str_contains($subscription, 'free')) {
