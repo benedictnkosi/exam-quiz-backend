@@ -152,28 +152,14 @@ class LearnerRegistrationStatsService
     public function getAverageLearnersPerDay(): array
     {
         try {
-            $this->logger->info("Getting average number of learners who answered questions per day for the past 30 days");
+            $this->logger->info("Getting average number of learners per day for the past 30 days");
 
             // Calculate date range
-            $endDate = new \DateTime();
-            $endDate->setTime(23, 59, 59);
-            $startDate = (new \DateTime())->modify('-30 days');
-            $startDate->setTime(0, 0, 0);
+            $endDate = new \DateTimeImmutable();
+            $startDate = (new \DateTimeImmutable())->modify('-30 days');
 
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('SUBSTRING(r.created, 1, 10) as date, COUNT(DISTINCT r.learner) as unique_learners')
-                ->from('App\\Entity\\Result', 'r')
-                ->join('r.learner', 'l')
-                ->where('r.created >= :startDate')
-                ->andWhere('r.created <= :endDate')
-                ->andWhere('l.email NOT LIKE :testEmail')
-                ->groupBy('date')
-                ->orderBy('date', 'ASC')
-                ->setParameter('startDate', $startDate)
-                ->setParameter('endDate', $endDate)
-                ->setParameter('testEmail', '%test%');
-
-            $results = $qb->getQuery()->getResult();
+            $results = $this->em->getRepository('App\\Entity\\LearnerDailyUsage')
+                ->getUniqueLearnersPerDay($startDate, $endDate);
 
             // Calculate average
             $totalLearners = 0;
