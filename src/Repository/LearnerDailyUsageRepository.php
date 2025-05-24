@@ -39,4 +39,22 @@ class LearnerDailyUsageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function getAverageLearnersPerDay(\DateTimeImmutable $startDate, \DateTimeImmutable $endDate): float
+    {
+        $result = $this->createQueryBuilder('u')
+            ->select('COUNT(DISTINCT u.learner) as uniqueLearners, COUNT(DISTINCT u.date) as totalDays')
+            ->where('u.date >= :startDate')
+            ->andWhere('u.date <= :endDate')
+            ->setParameter('startDate', $startDate->setTime(0, 0, 0))
+            ->setParameter('endDate', $endDate->setTime(23, 59, 59))
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$result || $result['totalDays'] === 0) {
+            return 0.0;
+        }
+
+        return $result['uniqueLearners'] / $result['totalDays'];
+    }
 }
