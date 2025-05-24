@@ -15,11 +15,11 @@ class LearnerDailyUsageService
 {
 
     private $DAILY_QUIZ_LIMIT = 15;
-    private $SILVER_DAILY_QUIZ_LIMIT = 50;
-    private $BRONZE_DAILY_QUIZ_LIMIT = 30;
-    private $GOLD_DAILY_QUIZ_LIMIT = 100;
+    private $SILVER_DAILY_QUIZ_LIMIT = 999;
+    private $BRONZE_DAILY_QUIZ_LIMIT = 999;
+    private $GOLD_DAILY_QUIZ_LIMIT = 999;
     private $DAILY_LESSON_LIMIT = 15;
-    private $DAILY_PODCAST_LIMIT = 15;
+    private $DAILY_PODCAST_LIMIT = 5;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
