@@ -585,7 +585,11 @@ class CreateQuestionsCommand extends Command
                                     $parentText = substr($parentText, 0, $boundaryPos + strlen($boundary));
                                 }
                             }
-                            $context = $context . "\n\n" . $parentText;
+
+                            //if grand parent does not contain parent content, then add it to the context
+                            if (strpos($context, $parentText) === false) {
+                                $context = $context . "\n\n" . $parentText;
+                            }
                         }
 
                         // Clean up context text
