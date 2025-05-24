@@ -28,6 +28,7 @@ class SendGradeMessageCommand extends Command
             ->addArgument('grade', InputArgument::REQUIRED, 'The grade number to send the message to (e.g., 12 for Grade 12)')
             ->addArgument('title', InputArgument::REQUIRED, 'The title of the message')
             ->addArgument('message', InputArgument::REQUIRED, 'The message body')
+            ->addArgument('lastseen', InputArgument::REQUIRED, 'The number of days since the last seen date');
         ;
     }
 

@@ -118,4 +118,4 @@ cd public/assets/lectures/
 php bin/console app:generate-question-topics 1  # For grade 1
 
 ### send message to a grade
-php bin/console app:send-grade-message 12 "Writting IT tomorrow? We’ve Got Your Back!" "new Information Technology Paper 1 questions are live in the app"
+php bin/console app:send-grade-message 12 "Writting Technical Sciences P2 On Monday?" "We’ve Got Your Back! New questions are live in the app" "60"
