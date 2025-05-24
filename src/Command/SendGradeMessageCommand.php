@@ -37,10 +37,11 @@ class SendGradeMessageCommand extends Command
         $grade = (int) $input->getArgument('grade');
         $title = $input->getArgument('title');
         $message = $input->getArgument('message');
+        $lastSeen = $input->getArgument('lastseen');
 
         $io->title('Sending Message to Grade ' . $grade);
 
-        $result = $this->gradeMessageService->sendMessageToGrade($grade, $title, $message);
+        $result = $this->gradeMessageService->sendMessageToGrade($grade, $title, $message, $lastSeen);
 
         if ($result['status'] === 'OK') {
             $io->success(sprintf(

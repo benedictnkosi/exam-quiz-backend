@@ -29,7 +29,7 @@ class GradeMessageService
         return self::ANNOUNCEMENT_EMOJIS[array_rand(self::ANNOUNCEMENT_EMOJIS)] . ' ' . $title;
     }
 
-    public function sendMessageToGrade(int $gradeNumber, string $title, string $message): array
+    public function sendMessageToGrade(int $gradeNumber, string $title, string $message, string $lastSeen): array
     {
         try {
             // First get the grade entity by number
@@ -52,7 +52,7 @@ class GradeMessageService
                 ->andWhere('r.created >= :sevenDaysAgo')
                 ->setParameter('grade', $grade)
                 ->setParameter('role', 'learner')
-                ->setParameter('sevenDaysAgo', new \DateTime('-7 days'));
+                ->setParameter('sevenDaysAgo', new \DateTime('-' . $lastSeen . ' days'));
 
             // Get the SQL query
             $sql = $qb->getQuery()->getSQL();

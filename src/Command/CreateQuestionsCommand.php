@@ -49,8 +49,29 @@ class CreateQuestionsCommand extends Command
         $papersInProgress = $this->examPaperRepository->findBy(['status' => ['in_progress']]);
         if (!empty($papersInProgress)) {
             $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
-            $output->writeln("[$timestamp] Found papers in progress. Exiting to prevent concurrent processing.");
-            return Command::SUCCESS;
+            $output->writeln("[$timestamp] Found papers in progress. Checking for stale papers...");
+
+            // Check each paper in progress
+            foreach ($papersInProgress as $paper) {
+                $lastUpdated = $paper->getCreated();
+                $now = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
+                $timeDiff = $now->diff($lastUpdated);
+
+                // If paper has been in progress for more than an hour
+                if ($timeDiff->h >= 1 || $timeDiff->days > 0) {
+                    $paper->setStatus('stopped');
+                    $this->entityManager->persist($paper);
+                    $this->entityManager->flush();
+                    $output->writeln("[$timestamp] Paper ID: {$paper->getId()} has been in progress for more than an hour. Setting status to stopped.");
+                }
+            }
+
+            // Check again for papers in progress after handling stale papers
+            $papersInProgress = $this->examPaperRepository->findBy(['status' => ['in_progress']]);
+            if (!empty($papersInProgress)) {
+                $output->writeln("[$timestamp] Still have papers in progress. Exiting to prevent concurrent processing.");
+                return Command::SUCCESS;
+            }
         }
 
         $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
