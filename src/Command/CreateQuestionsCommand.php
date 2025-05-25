@@ -125,6 +125,13 @@ class CreateQuestionsCommand extends Command
                     continue;
                 }
 
+                // Check if question is already marked as skipped
+                if (isset($questionProgress[$questionNumber]) && $questionProgress[$questionNumber]['status'] === 'Skipped') {
+                    $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                    $output->writeln("[$timestamp] Question $questionNumber is already marked as skipped. Moving to next question.");
+                    continue;
+                }
+
                 $retryCount = isset($questionProgress[$questionNumber]['retryCount']) ? $questionProgress[$questionNumber]['retryCount'] : 0;
                 $shouldRetry = true;
 
@@ -279,20 +286,85 @@ class CreateQuestionsCommand extends Command
                         }
 
                         $questionContent = $questionData['choices'][0]['message']['content'];
-                        //if the question requires the learner to draw a graph, then remove the question number
-                        if (strpos($questionContent, 'Draw ') !== false) {
-                            //skip to the next question
-                            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
-                            $output->writeln("[$timestamp] Skipping question $questionNumber (requires drawing a graph)");
-                            continue;
-                        }
-
                         // Remove question numbers in parentheses like (1), (5), (10)
                         $questionContent = preg_replace('/\s*\(\d+\)\s*/', '', $questionContent);
                         $questionJson = json_decode($questionContent, true);
 
                         if (json_last_error() !== JSON_ERROR_NONE) {
                             throw new \Exception('Failed to parse question JSON: ' . json_last_error_msg());
+                        }
+
+                        // Validate parent question data
+                        if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
+                            throw new \Exception("Missing or invalid parent question data for $parentNumber");
+                        }
+
+                        $parentData = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
+                        if (!is_string($parentData)) {
+                            throw new \Exception("Invalid parent question data format for $parentNumber");
+                        }
+
+                        $questionText = $parentData;
+
+                        // Validate child question data
+                        if (!isset($questionJson[$questionNumber])) {
+                            // Try without space if not found
+                            $questionNumberNoSpace = str_replace(' (', '(', $questionNumber);
+                            if (!isset($questionJson[$questionNumberNoSpace])) {
+                                throw new \Exception("Missing or invalid question data for $questionNumber");
+                            }
+                            $questionData = $questionJson[$questionNumberNoSpace];
+                        } else {
+                            $questionData = $questionJson[$questionNumber];
+                        }
+
+                        if (!is_string($questionData)) {
+                            throw new \Exception("Invalid question data format for $questionNumber");
+                        }
+
+                        $questionText = $questionData;
+
+                        // Check for draw terms in the actual question text
+                        $drawTerms = ['Draw ', 'draw ', 'Draw a ', 'draw a ', 'Draw a graph', 'draw a graph', 'Draw a graph', 'draw a graph', 'Draw a line graph', 'draw a line graph', 'Draw a line graph', 'draw a line graph', 'Redraw'];
+                        $shouldSkip = false;
+                        $skipReason = '';
+                        foreach ($drawTerms as $drawTerm) {
+                            if (strpos($questionText, $drawTerm) !== false) {
+                                $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                                $output->writeln("[$timestamp] Skipping question $questionNumber (requires drawing a graph)");
+                                $shouldSkip = true;
+                                $skipReason = "requires drawing a graph";
+                                break;
+                            }
+                        }
+
+                        // Check if question references another question number
+                        if (!$shouldSkip) {
+                            // Get all question numbers from the paper
+                            $allQuestionNumbers = $paper->getQuestionNumbers();
+                            foreach ($allQuestionNumbers as $otherQuestionNumber) {
+                                // Skip comparing with self
+                                if ($otherQuestionNumber === $questionNumber) {
+                                    continue;
+                                }
+                                // Check if the question text contains another question number
+                                if (strpos($questionText, $otherQuestionNumber) !== false) {
+                                    $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                                    $output->writeln("[$timestamp] Skipping question $questionNumber (references another question: $otherQuestionNumber)");
+                                    $shouldSkip = true;
+                                    $skipReason = "references another question: $otherQuestionNumber";
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($shouldSkip) {
+                            // Update progress for this question
+                            $paper->updateQuestionProgress($questionNumber, "Skipped", $skipReason);
+                            $this->entityManager->persist($paper);
+                            $this->entityManager->flush();
+                            $shouldRetry = false;
+                            break;
                         }
 
                         // Check if this is a true/false question
@@ -328,36 +400,6 @@ class CreateQuestionsCommand extends Command
                         }
 
                         $output->writeln("[$timestamp] Question JSON: " . json_encode($questionJson));
-
-                        // Validate parent question data
-                        if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
-                            throw new \Exception("Missing or invalid parent question data for $parentNumber");
-                        }
-
-                        $parentData = isset($questionJson[$parentNumber]) ? $questionJson[$parentNumber] : '';
-                        if (!is_string($parentData)) {
-                            throw new \Exception("Invalid parent question data format for $parentNumber");
-                        }
-
-                        $questionText = $parentData;
-
-                        // Validate child question data
-                        if (!isset($questionJson[$questionNumber])) {
-                            // Try without space if not found
-                            $questionNumberNoSpace = str_replace(' (', '(', $questionNumber);
-                            if (!isset($questionJson[$questionNumberNoSpace])) {
-                                throw new \Exception("Missing or invalid question data for $questionNumber");
-                            }
-                            $questionData = $questionJson[$questionNumberNoSpace];
-                        } else {
-                            $questionData = $questionJson[$questionNumber];
-                        }
-
-                        if (!is_string($questionData)) {
-                            throw new \Exception("Invalid question data format for $questionNumber");
-                        }
-
-                        $questionText = $questionData;
 
                         // Create question entity if not already created for match table
                         if (!$question) {
@@ -580,7 +622,8 @@ class CreateQuestionsCommand extends Command
                         $context = '';
                         if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                             $grandParentText = $questionJson[$grandParentNumber];
-                            $grandParentText = str_replace($grandParentNumber, '', $grandParentText);
+                            $output->writeln("[$timestamp] Grandparent text: " . $grandParentText);
+
                             // Check if we have a boundary for this question
                             if ($imagePath && isset($images[$grandParentNumber]['boundary']) && $images[$grandParentNumber]['boundary']) {
                                 $boundary = $images[$grandParentNumber]['boundary'];
@@ -589,8 +632,9 @@ class CreateQuestionsCommand extends Command
                                     $grandParentText = substr($grandParentText, 0, $boundaryPos + strlen($boundary));
                                 }
                             }
-                            $grandParentText = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '.*$/', '', $grandParentText);
 
+                            $grandParentText = $this->cleanQuestionText($grandParentText, $grandParentNumber);
+                            $output->writeln("[$timestamp] Cleaned grandparent text: " . $grandParentText);
                             $context = $grandParentText;
                         }
 
@@ -601,17 +645,13 @@ class CreateQuestionsCommand extends Command
                                 $boundary = $images[$parentNumber]['boundary'];
                                 $boundaryPos = strpos($parentText, $boundary);
                                 if ($boundaryPos !== false) {
-
                                     $parentText = substr($parentText, 0, $boundaryPos + strlen($boundary));
                                 }
                             }
 
                             //if grand parent does not contain parent content, then add it to the context
-                            $parentText = str_replace($parentNumber, '', $parentText);
+                            $parentText = $this->cleanQuestionText($parentText, $parentNumber);
                             if (strpos($context, $parentText) === false) {
-                                // Remove question number and any text after it
-                                $parentText = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '.*$/', '', $parentText);
-
                                 $context = $context . "\n\n" . $parentText;
                             }
                         }
@@ -679,7 +719,8 @@ class CreateQuestionsCommand extends Command
                             $paper->updateQuestionProgress($questionNumber, "Skipped", "Duplicate question found");
                             $this->entityManager->persist($paper);
                             $this->entityManager->flush();
-                            continue;
+                            $shouldRetry = false;
+                            break;
                         }
 
                         $this->entityManager->persist($question);
@@ -789,5 +830,28 @@ class CreateQuestionsCommand extends Command
             return $this->getParentQuestion($parent);
         }
         return null;
+    }
+
+    public function cleanQuestionText(string $text, string $questionNumber): string
+    {
+        // First remove everything after and including the question number followed by a dot
+        $text = preg_replace('/' . preg_quote($questionNumber . '.', delimiter: '/') . '.*$/s', '', $text);
+
+        // Remove the word "QUESTION" and any following whitespace
+        $text = preg_replace('/QUESTION\s*/i', '', $text);
+
+        // Remove the question number and any following space
+        $text = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '\s*/', '', $text);
+
+        // Keep only the first line if it contains "(Start on a new page.)"
+        if (strpos($text, '(Start on a new page.)') !== false) {
+            $text = '(Start on a new page.)';
+        } else {
+            // Otherwise keep only the first line
+            $lines = explode("\n", $text);
+            $text = trim($lines[0]);
+        }
+
+        return $text;
     }
 }
