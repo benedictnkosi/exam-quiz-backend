@@ -126,15 +126,15 @@ Main Character:
 {$characterInfo}
 
 Please write a complete chapter that:
-1. Follows the provided outline structure
-2. Maintains consistency with the theme and goal
-3. Creates engaging and vivid scenes
-4. Develops the main character naturally, staying true to their personality and traits
-5. Uses descriptive language that reflects the character's perspective
-6. Includes dialogue that matches the character's voice and personality
-7. Has a natural flow and pacing
-8. Ends with a hook that encourages reading the next chapter
-9. Uses vocabulary and sentence structure appropriate for {$readingLevel} reading level
+1. Uses vocabulary and sentence structure appropriate for {$readingLevel} reading level
+2. Follows the provided outline structure
+3. Maintains consistency with the theme and goal
+4. Creates engaging and vivid scenes
+5. Develops the main character naturally, staying true to their personality and traits
+6. Uses descriptive language that reflects the character's perspective
+7. Includes dialogue that matches the character's voice and personality
+8. Has a natural flow and pacing
+9. Ends with a hook that encourages reading the next chapter
 10. Stays within the {$wordCountLimit} word limit
 11. Uses emojis sparingly and appropriately to enhance emotional moments, key events, or character expressions. Do not overuse emojis - they should complement the story, not overwhelm it.
 12. Maintains continuity with past chapters and sets up future plot developments naturally
