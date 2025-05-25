@@ -29,7 +29,7 @@ class GenerateMathStepsCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $io->title('Generating steps for mathematics questions');
 
-        // Get questions that need steps
+        // Get questions that need steps and practice_status is not fail
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('q')
             ->from(Question::class, 'q')

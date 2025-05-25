@@ -136,6 +136,21 @@ class CreateQuestionsCommand extends Command
                         $grandParentNumber = $this->getGrandParentQuestion($questionNumber);
                         $output->writeln("[$timestamp] Grandparent question number: {$grandParentNumber}");
 
+                        $prompt = "From the question paper, extract the full text of question $questionNumber" .
+                            ($grandParentNumber ? ", and its grandparent $grandParentNumber" : "") .
+                            (($parentNumber && str_contains($parentNumber, '.')) || (substr_count($questionNumber, '.') === 1) ? ", and its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
+                            "1. Include the options for multiple choice questions. \n" .
+                            "2. Do not include any other questions. \n" .
+                            "3. Return only the raw question text. \n" .
+                            "4. Do not include quotaiton marks in the question text. \n" .
+                            "5. do not include any text in tables or diagrams or images and pictures. \n" .
+                            "6. if question is a match table question, then return value from column A only. \n" .
+                            "7. If question contains points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
+                            "8. return the data in a json format. \n" .
+                            "9. the question node must be named exactly as the question number, do not prefix with anything. \n" .
+                            "10. do not prefix the json with any text";
+
+                        $output->writeln("[$timestamp] Prompt: " . $prompt);
                         $questionPrompt = [
                             [
                                 'role' => 'system',
@@ -152,18 +167,7 @@ class CreateQuestionsCommand extends Command
                                     ],
                                     [
                                         'type' => 'text',
-                                        'text' => "From the question paper, extract the full text of question $questionNumber" .
-                                            ($grandParentNumber ? ", its grandparent $grandParentNumber" : "") .
-                                            (($parentNumber && str_contains($parentNumber, '.')) || (substr_count($questionNumber, '.') === 1) ? ", its parent $parentNumber" : "") . "\n do not include text for sub questions for the parent node. \n" .
-                                            "1. Do not include any other questions. \n" .
-                                            "2. Return only the raw question text. \n" .
-                                            "3. Do not include quotaiton marks in the question text. \n" .
-                                            "3. do not include any text in tables or diagrams or images and pictures. \n" .
-                                            "4. if question is a match table question, then return value from column A only. \n" .
-                                            "4. If question contains points points, make sure that the alphabet (bullet point) and the text are on the same line. add a new line before each pint e.g. A. taxes\n" .
-                                            "5. return the data in a json format. \n" .
-                                            "6. the question node must be named exactly as the question number, do not prefix with anything. \n" .
-                                            "7. do not prefix the json with any text"
+                                        'text' => $prompt
                                     ]
                                 ]
                             ]
@@ -275,6 +279,14 @@ class CreateQuestionsCommand extends Command
                         }
 
                         $questionContent = $questionData['choices'][0]['message']['content'];
+                        //if the question requires the learner to draw a graph, then remove the question number
+                        if (strpos($questionContent, 'Draw ') !== false) {
+                            //skip to the next question
+                            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+                            $output->writeln("[$timestamp] Skipping question $questionNumber (requires drawing a graph)");
+                            continue;
+                        }
+
                         // Remove question numbers in parentheses like (1), (5), (10)
                         $questionContent = preg_replace('/\s*\(\d+\)\s*/', '', $questionContent);
                         $questionJson = json_decode($questionContent, true);
@@ -314,6 +326,8 @@ class CreateQuestionsCommand extends Command
                                 ];
                             }
                         }
+
+                        $output->writeln("[$timestamp] Question JSON: " . json_encode($questionJson));
 
                         // Validate parent question data
                         if (!isset($questionJson[$parentNumber]) && str_contains($parentNumber, '.')) {
@@ -413,6 +427,8 @@ class CreateQuestionsCommand extends Command
                             }
                         }
 
+                        $output->writeln("[$timestamp] Question Text: " . $questionText);
+                        $questionText = str_replace($questionNumber, '', $questionText);
                         $question->setQuestion($questionText);
 
                         // Initialize image variables
@@ -564,6 +580,7 @@ class CreateQuestionsCommand extends Command
                         $context = '';
                         if ($grandParentNumber && isset($questionJson[$grandParentNumber])) {
                             $grandParentText = $questionJson[$grandParentNumber];
+                            $grandParentText = str_replace($grandParentNumber, '', $grandParentText);
                             // Check if we have a boundary for this question
                             if ($imagePath && isset($images[$grandParentNumber]['boundary']) && $images[$grandParentNumber]['boundary']) {
                                 $boundary = $images[$grandParentNumber]['boundary'];
@@ -572,6 +589,8 @@ class CreateQuestionsCommand extends Command
                                     $grandParentText = substr($grandParentText, 0, $boundaryPos + strlen($boundary));
                                 }
                             }
+                            $grandParentText = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '.*$/', '', $grandParentText);
+
                             $context = $grandParentText;
                         }
 
@@ -582,12 +601,17 @@ class CreateQuestionsCommand extends Command
                                 $boundary = $images[$parentNumber]['boundary'];
                                 $boundaryPos = strpos($parentText, $boundary);
                                 if ($boundaryPos !== false) {
+
                                     $parentText = substr($parentText, 0, $boundaryPos + strlen($boundary));
                                 }
                             }
 
                             //if grand parent does not contain parent content, then add it to the context
+                            $parentText = str_replace($parentNumber, '', $parentText);
                             if (strpos($context, $parentText) === false) {
+                                // Remove question number and any text after it
+                                $parentText = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '.*$/', '', $parentText);
+
                                 $context = $context . "\n\n" . $parentText;
                             }
                         }
@@ -599,10 +623,18 @@ class CreateQuestionsCommand extends Command
                             $context = str_replace('FOUR', '', $context);
                             $context = str_replace('FIVE', '', $context);
                             $context = str_replace('SIX', '', $context);
+
+                            // Remove "(Start on a new page.)"
+                            $context = str_replace('(Start on a new page.)', '', $context);
+
+                            // Remove "QUESTION n" patterns
+                            $context = preg_replace('/QUESTION\s+\d+/i', '', $context);
+
+                            //remove all text after 'next to the question numbers', including 'next to the question numbers'
+                            $context = preg_replace('/next to the question numbers.*$/', '', $context);
+
                         }
 
-                        //remove all text after 'next to the question numbers', including 'next to the question numbers'
-                        $context = preg_replace('/next to the question numbers.*$/', '', $context);
                         $question->setContext($context);
 
                         $question->setYear($paper->getYear());
