@@ -667,8 +667,6 @@ class CreateQuestionsCommand extends Command
                             // Remove "(Start on a new page.)"
                             $context = str_replace('(Start on a new page.)', '', $context);
 
-                            // Remove "QUESTION n" patterns
-                            $context = preg_replace('/QUESTION\s+\d+/i', '', $context);
 
                             //remove all text after 'next to the question numbers', including 'next to the question numbers'
                             $context = preg_replace('/next to the question numbers.*$/', '', $context);
@@ -836,9 +834,6 @@ class CreateQuestionsCommand extends Command
     {
         // First remove everything after and including the question number followed by a dot
         $text = preg_replace('/' . preg_quote($questionNumber . '.', delimiter: '/') . '.*$/s', '', $text);
-
-        // Remove the word "QUESTION" and any following whitespace
-        $text = preg_replace('/QUESTION\s*/i', '', $text);
 
         // Remove the question number and any following space
         $text = preg_replace('/' . preg_quote($questionNumber, delimiter: '/') . '\s*/', '', $text);
