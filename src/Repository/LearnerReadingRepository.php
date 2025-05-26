@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\LearnerReading;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use DateTimeImmutable;
 
 /**
  * @extends ServiceEntityRepository<LearnerReading>
@@ -35,5 +36,19 @@ class LearnerReadingRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
+    }
+
+    public function findCompletedChaptersCountByDay(DateTimeImmutable $fromDate): array
+    {
+        return $this->createQueryBuilder('lr')
+            ->select('CONCAT(YEAR(lr.date), \'-\', LPAD(MONTH(lr.date), 2, \'0\'), \'-\', LPAD(DAY(lr.date), 2, \'0\')) as date', 'COUNT(DISTINCT lr.learner) as learnerCount')
+            ->where('lr.date >= :fromDate')
+            ->andWhere('lr.status = :status')
+            ->setParameter('fromDate', $fromDate)
+            ->setParameter('status', 'completed')
+            ->groupBy('date')
+            ->orderBy('date', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 }
