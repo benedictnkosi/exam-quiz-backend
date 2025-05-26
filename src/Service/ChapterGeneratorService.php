@@ -86,8 +86,8 @@ class ChapterGeneratorService
                 $book->setWordCount(str_word_count($rewrittenChapter['content']));
                 $book->setLevel($targetLevel->getLevel());
                 $book->setStatus(Book::STATUS_ACTIVE);
-                $book->setChatThreadTitle($rewrittenChapter['chat_thread_title'] ?? null);
-                $book->setChatThreadContent($rewrittenChapter['chat_thread_content'] ?? null);
+                $book->setChatThreadTitle($baseChapter['chat_thread_title']); // Reuse from base chapter
+                $book->setChatThreadContent($baseChapter['chat_thread_content']); // Reuse from base chapter
                 $publishDate = $arc->getPublishDate();
                 if ($publishDate) {
                     $publishDate = new \DateTime($publishDate->format('Y-m-d'));
@@ -169,17 +169,17 @@ class ChapterGeneratorService
         // Character information
         $characterInfo = "Dimpo is a curious 12-year-old boy from Johannesburg, South Africa, with a quiet strength and a big heart. He lives in a vibrant township where the sounds of kwaito music and the smell of braai often fill the air. He loves asking questions—even the ones adults don't want to answer—and keeps a small notebook where he writes down thoughts, dreams, and drawings. Though he's not the loudest in class, his friends rely on him for his honesty and calm presence. Dimpo enjoys playing soccer in the dusty streets with his friends, listening to Amapiano music on his cheap but beloved headphones, and spending time with his grandmother, who always has a story or riddle to share. He doesn't know it yet, but this year will shape him in ways he never imagined.
 
-Sipho is Dimpo’s best friend—a loud, confident joker who’s always the first to suggest a game of soccer or a new prank. He hides his own struggles behind his energy, but he’s fiercely loyal and would do anything for his friends.
+Sipho is Dimpo's best friend—a loud, confident joker who's always the first to suggest a game of soccer or a new prank. He hides his own struggles behind his energy, but he's fiercely loyal and would do anything for his friends.
 
-Amahle is Dimpo’s cousin in Durban. She’s smart, competitive, and never backs down from a dance battle. She teases Dimpo constantly but cares about him deeply. Their friendship is built on voice notes, inside jokes, and late-night chats about life.
+Amahle is Dimpo's cousin in Durban. She's smart, competitive, and never backs down from a dance battle. She teases Dimpo constantly but cares about him deeply. Their friendship is built on voice notes, inside jokes, and late-night chats about life.
 
-Thandi is a classmate who slowly becomes a bigger part of Dimpo’s life. Thoughtful and observant, she notices things others miss and sometimes understands what Dimpo is feeling before he says it.
+Thandi is a classmate who slowly becomes a bigger part of Dimpo's life. Thoughtful and observant, she notices things others miss and sometimes understands what Dimpo is feeling before he says it.
 
-Gogo is Dimpo’s grandmother who lives in Durban. She's full of wisdom, warmth, and quiet strength. Her words often stay with Dimpo long after she speaks them. She’s the kind of person who can tell a whole story with just a look—or a proverb.
+Gogo is Dimpo's grandmother who lives in Durban. She's full of wisdom, warmth, and quiet strength. Her words often stay with Dimpo long after she speaks them. She's the kind of person who can tell a whole story with just a look—or a proverb.
 
-Dimpo’s Mom is a caring but overwhelmed woman who tries to hold the family together. She works long hours, keeps the household running, and hides her stress with half-smiles and careful words. She's trying to prepare Dimpo for a transition without scaring him, and often speaks in gentle hints rather than clear answers.
+Dimpo's Mom is a caring but overwhelmed woman who tries to hold the family together. She works long hours, keeps the household running, and hides her stress with half-smiles and careful words. She's trying to prepare Dimpo for a transition without scaring him, and often speaks in gentle hints rather than clear answers.
 
-Dimpo’s Dad is quieter, often lost in thought. He believes in making the right choices, even if they’re hard. He wants Dimpo to understand life’s realities but struggles with how to say the right things. He often gives reassurance through actions—packing, driving Dimpo to the taxi rank—more than through words.
+Dimpo's Dad is quieter, often lost in thought. He believes in making the right choices, even if they're hard. He wants Dimpo to understand life's realities but struggles with how to say the right things. He often gives reassurance through actions—packing, driving Dimpo to the taxi rank—more than through words.
 
 Together, his parents are doing their best to guide Dimpo through a big life change, even as they carry their own fears and uncertainties.";
 
