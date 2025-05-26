@@ -215,7 +215,7 @@ class LearnerDailyUsageService
 
     public function incrementMathsPracticeUsage(Learner $learner): void
     {
-        $this->logger->info("Incrementing maths practice usage for learner {$learner->getId()}");
+        $this->logger->info(message: "Incrementing maths practice usage for learner {$learner->getId()}");
         $usage = $this->getOrCreateDailyUsage($learner);
         $usage->incrementMathsPractice();
         $this->entityManager->flush();
@@ -278,5 +278,10 @@ class LearnerDailyUsageService
                 'message' => 'Error checking podcast usage'
             ];
         }
+    }
+
+    public function getLearnerByUid(string $learnerUid): ?Learner
+    {
+        return $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
     }
 }

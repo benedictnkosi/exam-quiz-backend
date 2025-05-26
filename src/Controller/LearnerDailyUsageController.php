@@ -63,4 +63,41 @@ class LearnerDailyUsageController extends AbstractController
         $result = $this->usageService->getDailyUsageByDateRange($learnerUid, $start, $end);
         return new JsonResponse($result);
     }
+
+    #[Route('/api/learner/daily-usage/maths-practice', name: 'increment_learner_maths_practice', methods: ['POST'])]
+    public function incrementMathsPractice(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $learnerUid = $request->query->get('uid');
+        if (empty($learnerUid)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner UID is required'
+            ], 400);
+        }
+
+        try {
+            $learner = $this->usageService->getLearnerByUid($learnerUid);
+            if (!$learner) {
+                return new JsonResponse([
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ], 404);
+            }
+
+            $this->usageService->incrementMathsPracticeUsage($learner);
+
+            return new JsonResponse([
+                'status' => 'OK',
+                'message' => 'Maths practice count incremented successfully'
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error incrementing maths practice: ' . $e->getMessage());
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Error incrementing maths practice count'
+            ], 500);
+        }
+    }
 }
