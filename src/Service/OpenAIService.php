@@ -226,18 +226,22 @@ Format your response as follows:
             error_log("AI Response for Chapter '{$chapterName}':\n" . $content);
 
             // Parse the response to separate chapter, summary, and quiz
-            preg_match('/\[CHAPTER\](.*?)\[SUMMARY\](.*?)\[QUIZ\](.*?)$/s', $content, $matches);
+            preg_match('/\[CHAPTER\](.*?)\[SUMMARY\](.*?)\[CHAT_THREAD_TITLE\](.*?)\[CHAT_THREAD_CONTENT\](.*?)\[QUIZ\](.*?)$/s', $content, $matches);
 
             $result = [
                 'content' => trim($matches[1] ?? $content),
                 'summary' => trim($matches[2] ?? 'Failed to generate summary.'),
-                'quiz' => json_decode(trim($matches[3] ?? '[]'), true)
+                'chat_thread_title' => trim($matches[3] ?? null),
+                'chat_thread_content' => trim($matches[4] ?? null),
+                'quiz' => json_decode(trim($matches[5] ?? '[]'), true)
             ];
 
             // Log the parsed result
             error_log("Parsed Result for Chapter '{$chapterName}':\n" .
                 "Content length: " . strlen($result['content']) . " characters\n" .
                 "Summary: " . $result['summary'] . "\n" .
+                "Chat Thread Title: " . ($result['chat_thread_title'] ?? 'Not generated') . "\n" .
+                "Chat Thread Content: " . ($result['chat_thread_content'] ?? 'Not generated') . "\n" .
                 "Quiz questions: " . count($result['quiz']));
 
             return $result;
@@ -246,6 +250,8 @@ Format your response as follows:
             return [
                 'content' => 'Failed to generate chapter content due to an API error.',
                 'summary' => 'Failed to generate summary due to an API error.',
+                'chat_thread_title' => null,
+                'chat_thread_content' => null,
                 'quiz' => []
             ];
         }
