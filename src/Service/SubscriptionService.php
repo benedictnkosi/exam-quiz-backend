@@ -75,62 +75,82 @@ class SubscriptionService
             $response = $this->httpClient->request('GET', $url, ['headers' => $headers]);
             $data = $response->toArray();
 
-            if (!isset($data['subscriber']['entitlements']) || !is_array($data['subscriber']['entitlements'])) {
-                error_log("RevenueCat: No entitlements array found or it\'s not an array for appUser '{$appUserId}\'. Response: " . json_encode($data));
-                return [
-                    'success' => false,
-                    'error' => 'No entitlements found',
-                    'details' => 'No entitlements array found in RevenueCat response'
-                ];
-            }
-
-            error_log("RevenueCat: Entitlements array found for appUser '{$appUserId}\'. Response: " . json_encode($data['subscriber']['entitlements']));
-
             $resolvedLearnerIdentifier = null;
-
-            // END OF EXISTING LEARNER IDENTIFICATION LOGIC
-
-            $entitlements = $data['subscriber']['entitlements'];
             $now = new DateTime('now', new \DateTimeZone('UTC'));
             error_log("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
             $activeFreeEntitlementEncountered = false;
             $highestPrioritySubscription = null;
             $highestPriority = -1;
 
-            foreach ($entitlements as $entitlementData) {
-                if (!is_array($entitlementData) || !isset($entitlementData['product_identifier']) || !array_key_exists('expires_date', $entitlementData)) {
-                    continue;
+            // First check entitlements
+            if (isset($data['subscriber']['entitlements']) && is_array($data['subscriber']['entitlements'])) {
+                error_log("RevenueCat: Checking entitlements for appUser '{$appUserId}'");
+                $entitlements = $data['subscriber']['entitlements'];
+
+                foreach ($entitlements as $entitlementData) {
+                    if (!is_array($entitlementData) || !isset($entitlementData['product_identifier']) || !array_key_exists('expires_date', $entitlementData)) {
+                        continue;
+                    }
+
+                    $productIdentifier = (string) $entitlementData['product_identifier'];
+                    $expiresDateStr = $entitlementData['expires_date'];
+
+                    $isActive = false;
+
+                    if ($expiresDateStr === null) {
+                        $isActive = true; // Entitlement never expires
+                    } else {
+                        error_log("RevenueCat: Entitlement expires date: {$expiresDateStr}");
+                        try {
+                            $expiresDate = new DateTime($expiresDateStr);
+                            if ($expiresDate > $now) {
+                                $isActive = true; // Entitlement expires in the future
+                            }
+                        } catch (\Exception $e) {
+                            error_log("RevenueCat: Invalid date format for entitlement '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
+                            continue;
+                        }
+                    }
+
+                    if ($isActive) {
+                        if ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER) {
+                            $activeFreeEntitlementEncountered = true;
+                        } else {
+                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
+                            if ($priority > $highestPriority) {
+                                $highestPriority = $priority;
+                                $highestPrioritySubscription = $productIdentifier;
+                            }
+                        }
+                    }
                 }
+            }
 
-                $productIdentifier = (string) $entitlementData['product_identifier'];
-                $expiresDateStr = $entitlementData['expires_date'];
+            // If no active entitlements found, check subscriptions
+            if ($highestPrioritySubscription === null && isset($data['subscriber']['subscriptions']) && is_array($data['subscriber']['subscriptions'])) {
+                error_log("RevenueCat: No active entitlements found, checking subscriptions for appUser '{$appUserId}'");
+                $subscriptions = $data['subscriber']['subscriptions'];
 
-                $isActive = false;
+                foreach ($subscriptions as $subscriptionData) {
+                    if (!is_array($subscriptionData) || !isset($subscriptionData['product_plan_identifier']) || !isset($subscriptionData['expires_date'])) {
+                        continue;
+                    }
 
-                if ($expiresDateStr === null) {
-                    $isActive = true; // Entitlement never expires
-                } else {
-                    error_log("RevenueCat: Entitlement expires date: {$expiresDateStr}");
+                    $productIdentifier = (string) $subscriptionData['product_plan_identifier'];
+                    $expiresDateStr = $subscriptionData['expires_date'];
+
                     try {
                         $expiresDate = new DateTime($expiresDateStr);
                         if ($expiresDate > $now) {
-                            $isActive = true; // Entitlement expires in the future
+                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
+                            if ($priority > $highestPriority) {
+                                $highestPriority = $priority;
+                                $highestPrioritySubscription = $productIdentifier;
+                            }
                         }
                     } catch (\Exception $e) {
-                        error_log("RevenueCat: Invalid date format for entitlement \'{$productIdentifier}\' for appUser \'{$appUserId}\'. Date: \'{$expiresDateStr}\'. Error: " . $e->getMessage());
+                        error_log("RevenueCat: Invalid date format for subscription '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
                         continue;
-                    }
-                }
-
-                if ($isActive) {
-                    if ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER) {
-                        $activeFreeEntitlementEncountered = true;
-                    } else {
-                        $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
-                        if ($priority > $highestPriority) {
-                            $highestPriority = $priority;
-                            $highestPrioritySubscription = $productIdentifier;
-                        }
                     }
                 }
             }
@@ -163,7 +183,7 @@ class SubscriptionService
                 if ($activeFreeEntitlementEncountered) {
                     error_log("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}) based on an active free entitlement.");
                 } else {
-                    error_log("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, Type: {$identifierType}).");
+                    error_log("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}.");
                 }
                 return [
                     'success' => true,
