@@ -814,4 +814,69 @@ class PushNotificationService
             ];
         }
     }
+
+    public function sendInactiveUserNotifications(): array
+    {
+        try {
+            $fourteenDaysAgo = new \DateTimeImmutable('-14 days');
+
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('l')
+                ->from(Learner::class, 'l')
+                ->where('l.lastSeen > :fourteenDaysAgo')
+                ->andWhere('l.expoPushToken IS NOT NULL')
+                ->andWhere('l.role = :role')
+                ->setParameter('fourteenDaysAgo', $fourteenDaysAgo)
+                ->setParameter('role', 'learner');
+
+            $inactiveUsers = $qb->getQuery()->getResult();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($inactiveUsers as $user) {
+                $pushToken = $user->getExpoPushToken();
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $daysInactive = $user->getLastSeen()->diff(new \DateTime())->days;
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => '✨ New features including step-by-step maths practice!',
+                    'body' => 'Come test it out in your next quiz.',
+                    'sound' => 'default',
+                    'data' => [
+                        'type' => 'inactive_user_notification',
+                        'userId' => $user->getUid(),
+                        'daysInactive' => $daysInactive
+                    ]
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'userId' => $user->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalInactiveUsers' => count($inactiveUsers),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending inactive user notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send inactive user notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }
