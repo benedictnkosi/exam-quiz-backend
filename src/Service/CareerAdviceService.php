@@ -75,10 +75,13 @@ class CareerAdviceService
                 //use follow me code
                 $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
                 if (!$learner) {
-                    return [
-                        'status' => 'NOK',
-                        'message' => 'Learner not found'
-                    ];
+                    $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
+                    if (!$learner) {
+                        return [
+                            'status' => 'NOK',
+                            'message' => 'Learner not found'
+                        ];
+                    }
                 }
             }
 
