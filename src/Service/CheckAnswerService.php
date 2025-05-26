@@ -166,8 +166,25 @@ class CheckAnswerService
 
             $isFirstAnswer = count(value: $previousResults) === 0; // Current result is already persisted but not flushed
 
-            // Calculate points change - 10 points for first answer, otherwise normal scoring
-            $pointsChange = $isFirstAnswer ? 10 : ($isCorrect ? 1 : -1);
+            // Get today's results count
+            $today = new \DateTime();
+            $today->setTime(0, 0, 0);
+            $todayResults = $this->entityManager->getRepository(Result::class)
+                ->createQueryBuilder('r')
+                ->where('r.learner = :learner')
+                ->andWhere('r.created >= :today')
+                ->setParameter('learner', $learner)
+                ->setParameter('today', $today)
+                ->getQuery()
+                ->getResult();
+
+            $todayResultsCount = count($todayResults);
+
+            // Calculate points change - only count points for first 10 results of today
+            $pointsChange = 0;
+            if ($todayResultsCount <= 10) {
+                $pointsChange = $isFirstAnswer ? 10 : ($isCorrect ? 1 : -1);
+            }
             $newPoints = max(0, $learner->getPoints() + $pointsChange);
             $learner->setPoints($newPoints);
 
