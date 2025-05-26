@@ -57,7 +57,9 @@ class ChapterGeneratorService
                         $rewrittenChapter = $this->openAIService->rewriteChapterForReadingLevel(
                             $baseChapter['content'],
                             $targetLevel->getName(),
-                            $targetLevel->getChapterWords()
+                            $targetLevel->getChapterWords(),
+                            $baseChapter['chat_thread_title'],
+                            $baseChapter['chat_thread_content']
                         );
                         break; // Success, exit the retry loop
                     } catch (\Exception $e) {
@@ -110,7 +112,9 @@ class ChapterGeneratorService
                     'level' => $targetLevel->getLevel(),
                     'status' => Book::STATUS_ACTIVE,
                     'publish_date' => $arc->getPublishDate()?->format('Y-m-d H:i:s'),
-                    'image' => $arc->getImage()
+                    'image' => $arc->getImage(),
+                    'chat_thread_title' => $baseChapter['chat_thread_title'],
+                    'chat_thread_content' => $baseChapter['chat_thread_content']
                 ];
             }
 
@@ -259,7 +263,9 @@ Together, his parents are doing their best to guide Dimpo through a big life cha
             'level' => $level->getLevel(),
             'status' => Book::STATUS_ACTIVE,
             'publish_date' => $arc->getPublishDate()?->format('Y-m-d H:i:s'),
-            'image' => $arc->getImage()
+            'image' => $arc->getImage(),
+            'chat_thread_title' => $result['chat_thread_title'],
+            'chat_thread_content' => $result['chat_thread_content']
         ];
     }
 

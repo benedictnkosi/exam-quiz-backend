@@ -206,7 +206,7 @@ Format your response as follows:
                             'content' => $prompt
                         ]
                     ],
-                    'temperature' => 0.7,
+                    'temperature' => 0.7
                 ]
             ]);
 
@@ -378,8 +378,18 @@ Format your response as follows:
     public function rewriteChapterForReadingLevel(
         string $originalContent,
         string $targetReadingLevel,
-        int $wordCountLimit
+        int $wordCountLimit,
+        ?string $originalChatThreadTitle = null,
+        ?string $originalChatThreadContent = null
     ): array {
+        // Log input parameters
+        error_log("Debug - Rewrite Chapter Input Parameters:");
+        error_log("Target Reading Level: " . $targetReadingLevel);
+        error_log("Word Count Limit: " . $wordCountLimit);
+        error_log("Original Chat Thread Title: " . ($originalChatThreadTitle ?? 'null'));
+        error_log("Original Chat Thread Content: " . ($originalChatThreadContent ?? 'null'));
+        error_log("Original Content Length: " . strlen($originalContent));
+
         $minWords = $wordCountLimit - 50;
         $maxWords = $wordCountLimit + 50;
 
@@ -447,14 +457,45 @@ Format your response as follows:
             // Parse the response to get the chapter content
             preg_match('/\[CHAPTER\](.*?)$/s', $content, $matches);
 
-            return [
-                'content' => trim($matches[1] ?? $content)
+            // Log parsing results
+            error_log("Debug - Response Parsing:");
+            error_log("Matches found: " . count($matches));
+            if (count($matches) > 1) {
+                error_log("Chapter content length: " . strlen($matches[1]));
+            } else {
+                error_log("No chapter content found in matches");
+            }
+
+            $result = [
+                'content' => trim($matches[1] ?? $content),
+                'chat_thread_title' => $originalChatThreadTitle,
+                'chat_thread_content' => $originalChatThreadContent
             ];
+
+            // Log final result
+            error_log("Debug - Final Result:");
+            error_log("Content length: " . strlen($result['content']));
+            error_log("Chat thread title: " . ($result['chat_thread_title'] ?? 'null'));
+            error_log("Chat thread content: " . ($result['chat_thread_content'] ?? 'null'));
+
+            return $result;
         } catch (\Exception $e) {
             error_log('OpenAI API Error: ' . $e->getMessage());
-            return [
-                'content' => 'Failed to rewrite chapter content due to an API error.'
+            error_log('Error trace: ' . $e->getTraceAsString());
+
+            $errorResult = [
+                'content' => 'Failed to rewrite chapter content due to an API error.',
+                'chat_thread_title' => $originalChatThreadTitle,
+                'chat_thread_content' => $originalChatThreadContent
             ];
+
+            // Log error result
+            error_log("Debug - Error Result:");
+            error_log("Content: " . $errorResult['content']);
+            error_log("Chat thread title: " . ($errorResult['chat_thread_title'] ?? 'null'));
+            error_log("Chat thread content: " . ($errorResult['chat_thread_content'] ?? 'null'));
+
+            return $errorResult;
         }
     }
 }
