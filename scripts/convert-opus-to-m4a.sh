@@ -4,7 +4,7 @@
 BITRATE="128k"
 
 # Set the lectures directory
-LECTURES_DIR="/Users/mac1/Documents/cursor/exam_quiz_backend/public/assets/lectures"
+LECTURES_DIR="/var/www/exam-quiz-backend/public/assets/lectures"
 
 echo "Starting batch conversion of .opus files to .m4a..."
 
