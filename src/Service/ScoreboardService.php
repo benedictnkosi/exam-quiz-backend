@@ -41,7 +41,7 @@ class ScoreboardService
 
             // Get all results for the current period with scoring
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.avatar, l.schoolName, l.publicProfile, l.followMeCode,
+            $qb->select('l.uid, l.name, l.avatar, l.schoolName, l.publicProfile, l.followMeCode, l.subscription,
                         COUNT(r.id) as total_answers,
                         SUM(CASE WHEN r.outcome = \'correct\' THEN 1 ELSE -1 END) as score')
                 ->from(Result::class, 'r')
@@ -85,7 +85,8 @@ class ScoreboardService
                         'avatar' => $result['avatar'],
                         'school' => $result['schoolName'],
                         'publicProfile' => $result['publicProfile'],
-                        'followMeCode' => $result['followMeCode']
+                        'followMeCode' => $result['followMeCode'],
+                        'subscription' => $result['subscription']
                     ];
                 }
             }
@@ -103,7 +104,8 @@ class ScoreboardService
                     'avatar' => $currentLearnerResult['avatar'],
                     'school' => $currentLearnerResult['schoolName'],
                     'publicProfile' => $currentLearnerResult['publicProfile'],
-                    'followMeCode' => $currentLearnerResult['followMeCode']
+                    'followMeCode' => $currentLearnerResult['followMeCode'],
+                    'subscription' => $currentLearnerResult['subscription']
                 ];
             }
 

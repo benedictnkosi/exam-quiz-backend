@@ -11,7 +11,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:send-inactive-user-notifications',
-    description: 'Send notifications to users who haven\'t logged in for 7 days'
+    description: 'Send notifications to users who haven\'t logged in for 14 days'
 )]
 class SendInactiveUserNotificationsCommand extends Command
 {
