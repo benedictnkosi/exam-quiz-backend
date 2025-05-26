@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Learner;
 use App\Entity\PushNotification;
+use App\Entity\LearnerDailyUsage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -731,6 +732,84 @@ class PushNotificationService
             return [
                 'status' => 'NOK',
                 'message' => 'Failed to send new thread notifications',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function sendDailyAchievementNotifications(): array
+    {
+        try {
+            $now = new \DateTimeImmutable();
+            $startOfDay = $now->setTime(0, 0, 0);
+            $endOfDay = $now->setTime(23, 59, 59);
+
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('ldu')
+                ->from(LearnerDailyUsage::class, 'ldu')
+                ->join('ldu.learner', 'l')
+                ->where('ldu.date BETWEEN :startOfDay AND :endOfDay')
+                ->andWhere('l.expoPushToken IS NOT NULL')
+                ->andWhere('(ldu.quiz >= 15 OR ldu.lesson >= 15)')
+                ->andWhere('ldu.lastNotificationSent IS NULL')
+                ->setParameter('startOfDay', $startOfDay)
+                ->setParameter('endOfDay', $endOfDay);
+
+            $dailyUsages = $qb->getQuery()->getResult();
+            $notificationsSent = 0;
+            $errors = [];
+
+            foreach ($dailyUsages as $usage) {
+                $learner = $usage->getLearner();
+                $pushToken = $learner->getExpoPushToken();
+
+                if (!$pushToken) {
+                    continue;
+                }
+
+                $achievements = [];
+                if ($usage->getQuiz() >= 15) {
+                    $achievements[] = $usage->getQuiz() . ' quizzes';
+                }
+                if ($usage->getLesson() >= 15) {
+                    $achievements[] = $usage->getLesson() . ' lessons';
+                }
+
+                $achievementText = implode(' and ', $achievements);
+
+                $notification = [
+                    'to' => $pushToken,
+                    'title' => "💪 You're working hard — don't stop now!",
+                    'body' => 'Unlock Pro to finish strong without waiting for tomorrow.',
+                    'sound' => 'default'
+                ];
+
+                $result = $this->sendPushNotification($notification);
+                if ($result['status'] === 'OK') {
+                    $usage->setLastNotificationSent($now);
+                    $this->entityManager->persist($usage);
+                    $notificationsSent++;
+                } else {
+                    $errors[] = [
+                        'learnerUid' => $learner->getUid(),
+                        'error' => $result['message']
+                    ];
+                }
+            }
+
+            $this->entityManager->flush();
+
+            return [
+                'status' => 'OK',
+                'notificationsSent' => $notificationsSent,
+                'totalEligibleLearners' => count($dailyUsages),
+                'errors' => $errors
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Error sending daily achievement notifications: ' . $e->getMessage());
+            return [
+                'status' => 'NOK',
+                'message' => 'Failed to send daily achievement notifications',
                 'error' => $e->getMessage()
             ];
         }

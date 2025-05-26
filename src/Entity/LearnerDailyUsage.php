@@ -42,6 +42,10 @@ class LearnerDailyUsage
     #[Serializer\Groups(['learner_daily_usage:read'])]
     private \DateTimeImmutable $date;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[Serializer\Groups(['learner_daily_usage:read'])]
+    private ?\DateTimeImmutable $lastNotificationSent = null;
+
     public function __construct()
     {
         $this->date = new \DateTimeImmutable();
@@ -139,6 +143,17 @@ class LearnerDailyUsage
     public function setDate(\DateTimeImmutable $date): self
     {
         $this->date = $date;
+        return $this;
+    }
+
+    public function getLastNotificationSent(): ?\DateTimeImmutable
+    {
+        return $this->lastNotificationSent;
+    }
+
+    public function setLastNotificationSent(?\DateTimeImmutable $lastNotificationSent): self
+    {
+        $this->lastNotificationSent = $lastNotificationSent;
         return $this;
     }
 }
