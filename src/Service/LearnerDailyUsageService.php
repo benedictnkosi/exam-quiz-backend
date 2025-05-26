@@ -14,13 +14,13 @@ use Psr\Log\LoggerInterface;
 class LearnerDailyUsageService
 {
 
-    private $DAILY_QUIZ_LIMIT = 15;
+    private $DAILY_QUIZ_LIMIT = 10;
     private $SILVER_DAILY_QUIZ_LIMIT = 999;
     private $BRONZE_DAILY_QUIZ_LIMIT = 999;
     private $GOLD_DAILY_QUIZ_LIMIT = 999;
-    private $DAILY_LESSON_LIMIT = 15;
-    private $DAILY_PODCAST_LIMIT = 5;
-    private $DAILY_MATHS_PRACTICE_LIMIT = 15;
+    private $DAILY_LESSON_LIMIT = 10;
+    private $DAILY_PODCAST_LIMIT = 3;
+    private $DAILY_MATHS_PRACTICE_LIMIT = 1;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
