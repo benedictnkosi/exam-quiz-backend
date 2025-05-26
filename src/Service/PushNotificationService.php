@@ -750,7 +750,7 @@ class PushNotificationService
                 ->join('ldu.learner', 'l')
                 ->where('ldu.date BETWEEN :startOfDay AND :endOfDay')
                 ->andWhere('l.expoPushToken IS NOT NULL')
-                ->andWhere('(ldu.quiz >= 15 OR ldu.lesson >= 15)')
+                ->andWhere('(ldu.quiz >= 10 OR ldu.lesson >= 10)')
                 ->andWhere('ldu.lastNotificationSent IS NULL')
                 ->setParameter('startOfDay', $startOfDay)
                 ->setParameter('endOfDay', $endOfDay);
