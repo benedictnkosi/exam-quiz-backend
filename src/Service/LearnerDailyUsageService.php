@@ -20,6 +20,7 @@ class LearnerDailyUsageService
     private $GOLD_DAILY_QUIZ_LIMIT = 999;
     private $DAILY_LESSON_LIMIT = 15;
     private $DAILY_PODCAST_LIMIT = 5;
+    private $DAILY_MATHS_PRACTICE_LIMIT = 15;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -64,22 +65,27 @@ class LearnerDailyUsageService
             $remainingQuiz = 0;
             $remainingLesson = 0;
             $remainingPodcast = 0;
+            $remainingMathsPractice = 0;
             if (str_contains($subscription, 'silver')) {
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
+                $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'gold')) {
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
+                $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'bronze')) {
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
+                $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'free')) {
                 $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
                 $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
                 $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $dailyPodcastRequests;
+                $remainingMathsPractice = $this->DAILY_MATHS_PRACTICE_LIMIT - $usage->getMathsPractice();
             }
 
             return [
@@ -88,6 +94,7 @@ class LearnerDailyUsageService
                     'quiz' => $remainingQuiz,
                     'lesson' => $remainingLesson,
                     'podcast' => $remainingPodcast,
+                    'maths_practice' => $remainingMathsPractice,
                     'date' => $usage->getDate()->format('Y-m-d')
                 ]
             ];
@@ -204,6 +211,14 @@ class LearnerDailyUsageService
             ]);
             throw $e; // Re-throw unexpected errors
         }
+    }
+
+    public function incrementMathsPracticeUsage(Learner $learner): void
+    {
+        $this->logger->info("Incrementing maths practice usage for learner {$learner->getId()}");
+        $usage = $this->getOrCreateDailyUsage($learner);
+        $usage->incrementMathsPractice();
+        $this->entityManager->flush();
     }
 
     private function getOrCreateDailyUsage(Learner $learner): LearnerDailyUsage

@@ -34,6 +34,10 @@ class LearnerDailyUsage
     #[Serializer\Groups(['learner_daily_usage:read'])]
     private int $podcast = 0;
 
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    #[Serializer\Groups(['learner_daily_usage:read'])]
+    private int $maths_practice = 0;
+
     #[ORM\Column(type: 'datetime_immutable')]
     #[Serializer\Groups(['learner_daily_usage:read'])]
     private \DateTimeImmutable $date;
@@ -107,6 +111,23 @@ class LearnerDailyUsage
     public function incrementPodcast(): self
     {
         $this->podcast++;
+        return $this;
+    }
+
+    public function getMathsPractice(): int
+    {
+        return $this->maths_practice;
+    }
+
+    public function setMathsPractice(int $maths_practice): self
+    {
+        $this->maths_practice = $maths_practice;
+        return $this;
+    }
+
+    public function incrementMathsPractice(): self
+    {
+        $this->maths_practice++;
         return $this;
     }
 
