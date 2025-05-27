@@ -13,6 +13,7 @@ use Psr\Log\LoggerInterface;
 
 class LearnerDailyUsageService
 {
+    private const TIMEZONE = 'Africa/Johannesburg';
 
     private $DAILY_QUIZ_LIMIT = 10;
     private $SILVER_DAILY_QUIZ_LIMIT = 999;
@@ -45,8 +46,9 @@ class LearnerDailyUsageService
                 ];
             }
 
-            // Get today's date
-            $today = new \DateTimeImmutable();
+            // Get today's date with timezone
+            $timezone = new \DateTimeZone(self::TIMEZONE);
+            $today = new \DateTimeImmutable('now', $timezone);
 
             // Get or create today's usage record
             $usage = $this->usageRepository->findByLearnerAndDate($learner->getId(), $today);
@@ -122,6 +124,11 @@ class LearnerDailyUsageService
                 ];
             }
 
+            // Ensure dates are in the correct timezone
+            $timezone = new \DateTimeZone(self::TIMEZONE);
+            $startDate = $startDate->setTimezone($timezone);
+            $endDate = $endDate->setTimezone($timezone);
+
             // Get usage records for date range
             $usageRecords = $this->usageRepository->findByLearnerAndDateRange(
                 $learner->getId(),
@@ -173,7 +180,8 @@ class LearnerDailyUsageService
         $this->logger->info("Incrementing podcast usage for learner {$learner->getId()} with file {$podcastFileId}");
 
         try {
-            $today = new \DateTimeImmutable('today');
+            $timezone = new \DateTimeZone(self::TIMEZONE);
+            $today = new \DateTimeImmutable('today', $timezone);
 
             // Check if a request for this podcast file already exists today
             $existingRequest = $this->podcastRequestRepository->findOneBy([
@@ -191,7 +199,7 @@ class LearnerDailyUsageService
             $podcastRequest = new LearnerPodcastRequest();
             $podcastRequest->setLearner($learner);
             $podcastRequest->setPodcastFileId($podcastFileId);
-            $podcastRequest->setRequestedAt(new \DateTimeImmutable());
+            $podcastRequest->setRequestedAt(new \DateTimeImmutable('now', $timezone));
 
             $this->entityManager->persist($podcastRequest);
             $this->entityManager->flush();
@@ -223,12 +231,14 @@ class LearnerDailyUsageService
 
     private function getOrCreateDailyUsage(Learner $learner): LearnerDailyUsage
     {
-        $today = new \DateTimeImmutable('today');
+        $timezone = new \DateTimeZone(self::TIMEZONE);
+        $today = new \DateTimeImmutable('today', $timezone);
         $usage = $this->usageRepository->findByLearnerAndDate($learner->getId(), $today);
 
         if (!$usage) {
             $usage = new LearnerDailyUsage();
             $usage->setLearner($learner);
+            $usage->setDate($today);
             $this->entityManager->persist($usage);
         }
 
@@ -248,7 +258,8 @@ class LearnerDailyUsageService
                 ];
             }
 
-            $today = new \DateTimeImmutable();
+            $timezone = new \DateTimeZone(self::TIMEZONE);
+            $today = new \DateTimeImmutable('today', $timezone);
             $dailyRequests = $this->podcastRequestRepository->countDailyRequests($learner->getId(), $today);
 
             $subscription = $learner->getSubscription();
