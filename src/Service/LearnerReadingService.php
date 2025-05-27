@@ -45,6 +45,11 @@ class LearnerReadingService
         foreach ($readings as $reading) {
             $readingDate = $reading->getDate();
 
+            // Skip if the reading date is on a weekend
+            if ($readingDate->format('N') >= 6) { // 6 = Saturday, 7 = Sunday
+                continue;
+            }
+
             // If the reading is from today or yesterday, count it
             if (
                 $readingDate->format('Y-m-d') === $currentDate->format('Y-m-d') ||

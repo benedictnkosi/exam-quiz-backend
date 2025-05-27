@@ -41,13 +41,13 @@ class LearnerReadingRepository extends ServiceEntityRepository
     public function findCompletedChaptersCountByDay(DateTimeImmutable $fromDate): array
     {
         return $this->createQueryBuilder('lr')
-            ->select('CONCAT(YEAR(lr.date), \'-\', LPAD(MONTH(lr.date), 2, \'0\'), \'-\', LPAD(DAY(lr.date), 2, \'0\')) as date', 'COUNT(DISTINCT lr.learner) as learnerCount')
+            ->select('lr.date as date', 'COUNT(DISTINCT lr.learner) as learnerCount')
             ->where('lr.date >= :fromDate')
             ->andWhere('lr.status = :status')
             ->setParameter('fromDate', $fromDate)
             ->setParameter('status', 'completed')
-            ->groupBy('date')
-            ->orderBy('date', 'DESC')
+            ->groupBy('lr.date')
+            ->orderBy('lr.date', 'DESC')
             ->getQuery()
             ->getResult();
     }
