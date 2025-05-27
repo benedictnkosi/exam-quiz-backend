@@ -2655,14 +2655,7 @@ class LearnMzansiApi extends AbstractController
             $name = $requestBody['name'];
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
-            if ($learner) {
-                if ($learner->getRole() == 'admin') {
-                    return array(
-                        'status' => 'OK',
-                        'message' => 'Successfully created learner'
-                    );
-                }
-            }
+
 
             $grade = $requestBody['grade'];
             $terms = $requestBody['terms'];
