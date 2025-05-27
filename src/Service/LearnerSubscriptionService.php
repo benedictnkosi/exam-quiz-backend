@@ -20,13 +20,15 @@ class LearnerSubscriptionService
      * @return array
      * @throws NotFoundHttpException if learner not found
      */
-    public function getSubscriptionByFollowCode(string $followCode): array
+    public function getSubscriptionByFollowCode(string $id): array
     {
-        $learner = $this->entityManager->getRepository(Learner::class)
-            ->findOneBy(['followMeCode' => $followCode]);
-
+        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $id]);
         if (!$learner) {
-            throw new NotFoundHttpException('Learner not found');
+            $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['followMeCode' => $id]);
+
+            if (!$learner) {
+                throw new \Exception('Learner not found');
+            }
         }
 
         return [
