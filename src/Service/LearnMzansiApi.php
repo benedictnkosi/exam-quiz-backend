@@ -2734,12 +2734,7 @@ class LearnMzansiApi extends AbstractController
                 $learner->setFollowMeCode($followMeCode);
             } else {
                 //if learner is admin
-                if ($learner->getRole() == 'admin') {
-                    return array(
-                        'status' => 'OK',
-                        'message' => 'Successfully created learner'
-                    );
-                }
+
                 $learner->setCurriculum($cleanCurriculum);
             }
 
