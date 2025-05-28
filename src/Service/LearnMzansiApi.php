@@ -322,7 +322,8 @@ class LearnMzansiApi extends AbstractController
         int $questionId,
         string $platform = 'app',
         ?string $topic = null,
-        ?string $subscriptionCheck = null
+        ?string $subscriptionCheck = null,
+        ?string $version = null
     ) {
         try {
             // Get the learner first
@@ -334,7 +335,15 @@ class LearnMzansiApi extends AbstractController
                 );
             }
 
-            if (!$subscriptionCheck && $questionId == 0) {
+            $isAccountingQuestion = str_contains($subjectName, 'Accounting');
+            $isAccountingSupportedByApp = $version;
+
+            if ($isAccountingQuestion && !$isAccountingSupportedByApp) {
+                $question = $this->em->getRepository(Question::class)->find(17614);
+                return $question;
+            }
+
+            if (!$subscriptionCheck && $questionId == 0 && $isAccountingQuestion && $isAccountingSupportedByApp == '1.0.0') {
                 $question = $this->em->getRepository(Question::class)->find(17614);
                 return $question;
             }
