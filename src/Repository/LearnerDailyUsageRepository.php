@@ -6,6 +6,7 @@ use App\Entity\LearnerDailyUsage;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use DateTimeImmutable;
+use App\Entity\Result;
 
 class LearnerDailyUsageRepository extends ServiceEntityRepository
 {
@@ -57,17 +58,17 @@ class LearnerDailyUsageRepository extends ServiceEntityRepository
 
     public function findFreeUsersWithHighActivity(DateTimeImmutable $startDate, DateTimeImmutable $endDate): array
     {
-        return $this->createQueryBuilder('ldu')
-            ->select('SUBSTRING(ldu.date, 1, 10) as date', 'COUNT(DISTINCT ldu.learner) as userCount')
-            ->innerJoin('ldu.learner', 'l')
-            ->where('ldu.date >= :startDate')
-            ->andWhere('ldu.date <= :endDate')
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('SUBSTRING(r.created, 1, 10) as date', 'COUNT(DISTINCT r.learner) as userCount')
+            ->from(Result::class, 'r')
+            ->innerJoin('r.learner', 'l')
+            ->where('r.created >= :startDate')
+            ->andWhere('r.created <= :endDate')
             ->andWhere('l.subscription = :subscription')
-            ->andWhere('(ldu.quiz >= :threshold OR ldu.lesson >= :threshold)')
+            ->andWhere('r.question IS NOT NULL')
             ->setParameter('startDate', $startDate->setTime(0, 0, 0))
             ->setParameter('endDate', $endDate->setTime(23, 59, 59))
             ->setParameter('subscription', 'free')
-            ->setParameter('threshold', 10)
             ->groupBy('date')
             ->orderBy('date', 'DESC')
             ->getQuery()
