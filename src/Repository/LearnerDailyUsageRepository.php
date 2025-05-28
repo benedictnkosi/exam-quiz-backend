@@ -59,20 +59,17 @@ class LearnerDailyUsageRepository extends ServiceEntityRepository
     public function findFreeUsersWithHighActivity(DateTimeImmutable $startDate, DateTimeImmutable $endDate): array
     {
         return $this->getEntityManager()->createQueryBuilder()
-            ->select('SUBSTRING(r.created, 1, 10) as date', 'COUNT(DISTINCT r.learner) as userCount')
+            ->select('SUBSTRING(r.created, 1, 10) as date', 'COUNT(DISTINCT r.learner) as learners_with_10_plus')
             ->from(Result::class, 'r')
-            ->innerJoin('r.learner', 'l')
             ->where('r.created >= :startDate')
             ->andWhere('r.created <= :endDate')
-            ->andWhere('l.subscription = :subscription')
             ->andWhere('r.question IS NOT NULL')
-            ->setParameter('startDate', $startDate->setTime(0, 0, 0))
-            ->setParameter('endDate', $endDate->setTime(23, 59, 59))
-            ->setParameter('subscription', 'free')
             ->groupBy('date', 'r.learner')
             ->having('COUNT(r.id) > 9')
             ->groupBy('date')
             ->orderBy('date', 'DESC')
+            ->setParameter('startDate', $startDate->setTime(0, 0, 0))
+            ->setParameter('endDate', $endDate->setTime(23, 59, 59))
             ->getQuery()
             ->getResult();
     }
