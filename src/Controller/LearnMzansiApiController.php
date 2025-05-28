@@ -111,10 +111,11 @@ class LearnMzansiApiController extends AbstractController
         $platform = $request->query->get('platform') ?? 'app';
         $topic = $request->query->get('topic');
         $subscriptionCheck = $request->query->get('subscriptionCheck');
+        $version = $request->query->get('version');
         if ($subscriptionCheck) {
-            $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic, $subscriptionCheck);
+            $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic, $subscriptionCheck, $version);
         } else {
-            $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic);
+            $question = $this->api->getRandomQuestionBySubjectName($subjectName, $paperName, $uid, $questionId, $platform, $topic, $version);
         }
         if ($question instanceof Response && $question->getStatusCode() === Response::HTTP_FORBIDDEN) {
             return new JsonResponse(['message' => 'Daily quiz limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);

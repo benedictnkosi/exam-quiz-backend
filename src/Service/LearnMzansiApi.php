@@ -338,7 +338,7 @@ class LearnMzansiApi extends AbstractController
             $isAccountingQuestion = str_contains($subjectName, 'Accounting');
             $isAccountingSupportedByApp = $version;
 
-            if ($isAccountingQuestion && !$isAccountingSupportedByApp) {
+            if ($isAccountingQuestion && $isAccountingSupportedByApp) {
                 $question = $this->em->getRepository(Question::class)->find(17614);
                 return $question;
             }
