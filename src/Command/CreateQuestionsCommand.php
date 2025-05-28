@@ -45,32 +45,28 @@ class CreateQuestionsCommand extends Command
         $questionNumberFilter = $input->getArgument('question-number');
         $maxRetries = 1; // Maximum number of retries for failed questions
 
-        // Check for papers in progress
-        $papersInProgress = $this->examPaperRepository->findBy(['status' => ['in_progress']]);
-        if (!empty($papersInProgress)) {
-            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
-            $output->writeln("[$timestamp] Found papers in progress. Checking for stale papers...");
+        // Check for ai quesiton in progress
+        $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+        $output->writeln("[$timestamp] Checking for stuck questions...");
 
-            // Check each paper in progress
+        $fiveMinutesAgo = new \DateTime('5 minutes ago', new \DateTimeZone('Africa/Johannesburg'));
+        $inProgressQuestions = $this->entityManager->getRepository(Question::class)->createQueryBuilder('q')
+            ->where('q.ai = :ai')
+            ->andWhere('q.created < :fiveMinutesAgo')
+            ->setParameter('ai', true)
+            ->setParameter('fiveMinutesAgo', $fiveMinutesAgo)
+            ->getQuery()
+            ->getResult();
+
+        if (!empty($inProgressQuestions)) {
+            $output->writeln("[$timestamp] Found stuck questions. Checking associated papers...");
+
+            //set all papers who are in progress to stopped
+            $papersInProgress = $this->examPaperRepository->findBy(['status' => 'in_progress']);
             foreach ($papersInProgress as $paper) {
-                $lastUpdated = $paper->getCreated();
-                $now = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
-                $timeDiff = $now->diff($lastUpdated);
-
-                // If paper has been in progress for more than an hour
-                if ($timeDiff->h >= 1 || $timeDiff->days > 0) {
-                    $paper->setStatus('stopped');
-                    $this->entityManager->persist($paper);
-                    $this->entityManager->flush();
-                    $output->writeln("[$timestamp] Paper ID: {$paper->getId()} has been in progress for more than an hour. Setting status to stopped.");
-                }
-            }
-
-            // Check again for papers in progress after handling stale papers
-            $papersInProgress = $this->examPaperRepository->findBy(['status' => ['in_progress']]);
-            if (!empty($papersInProgress)) {
-                $output->writeln("[$timestamp] Still have papers in progress. Exiting to prevent concurrent processing.");
-                return Command::SUCCESS;
+                $paper->setStatus('stopped');
+                $this->entityManager->persist($paper);
+                $this->entityManager->flush();
             }
         }
 
@@ -325,7 +321,7 @@ class CreateQuestionsCommand extends Command
                         $questionText = $questionData;
 
                         // Check for draw terms in the actual question text
-                        $drawTerms = ['Draw ', 'draw ', 'Draw a ', 'draw a ', 'Draw a graph', 'draw a graph', 'Draw a graph', 'draw a graph', 'Draw a line graph', 'draw a line graph', 'Draw a line graph', 'draw a line graph', 'Redraw'];
+                        $drawTerms = ['Draw ', 'draw ', 'Draw a ', 'draw a ', 'Draw a graph', 'draw a graph', 'Draw a graph', 'draw a graph', 'Draw a line graph', 'draw a line graph', 'Draw a line graph', 'draw a line graph', 'Redraw', 'answerbook', 'Answer book'];
                         $shouldSkip = false;
                         $skipReason = '';
                         foreach ($drawTerms as $drawTerm) {
@@ -471,6 +467,11 @@ class CreateQuestionsCommand extends Command
 
                         $output->writeln("[$timestamp] Question Text: " . $questionText);
                         $questionText = str_replace($questionNumber, '', $questionText);
+
+                        //set quesiton to null if equal to context
+                        if ($questionText == $context) {
+                            $questionText = null;
+                        }
                         $question->setQuestion($questionText);
 
                         // Initialize image variables
