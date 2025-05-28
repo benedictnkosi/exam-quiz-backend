@@ -69,8 +69,9 @@ class LearnerDailyUsageRepository extends ServiceEntityRepository
             ->setParameter('startDate', $startDate->setTime(0, 0, 0))
             ->setParameter('endDate', $endDate->setTime(23, 59, 59))
             ->setParameter('subscription', 'free')
-            ->groupBy('date')
+            ->groupBy('date', 'r.learner')
             ->having('COUNT(r.id) > 9')
+            ->groupBy('date')
             ->orderBy('date', 'DESC')
             ->getQuery()
             ->getResult();
