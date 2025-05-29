@@ -35,6 +35,16 @@ class CheckAnswerService
                 ];
             }
 
+            //check that the quiz limit is not reached
+            $dailyUsage = $this->dailyUsageService->getDailyUsageByLearnerUid($uid);
+
+            if ($dailyUsage['data']['quiz'] <= 0) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Quiz limit reached'
+                ];
+            }
+
             // Get the question
             $question = $this->entityManager->getRepository(Question::class)
                 ->find($questionId);
@@ -228,9 +238,6 @@ class CheckAnswerService
             $this->dailyUsageService->incrementQuizUsage($learner);
 
             $this->entityManager->flush();
-
-            // Update ad tracking for questions answered
-            $this->adTrackingService->incrementQuestionsAnswered($learner);
 
             $date = new \DateTime('now', new \DateTimeZone('Africa/Johannesburg'));
             $learner->setLastSeen($date);
