@@ -47,27 +47,23 @@ class CreateQuestionsCommand extends Command
 
         // Check for ai quesiton in progress
         $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
-        $output->writeln("[$timestamp] Checking for stuck questions...");
+        $output->writeln("[$timestamp] Checking for stuck papers...");
 
-        $fiveMinutesAgo = new \DateTime('5 minutes ago', new \DateTimeZone('Africa/Johannesburg'));
-        $inProgressQuestions = $this->entityManager->getRepository(Question::class)->createQueryBuilder('q')
-            ->where('q.ai = :ai')
-            ->andWhere('q.created < :fiveMinutesAgo')
-            ->setParameter('ai', true)
-            ->setParameter('fiveMinutesAgo', $fiveMinutesAgo)
+        $inProgressPapers = $this->examPaperRepository->createQueryBuilder('p')
+            ->where('p.status = :status')
+            ->setParameter('status', 'in_progress')
             ->getQuery()
             ->getResult();
 
-        if (!empty($inProgressQuestions)) {
-            $output->writeln("[$timestamp] Found stuck questions. Checking associated papers...");
+        if (!empty($inProgressPapers)) {
+            $output->writeln("[$timestamp] Found stuck papers. Resetting their status...");
 
             //set all papers who are in progress to stopped
-            $papersInProgress = $this->examPaperRepository->findBy(['status' => 'in_progress']);
-            foreach ($papersInProgress as $paper) {
+            foreach ($inProgressPapers as $paper) {
                 $paper->setStatus('stopped');
                 $this->entityManager->persist($paper);
-                $this->entityManager->flush();
             }
+            $this->entityManager->flush();
         }
 
         $papers = $this->examPaperRepository->findBy(['status' => 'pending'], ['subjectName' => 'ASC']);
