@@ -515,17 +515,18 @@ class LearnerReadingService
             // Get chapter image or random image if null
             $image = $chapter->getImage();
             if ($image === null) {
-                $randomBook = $this->entityManager->getRepository(Book::class)
+                $booksWithImages = $this->entityManager->getRepository(Book::class)
                     ->createQueryBuilder('b')
                     ->where('b.status = :status')
                     ->andWhere('b.image IS NOT NULL')
                     ->setParameter('status', 'active')
-                    ->orderBy('RAND()')
-                    ->setMaxResults(1)
                     ->getQuery()
-                    ->getOneOrNullResult();
+                    ->getResult();
 
-                $image = $randomBook ? $randomBook->getImage() : null;
+                if (!empty($booksWithImages)) {
+                    $randomBook = $booksWithImages[array_rand($booksWithImages)];
+                    $image = $randomBook->getImage();
+                }
             }
 
             return [
