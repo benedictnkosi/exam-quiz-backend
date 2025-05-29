@@ -752,8 +752,10 @@ class PushNotificationService
                 ->andWhere('l.expoPushToken IS NOT NULL')
                 ->andWhere('(ldu.quiz >= 10 OR ldu.lesson >= 10)')
                 ->andWhere('ldu.lastNotificationSent IS NULL')
+                ->andWhere('l.subscription = :freePlan')  // Only send to users on free plan
                 ->setParameter('startOfDay', $startOfDay)
-                ->setParameter('endOfDay', $endOfDay);
+                ->setParameter('endOfDay', $endOfDay)
+                ->setParameter('freePlan', 'free');
 
             $dailyUsages = $qb->getQuery()->getResult();
             $notificationsSent = 0;
