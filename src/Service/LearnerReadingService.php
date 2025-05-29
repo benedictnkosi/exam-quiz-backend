@@ -512,6 +512,22 @@ class LearnerReadingService
                 'currentTime' => $today->format('Y-m-d H:i:s')
             ]);
 
+            // Get chapter image or random image if null
+            $image = $chapter->getImage();
+            if ($image === null) {
+                $randomBook = $this->entityManager->getRepository(Book::class)
+                    ->createQueryBuilder('b')
+                    ->where('b.status = :status')
+                    ->andWhere('b.image IS NOT NULL')
+                    ->setParameter('status', 'active')
+                    ->orderBy('RAND()')
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
+
+                $image = $randomBook ? $randomBook->getImage() : null;
+            }
+
             return [
                 'status' => 'OK',
                 'chapter' => [
@@ -523,7 +539,7 @@ class LearnerReadingService
                     'chapterNumber' => $chapter->getChapterNumber(),
                     'status' => 'in_progress',
                     'publishDate' => $chapter->getPublishDate()?->format('Y-m-d H:i:s'),
-                    'image' => $chapter->getImage()
+                    'image' => $image
                 ]
             ];
 
