@@ -327,6 +327,23 @@ class LearnerReadingService
                 ];
             }
 
+            // Set all other in-progress readings to fail
+            $inProgressReadings = $this->entityManager->getRepository(LearnerReading::class)
+                ->createQueryBuilder('lr')
+                ->where('lr.learner = :learner')
+                ->andWhere('lr.status = :status')
+                ->andWhere('lr.id != :currentReadingId')
+                ->setParameter('learner', $learner)
+                ->setParameter('status', 'in_progress')
+                ->setParameter('currentReadingId', $reading->getId())
+                ->getQuery()
+                ->getResult();
+
+            foreach ($inProgressReadings as $inProgressReading) {
+                $inProgressReading->setStatus('fail');
+                $this->entityManager->persist($inProgressReading);
+            }
+
             // Get the chapter to calculate reading speed
             $chapter = $reading->getChapter();
             $wordCount = $chapter->getWordCount();
