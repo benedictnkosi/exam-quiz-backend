@@ -278,6 +278,7 @@ class CreateQuestionsCommand extends Command
                         }
 
                         if (!isset($questionData['choices'][0]['message']['content'])) {
+                            $output->writeln("response: " . json_encode($questionData));
                             throw new \Exception('Invalid response format from OpenAI API');
                         }
 
@@ -315,6 +316,7 @@ class CreateQuestionsCommand extends Command
                         }
 
                         if (!is_string($questionData)) {
+                            $output->writeln("questionData: " . json_encode($questionData));
                             throw new \Exception("Invalid question data format for $questionNumber");
                         }
 
@@ -467,6 +469,9 @@ class CreateQuestionsCommand extends Command
 
                         $output->writeln("[$timestamp] Question Text: " . $questionText);
                         $questionText = str_replace($questionNumber, '', $questionText);
+
+                        // Initialize context variable
+                        $context = '';
 
                         //set quesiton to null if equal to context
                         if ($questionText == $context) {
