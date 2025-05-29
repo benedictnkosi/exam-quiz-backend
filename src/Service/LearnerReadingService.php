@@ -369,6 +369,7 @@ class LearnerReadingService
             $reading->setDuration($duration);
             $reading->setScore($score);
             $reading->setSpeed($speed);
+            $reading->setDate(new \DateTimeImmutable());
             $this->entityManager->persist($reading);
             $this->entityManager->flush();
 
