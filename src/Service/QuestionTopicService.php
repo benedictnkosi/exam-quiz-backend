@@ -91,6 +91,14 @@ class QuestionTopicService
                 ]
             ]);
 
+            $this->logger->info('prompt: ' . $prompt);
+
+            $output = $response->getContent();
+            $this->logger->info('OpenAI response for question {id}: {response}', [
+                'id' => $questionData['id'],
+                'response' => $output
+            ]);
+
             $data = json_decode($response->getContent(), true);
             $topic = $this->cleanResponse(trim($data['choices'][0]['message']['content'] ?? ''));
 
@@ -101,7 +109,7 @@ class QuestionTopicService
 
             // If the AI returns 'NO MATCH', set it as the topic
             if ($topic === 'NO MATCH') {
-                $this->updateQuestionTopic($questionData['id'], 'NO MATCH WITH IMAGE');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH AI');
                 return;
             }
 
@@ -111,7 +119,7 @@ class QuestionTopicService
             if ($matchedSubtopic) {
                 $this->updateQuestionTopic($questionData['id'], $matchedSubtopic);
             } else {
-                $this->updateQuestionTopic($questionData['id'], 'NO MATCH WITH IMAGE');
+                $this->updateQuestionTopic($questionData['id'], 'NO MATCH LOCAL');
             }
         } catch (\Exception $e) {
             $this->logger->error('Error processing question {id}: {error}', [
