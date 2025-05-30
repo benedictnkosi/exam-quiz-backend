@@ -9,6 +9,8 @@ echo "Generating question topics..."
 php bin/console app:generate-question-topics 1
 php bin/console app:generate-question-topics 2
 php bin/console app:generate-question-topics 3
+php bin/console app:generate-question-topics 4
+php bin/console app:generate-question-topics 5
 
 echo "Populating topics..."
 php bin/console app:populate-topics
