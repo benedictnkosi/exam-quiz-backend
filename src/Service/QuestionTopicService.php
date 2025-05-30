@@ -38,9 +38,11 @@ class QuestionTopicService
                         'context' => $question->getContext(),
                         'answer' => $question->getAnswer(),
                         'subject_id' => $subject ? $subject->getId() : null,
+                        'subject_name' => $subject ? $subject->getName() : null,
                         'subject_topics' => $subjectTopics,
                         'image_path' => $question->getImagePath(),
-                        'question_image_path' => $question->getQuestionImagePath()
+                        'question_image_path' => $question->getQuestionImagePath(),
+                        'steps' => $question->getSteps()
                     ];
 
                     $this->generateAndSetTopic($questionData);
@@ -131,12 +133,21 @@ class QuestionTopicService
             $imageInfo .= "\nQUESTION IMAGE PATH: https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $questionData['question_image_path'];
         }
 
+        $stepsInfo = '';
+        if (
+            isset($questionData['subject_name']) &&
+            strtolower($questionData['subject_name']) === 'mathematics' &&
+            !empty($questionData['steps'])
+        ) {
+            $stepsInfo = "\nSTEPS: " . $questionData['steps'];
+        }
+
         return sprintf(
             "You are a topic classifier. Your ONLY task is to return an EXACT topic from the list below. Do not think, analyze, or explain. Just return the topic.
 
 QUESTION: %s
 CONTEXT: %s
-ANSWER: %s%s
+ANSWER: %s%s%s
 TOPICS:
 %s
 
@@ -150,6 +161,7 @@ RULES:
             $questionData['context'] ?? '',
             $questionData['answer'] ?? '',
             $imageInfo,
+            $stepsInfo,
             $topicsList
         );
     }
