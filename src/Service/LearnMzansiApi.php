@@ -3607,7 +3607,7 @@ class LearnMzansiApi extends AbstractController
         ];
     }
 
-    public function getRandomQuestionWithRevision(Request $request): mixed
+    public function getRandomLesson(Request $request): mixed
     {
         $this->logger->info("Starting Method: random lesson " . __METHOD__);
         try {
@@ -3647,6 +3647,13 @@ class LearnMzansiApi extends AbstractController
                         'data' => $usageData['data']
                     ];
                 }
+            }
+
+            if (!$subscriptionCheck) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Your app version is outdated. Please update to the latest version.',
+                ];
             }
 
             // Get learner's grade
@@ -3836,7 +3843,7 @@ class LearnMzansiApi extends AbstractController
         }
     }
 
-    public function getRandomQuestionWithAIExplanation(Request $request): mixed
+    public function getQuickBite(Request $request): mixed
     {
         $this->logger->info("Starting Method: " . __METHOD__);
         try {

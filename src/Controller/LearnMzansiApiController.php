@@ -909,11 +909,11 @@ class LearnMzansiApiController extends AbstractController
     }
 
     #[Route('/learn/question/random', name: 'get_random_question_revision', methods: ['GET'])]
-    public function getRandomQuestionWithRevision(Request $request): JsonResponse
+    public function getRandomLesson(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
 
-        $response = $this->api->getRandomQuestionWithRevision($request);
+        $response = $this->api->getRandomLesson($request);
 
         if ($response instanceof Response && $response->getStatusCode() === Response::HTTP_FORBIDDEN) {
             return new JsonResponse(['message' => 'Daily lesson limit reached'], Response::HTTP_FORBIDDEN, ['Access-Control-Allow-Origin' => '*']);
@@ -925,10 +925,10 @@ class LearnMzansiApiController extends AbstractController
     }
 
     #[Route('/learn/question/random-ai', name: 'get_random_question_ai', methods: ['GET'])]
-    public function getRandomQuestionWithAIExplanation(Request $request): JsonResponse
+    public function getQuickBite(Request $request): JsonResponse
     {
         $this->logger->info("Starting Method: " . __METHOD__);
-        $response = $this->api->getRandomQuestionWithAIExplanation($request);
+        $response = $this->api->getQuickBite($request);
         $context = SerializationContext::create()->enableMaxDepthChecks();
         $jsonContent = $this->serializer->serialize($response, 'json', $context);
         return new JsonResponse($jsonContent, 200, array('Access-Control-Allow-Origin' => '*'), true);

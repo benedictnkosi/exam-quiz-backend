@@ -42,7 +42,7 @@ class QuestionTopicService
                         'subject_topics' => $subjectTopics,
                         'image_path' => $question->getImagePath(),
                         'question_image_path' => $question->getQuestionImagePath(),
-                        'steps' => $question->getSteps()
+                        'lesson' => $question->getAiExplanation()
                     ];
 
                     $this->generateAndSetTopic($questionData);
@@ -133,13 +133,13 @@ class QuestionTopicService
             $imageInfo .= "\nQUESTION IMAGE PATH: https://examquiz.dedicated.co.za/public/learn/learner/get-image?image=" . $questionData['question_image_path'];
         }
 
-        $stepsInfo = '';
+        $lessonInfo = '';
         if (
             isset($questionData['subject_name']) &&
             strtolower($questionData['subject_name']) === 'mathematics' &&
-            !empty($questionData['steps'])
+            !empty($questionData['lesson'])
         ) {
-            $stepsInfo = "\nSTEPS: " . $questionData['steps'];
+            $lessonInfo = "\nLESSON EXPLANATION: " . $questionData['lesson'];
         }
 
         return sprintf(
@@ -161,7 +161,7 @@ RULES:
             $questionData['context'] ?? '',
             $questionData['answer'] ?? '',
             $imageInfo,
-            $stepsInfo,
+            $lessonInfo,
             $topicsList
         );
     }
