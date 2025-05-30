@@ -1,5 +1,10 @@
 #!/bin/bash
 
+SCRIPT_DIR="/var/www/exam-quiz-backend"
+
+# Change to the project root directory (one level up from scripts)
+cd "$SCRIPT_DIR"
+
 # Set error handling
 set -e
 
