@@ -150,7 +150,7 @@ After writing the chapter, provide:
    - Include an opening post that poses an interesting question or observation about the chapter
    - Encourage readers to share their thoughts, predictions, or personal connections to the story
    - Be written in a conversational, engaging tone that matches the chapter's style
-   - Include 2-3 follow-up discussion points or questions to keep the conversation going
+   - Include 1 follow-up discussion points or questions to keep the conversation going
 
 Format your response as follows:
 
