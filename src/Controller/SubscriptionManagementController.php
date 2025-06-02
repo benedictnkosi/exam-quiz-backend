@@ -19,14 +19,6 @@ class SubscriptionManagementController extends AbstractController
     #[Route('', name: 'get_all_subscriptions', methods: ['GET'])]
     public function getAllSubscriptions(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        if (!isset($data['admin_uid'])) {
-            return $this->json([
-                'status' => 'NOK',
-                'message' => 'Admin UID is required in request body'
-            ], 401);
-        }
-
         $subscriptions = $this->subscriptionManagementService->getAllSubscriptions();
         return $this->json([
             'status' => 'OK',
