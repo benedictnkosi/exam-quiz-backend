@@ -41,6 +41,29 @@ class SubscriptionService
 
         $learner->setSubscription($subscription);
         $this->entityManager->persist($learner);
+
+        // Create new subscription entry
+        $subscriptionEntity = new \App\Entity\Subscription();
+        $subscriptionEntity->setLearner($learner);
+        $subscriptionEntity->setCreated(new DateTime());
+
+        // Set end date based on subscription type
+        if ($subscription !== self::FREE_SUBSCRIPTION_IDENTIFIER) {
+            $endDate = new DateTime();
+            if (str_contains($subscription, 'monthly')) {
+                $endDate->modify('+30 days');
+            } elseif (str_contains($subscription, 'annual')) {
+                $endDate->modify('+365 days');
+            } elseif (str_contains($subscription, 'weekly')) {
+                $endDate->modify('+7 days');
+            }
+            $subscriptionEntity->setEndDate($endDate);
+        }
+
+        $subscriptionEntity->setPaymentDate(new DateTime());
+        $subscriptionEntity->setAmount(amount: 0.00);
+
+        $this->entityManager->persist($subscriptionEntity);
         $this->entityManager->flush();
 
         return $learner;
