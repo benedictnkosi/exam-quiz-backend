@@ -17,18 +17,25 @@ class PaymentProofService
     ) {
     }
 
-    public function processPaymentProof(?Learner $learner, UploadedFile $pdfFile): array
+    public function processPaymentProof(?Learner $learner, UploadedFile $file): array
     {
         try {
-            if ($pdfFile->getMimeType() !== 'application/pdf') {
-                throw new \Exception('File must be a PDF');
+            $allowedMimeTypes = [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'image/jpg'
+            ];
+
+            if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
+                throw new \Exception('File must be a PDF or image (JPEG, PNG). Received: ' . $file->getMimeType());
             }
 
-            // Upload the PDF to OpenAI
-            $fileResponse = $this->openAIService->uploadFile($pdfFile);
+            // Upload the file to OpenAI
+            $fileResponse = $this->openAIService->uploadFile($file);
 
             if (!isset($fileResponse['id'])) {
-                throw new \Exception('Failed to upload PDF to OpenAI');
+                throw new \Exception('Failed to upload file to OpenAI');
             }
 
             // Create a prompt for GPT-4 Vision to analyze the payment proof
