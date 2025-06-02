@@ -74,6 +74,12 @@ services:
         arguments:
             $openaiApiKey: "%openai_api_key%"
 
+    App\Service\PaymentProofService:
+        arguments:
+            $openAIService: '@App\Service\OpenAIService'
+            $entityManager: '@Doctrine\ORM\EntityManagerInterface'
+            $logger: "@monolog.logger.api"
+
     App\Service\CareerAdviceService:
         arguments:
             $openaiApiKey: "%openai_api_key%"

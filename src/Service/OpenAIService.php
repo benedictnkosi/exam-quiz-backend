@@ -18,6 +18,16 @@ class OpenAIService
         $this->apiKey = $openaiApiKey;
     }
 
+    public function getClient(): HttpClientInterface
+    {
+        return $this->client;
+    }
+
+    public function getApiKey(): string
+    {
+        return $this->apiKey;
+    }
+
     public function generateLecture(string $subjectName, string $topic, string $subTopic): string
     {
         $prompt = "You are an energetic and relatable lecturer creating content specifically for South African high school students (ages 14-17). Your mission is to make the subject {$subjectName} feel relevant, exciting, and easy to grasp, even for students who might find it boring or difficult. You understand the unique South African context they live in.
