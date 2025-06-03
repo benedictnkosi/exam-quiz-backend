@@ -51,12 +51,29 @@ class CreateQuestionsCommand extends Command
 
         $inProgressPapers = $this->examPaperRepository->createQueryBuilder('p')
             ->where('p.status = :status')
+            ->andWhere('p.created < :oneHourAgo')
             ->setParameter('status', 'in_progress')
+            ->setParameter('oneHourAgo', new \DateTime('-1 hour'))
             ->getQuery()
             ->getResult();
 
+        // Check for any in-progress papers newer than 1 hour
+        $recentInProgressPapers = $this->examPaperRepository->createQueryBuilder('p')
+            ->where('p.status = :status')
+            ->andWhere('p.created >= :oneHourAgo')
+            ->setParameter('status', 'in_progress')
+            ->setParameter('oneHourAgo', new \DateTime('-1 hour'))
+            ->getQuery()
+            ->getResult();
+
+        if (!empty($recentInProgressPapers)) {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('Africa/Johannesburg')))->format('Y-m-d H:i:s');
+            $output->writeln("[$timestamp] Found recently started papers in progress. Exiting to prevent concurrent processing.");
+            return Command::SUCCESS;
+        }
+
         if (!empty($inProgressPapers)) {
-            $output->writeln("[$timestamp] Found stuck papers. Resetting their status...");
+            $output->writeln("[$timestamp] Found stuck papers older than 1 hour. Resetting their status...");
 
             //set all papers who are in progress to stopped
             foreach ($inProgressPapers as $paper) {
