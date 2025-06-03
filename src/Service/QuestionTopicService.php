@@ -91,10 +91,10 @@ class QuestionTopicService
                 ]
             ]);
 
-            $this->logger->info('prompt: ' . $prompt);
+            $this->logger->error('prompt: ' . $prompt);
 
             $output = $response->getContent();
-            $this->logger->info('OpenAI response for question {id}: {response}', [
+            $this->logger->error('OpenAI response for question {id}: {response}', [
                 'id' => $questionData['id'],
                 'response' => $output
             ]);
