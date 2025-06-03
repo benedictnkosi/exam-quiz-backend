@@ -4574,47 +4574,77 @@ class LearnMzansiApi extends AbstractController
             $this->logger->info("Subjects: " . json_encode($subjectIds));
 
             // Get unique topics with their main topics and question counts
-            $qb = $this->em->getRepository(Question::class)
-                ->createQueryBuilder('q')
-                ->select('DISTINCT q.topic, t.name as mainTopic, COUNT(q.id) as questionCount')
-                ->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject IN (:subjects)')
-                ->where('q.subject IN (:subjects)')
-                ->andWhere('q.active = :active')
-                ->andWhere('q.status = :status')
-                ->andWhere('q.topic IS NOT NULL')
-                ->setParameter('subjects', $subjectIds)
-                ->setParameter('active', true)
-                ->setParameter('status', 'approved')
-                ->groupBy('q.topic, t.name');
+            $grade = $learner->getGrade();
+            $gradeId = $grade instanceof Grade ? $grade->getId() : $grade;
 
-            // Add term filter if learner has terms specified
-            if (!empty($learnerTerms)) {
-                $qb->andWhere($qb->expr()->in('q.term', ':terms'))
-                    ->setParameter('terms', $learnerTerms);
+            $sql = "SELECT 
+                    t.name AS main_topic,
+                    q.topic AS sub_topic,
+                    s.grade AS subject_grade,
+                    q.term AS question_term,
+                    COUNT(DISTINCT q.id) AS question_count
+                FROM 
+                    question q
+                JOIN 
+                    topic t ON q.topic = t.sub_topic
+                JOIN 
+                    subject s ON q.subject = s.id
+                WHERE 
+                    s.id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
+                    AND s.grade = ?
+                    AND q.active = ?
+                    AND q.status = ?
+                    AND q.topic IS NOT NULL
+                GROUP BY 
+                    t.name, q.topic, s.grade, q.term
+                ORDER BY 
+                    t.name ASC, s.grade ASC, q.term ASC";
+
+            $stmt = $this->em->getConnection()->prepare($sql);
+
+            // Bind the subject IDs as individual parameters
+            $paramIndex = 1;
+            foreach ($subjectIds as $id) {
+                $stmt->bindValue($paramIndex++, $id, \Doctrine\DBAL\ParameterType::INTEGER);
             }
 
-            // Add curriculum filter if learner has curriculum specified
-            if (!empty($learnerCurriculum)) {
-                $qb->andWhere($qb->expr()->in('q.curriculum', ':curriculum'))
-                    ->setParameter('curriculum', $learnerCurriculum);
+            // Bind the remaining parameters
+            $stmt->bindValue($paramIndex++, $gradeId, \Doctrine\DBAL\ParameterType::INTEGER);
+            $stmt->bindValue($paramIndex++, true, \Doctrine\DBAL\ParameterType::BOOLEAN);
+            $stmt->bindValue($paramIndex++, 'approved', \Doctrine\DBAL\ParameterType::STRING);
+
+            $this->logger->info('SQL: ' . $sql);
+            $this->logger->info('Params: ' . json_encode([
+                'subjectIds' => $subjectIds,
+                'grade' => $gradeId,
+                'active' => true,
+                'status' => 'approved'
+            ]));
+
+            $result = $stmt->executeQuery()->fetchAllAssociative();
+            if (empty($result)) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Subject not found'
+                ];
             }
 
-            $topics = $qb->orderBy('t.name', 'ASC')
-                ->addOrderBy('q.topic', 'ASC')
-                ->getQuery()
-                ->getResult();
+
+
+
+            $this->logger->info("Topics: " . json_encode($result));
 
             // Group topics by main topic
             $groupedTopics = [];
-            foreach ($topics as $topic) {
-                $mainTopic = $topic['mainTopic'] ?? 'Uncategorized';
+            foreach ($result as $topic) {
+                $mainTopic = $topic['main_topic'] ?? 'Uncategorized';
                 if (!isset($groupedTopics[$mainTopic])) {
                     $groupedTopics[$mainTopic] = [];
                 }
-                if (!empty($topic['topic'])) {
+                if (!empty($topic['sub_topic'])) {
                     $groupedTopics[$mainTopic][] = [
-                        'name' => $topic['topic'],
-                        'questionCount' => (int) $topic['questionCount']
+                        'name' => $topic['sub_topic'],
+                        'questionCount' => (int) $topic['question_count']
                     ];
                 }
             }
@@ -4879,3 +4909,4 @@ class LearnMzansiApi extends AbstractController
     }
 
 }
+
