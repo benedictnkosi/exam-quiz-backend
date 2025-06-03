@@ -4733,15 +4733,16 @@ class LearnMzansiApi extends AbstractController
                 return trim(str_replace('"', '', $term));
             }, explode(',', $learner->getTerms())) : [];
 
-            // Get total questions for this topic and subject
+            // Get total questions for this main topic and subject
             $qb = $this->em->createQueryBuilder();
             $qb->select('COUNT(q.id) as totalQuestions')
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
+                ->join('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
                 ->where('s.id IN (:subjectIds)')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status')
-                ->andWhere('q.topic = :topic')
+                ->andWhere('t.name = :topic')
                 ->setParameter('subjectIds', $subjectIds)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved')
@@ -4753,7 +4754,17 @@ class LearnMzansiApi extends AbstractController
                     ->setParameter('terms', $learnerTerms);
             }
 
+            $this->logger->info("Topic progress query: " . $qb->getQuery()->getSQL());
+            $this->logger->info("Topic progress parameters: " . json_encode([
+                'subjectIds' => $subjectIds,
+                'active' => true,
+                'status' => 'approved',
+                'topic' => $topic,
+                'terms' => $learnerTerms ?? []
+            ]));
+
             $totalQuestions = (int) $qb->getQuery()->getSingleScalarResult();
+            $this->logger->info("Total questions found: " . $totalQuestions);
 
             // Get viewed questions from topic tracker
             $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
