@@ -4578,27 +4578,29 @@ class LearnMzansiApi extends AbstractController
             $gradeId = $grade instanceof Grade ? $grade->getId() : $grade;
 
             $sql = "SELECT 
-                    q.topic AS sub_topic,
-                    t.name AS main_topic,
-                    COUNT(DISTINCT q.id) AS question_count
-                FROM 
-                    question q
-                LEFT JOIN (
-                    SELECT DISTINCT sub_topic, name
-                    FROM topic
-                    WHERE subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-                ) t ON q.topic = t.sub_topic
-                WHERE 
-                    q.subject IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-                    AND q.active = ?
-                    AND q.status = ?
-                    AND q.topic IS NOT NULL
-                    AND q.term IN (" . implode(',', array_fill(0, count($learnerTerms), '?')) . ")
-                    AND q.curriculum IN (" . implode(',', array_fill(0, count($learnerCurriculum), '?')) . ")
-                GROUP BY 
-                    q.topic, t.name
-                ORDER BY 
-                    t.name ASC, q.topic ASC";
+            q.topic AS sub_topic,
+            t.name AS main_topic,
+            COUNT(DISTINCT q.id) AS question_count
+        FROM 
+            question q
+        LEFT JOIN (
+            SELECT sub_topic, MIN(name) AS name
+            FROM topic
+            WHERE subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
+            GROUP BY sub_topic
+        ) t ON q.topic = t.sub_topic
+        WHERE 
+            q.subject IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
+            AND q.active = ?
+            AND q.status = ?
+            AND q.topic IS NOT NULL
+            AND q.term IN (" . implode(',', array_fill(0, count($learnerTerms), '?')) . ")
+            AND q.curriculum IN (" . implode(',', array_fill(0, count($learnerCurriculum), '?')) . ")
+        GROUP BY 
+            q.topic, t.name
+        ORDER BY 
+            t.name ASC, q.topic ASC";
+
 
             $stmt = $this->em->getConnection()->prepare($sql);
 
