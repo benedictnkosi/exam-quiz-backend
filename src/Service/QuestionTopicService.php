@@ -81,7 +81,7 @@ class QuestionTopicService
                     'Content-Type' => 'application/json',
                 ],
                 'json' => [
-                    'model' => 'gpt-4o-mini',
+                    'model' => 'gpt-4.1-mini',
                     'messages' => [
                         ['role' => 'system', 'content' => 'You are a topic classifier. Your task is to return an exact topic from the provided list.'],
                         ['role' => 'user', 'content' => $prompt]
