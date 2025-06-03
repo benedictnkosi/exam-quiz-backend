@@ -4637,6 +4637,7 @@ class LearnMzansiApi extends AbstractController
             // Group topics by main topic
             $groupedTopics = [];
             foreach ($result as $topic) {
+                $this->logger->error("Topic: " . json_encode($topic));
                 $mainTopic = $topic['main_topic'] ?? 'Uncategorized';
                 if (!isset($groupedTopics[$mainTopic])) {
                     $groupedTopics[$mainTopic] = [];
