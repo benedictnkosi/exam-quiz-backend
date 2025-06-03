@@ -4573,124 +4573,112 @@ class LearnMzansiApi extends AbstractController
 
             $this->logger->info("Subjects: " . json_encode($subjectIds));
 
-            // Get unique topics with their main topics and question counts
-            $grade = $learner->getGrade();
-            $gradeId = $grade instanceof Grade ? $grade->getId() : $grade;
+            // First get unique topics and their question counts from questions
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('q.topic, COUNT(q.id) as questionCount')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.subject', 's')
+                ->where('s.id IN (:subjectIds)')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.topic IS NOT NULL')
+                ->groupBy('q.topic')
+                ->setParameter('subjectIds', $subjectIds)
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved');
 
-            $sql = "SELECT 
-    q.topic AS sub_topic,
-    t.name AS main_topic,
-    COUNT(DISTINCT q.id) AS question_count
-FROM 
-    question q
-LEFT JOIN (
-    SELECT sub_topic, MIN(name) AS name
-    FROM topic
-    WHERE subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-    GROUP BY sub_topic
-) t ON q.topic = t.sub_topic
-        WHERE 
-            q.subject IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-            AND q.active = ?
-            AND q.status = ?
-            AND q.topic IS NOT NULL
-            AND q.term IN (" . implode(',', array_fill(0, count($learnerTerms), '?')) . ")
-            AND q.curriculum IN (" . implode(',', array_fill(0, count($learnerCurriculum), '?')) . ")
-        GROUP BY 
-            q.topic, t.name
-        ORDER BY 
-            t.name ASC, q.topic ASC";
-
-
-            $stmt = $this->em->getConnection()->prepare($sql);
-
-            // Bind the subject IDs for the topic join
-            $paramIndex = 1;
-            foreach ($subjectIds as $id) {
-                $stmt->bindValue($paramIndex++, $id, \Doctrine\DBAL\ParameterType::INTEGER);
+            // Add terms filter if learner has terms
+            if (!empty($learnerTerms)) {
+                $qb->andWhere('q.term IN (:terms)')
+                    ->setParameter('terms', $learnerTerms);
             }
 
-            // Bind the subject IDs for the WHERE clause
-            foreach ($subjectIds as $id) {
-                $stmt->bindValue($paramIndex++, $id, \Doctrine\DBAL\ParameterType::INTEGER);
-            }
-
-            // Bind the remaining parameters
-            $stmt->bindValue($paramIndex++, true, \Doctrine\DBAL\ParameterType::BOOLEAN);
-            $stmt->bindValue($paramIndex++, 'approved', \Doctrine\DBAL\ParameterType::STRING);
-
-            // Bind the terms
-            foreach ($learnerTerms as $term) {
-                $stmt->bindValue($paramIndex++, $term, \Doctrine\DBAL\ParameterType::STRING);
-            }
-
-            // Bind the curriculum
-            foreach ($learnerCurriculum as $curr) {
-                $stmt->bindValue($paramIndex++, $curr, \Doctrine\DBAL\ParameterType::STRING);
-            }
-
-            $this->logger->info('SQL: ' . $sql);
-            $this->logger->info('Params: ' . json_encode([
+            $this->logger->info("Question topics query: " . $qb->getQuery()->getSQL());
+            $this->logger->info("Question topics parameters: " . json_encode([
                 'subjectIds' => $subjectIds,
-                'grade' => $gradeId,
                 'active' => true,
                 'status' => 'approved',
-                'terms' => $learnerTerms,
-                'curriculum' => $learnerCurriculum
+                'terms' => $learnerTerms ?? []
             ]));
 
-            $result = $stmt->executeQuery()->fetchAllAssociative();
-            if (empty($result)) {
+            $results = $qb->getQuery()->getResult();
+            $this->logger->info("Question topics results: " . json_encode($results));
+
+            $subTopics = array_column($results, 'topic');
+            $this->logger->info("Extracted subtopics: " . json_encode($subTopics));
+
+            if (empty($subTopics)) {
+                $this->logger->warning("No subtopics found in questions for the given criteria");
                 return [
-                    'status' => 'NOK',
-                    'message' => 'Subject not found'
+                    'status' => 'OK',
+                    'topics' => []
                 ];
             }
 
+            // Create a map of subtopic to question count
+            $subTopicCounts = array_combine(
+                array_column($results, 'topic'),
+                array_column($results, 'questionCount')
+            );
 
+            // Now get main topics for each subtopic
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('DISTINCT t.name as mainTopic, t.subTopic')
+                ->from('App\Entity\Topic', 't')
+                ->join('t.subject', 's')
+                ->where('s.id IN (:subjectIds)')
+                ->andWhere('t.subTopic IN (:subTopics)')
+                ->setParameter('subjectIds', $subjectIds)
+                ->setParameter('subTopics', $subTopics);
 
+            $this->logger->info("Main topics query: " . $qb->getQuery()->getSQL());
+            $this->logger->info("Main topics parameters: " . json_encode([
+                'subjectIds' => $subjectIds,
+                'subTopics' => $subTopics
+            ]));
 
-            $this->logger->info("Topics: " . json_encode($result));
+            $topicResults = $qb->getQuery()->getResult();
+            $this->logger->info("Main topics results: " . json_encode($topicResults));
 
-            // Group topics by main topic
-            $groupedTopics = [];
-            foreach ($result as $topic) {
-                $this->logger->error("Topic: " . json_encode($topic));
-                $mainTopic = $topic['main_topic'] ?? 'Uncategorized';
-                if (!isset($groupedTopics[$mainTopic])) {
-                    $groupedTopics[$mainTopic] = [];
-                }
-                if (!empty($topic['sub_topic'])) {
-                    $groupedTopics[$mainTopic][] = [
-                        'name' => $topic['sub_topic'],
-                        'questionCount' => (int) $topic['question_count']
+            // Format the results
+            $topics = [];
+            foreach ($topicResults as $result) {
+                $mainTopic = $result['mainTopic'];
+                if (!isset($topics[$mainTopic])) {
+                    $topics[$mainTopic] = [
+                        'name' => $mainTopic,
+                        'subTopics' => [],
+                        'totalQuestions' => 0
                     ];
                 }
+                if (!in_array($result['subTopic'], array_column($topics[$mainTopic]['subTopics'], 'name'))) {
+                    $questionCount = $subTopicCounts[$result['subTopic']] ?? 0;
+                    $topics[$mainTopic]['subTopics'][] = [
+                        'name' => $result['subTopic'],
+                        'questionCount' => $questionCount
+                    ];
+                    $topics[$mainTopic]['totalQuestions'] += $questionCount;
+                }
             }
 
-            // Sort topics within each main topic by name
-            foreach ($groupedTopics as &$subtopics) {
-                usort($subtopics, function ($a, $b) {
-                    return strcmp($a['name'], $b['name']);
-                });
-            }
+            $this->logger->info("Formatted topics before sorting: " . json_encode($topics));
+
+            // Sort topics alphabetically
+            ksort($topics);
+
+            $this->logger->info("Final topics array: " . json_encode(array_values($topics)));
 
             return [
                 'status' => 'OK',
-                'topics' => $groupedTopics,
-                'subjects' => array_map(function ($subject) {
-                    return [
-                        'id' => $subject->getId(),
-                        'name' => $subject->getName()
-                    ];
-                }, $subjects)
+                'topics' => array_values($topics)
             ];
 
         } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
+            $this->logger->error("Error in getUniqueTopicsForSubject: " . $e->getMessage());
+            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             return [
                 'status' => 'NOK',
-                'message' => 'Error getting topics'
+                'message' => 'Error getting topics: ' . $e->getMessage()
             ];
         }
     }
