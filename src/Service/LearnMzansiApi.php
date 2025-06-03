@@ -4577,48 +4577,64 @@ class LearnMzansiApi extends AbstractController
             $grade = $learner->getGrade();
             $gradeId = $grade instanceof Grade ? $grade->getId() : $grade;
 
-            $sql = "SELECT 
-                    t.name AS main_topic,
+            $sql = "SELECT DISTINCT 
                     q.topic AS sub_topic,
-                    s.grade AS subject_grade,
-                    q.term AS question_term,
-                    COUNT(DISTINCT q.id) AS question_count
+                    t.name AS main_topic,
+                    COUNT(q.id) AS question_count
                 FROM 
                     question q
-                JOIN 
-                    topic t ON q.topic = t.sub_topic
-                JOIN 
-                    subject s ON q.subject = s.id
+                LEFT JOIN 
+                    topic t ON (
+                        t.sub_topic = q.topic AND 
+                        t.subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
+                    )
                 WHERE 
-                    s.id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-                    AND s.grade = ?
+                    q.subject IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
                     AND q.active = ?
                     AND q.status = ?
                     AND q.topic IS NOT NULL
+                    AND q.term IN (" . implode(',', array_fill(0, count($learnerTerms), '?')) . ")
+                    AND q.curriculum IN (" . implode(',', array_fill(0, count($learnerCurriculum), '?')) . ")
                 GROUP BY 
-                    t.name, q.topic, s.grade, q.term
+                    q.topic, t.name
                 ORDER BY 
-                    t.name ASC, s.grade ASC, q.term ASC";
+                    t.name ASC, q.topic ASC";
 
             $stmt = $this->em->getConnection()->prepare($sql);
 
-            // Bind the subject IDs as individual parameters
+            // Bind the subject IDs for the topic join
             $paramIndex = 1;
             foreach ($subjectIds as $id) {
                 $stmt->bindValue($paramIndex++, $id, \Doctrine\DBAL\ParameterType::INTEGER);
             }
 
+            // Bind the subject IDs for the WHERE clause
+            foreach ($subjectIds as $id) {
+                $stmt->bindValue($paramIndex++, $id, \Doctrine\DBAL\ParameterType::INTEGER);
+            }
+
             // Bind the remaining parameters
-            $stmt->bindValue($paramIndex++, $gradeId, \Doctrine\DBAL\ParameterType::INTEGER);
             $stmt->bindValue($paramIndex++, true, \Doctrine\DBAL\ParameterType::BOOLEAN);
             $stmt->bindValue($paramIndex++, 'approved', \Doctrine\DBAL\ParameterType::STRING);
+
+            // Bind the terms
+            foreach ($learnerTerms as $term) {
+                $stmt->bindValue($paramIndex++, $term, \Doctrine\DBAL\ParameterType::STRING);
+            }
+
+            // Bind the curriculum
+            foreach ($learnerCurriculum as $curr) {
+                $stmt->bindValue($paramIndex++, $curr, \Doctrine\DBAL\ParameterType::STRING);
+            }
 
             $this->logger->info('SQL: ' . $sql);
             $this->logger->info('Params: ' . json_encode([
                 'subjectIds' => $subjectIds,
                 'grade' => $gradeId,
                 'active' => true,
-                'status' => 'approved'
+                'status' => 'approved',
+                'terms' => $learnerTerms,
+                'curriculum' => $learnerCurriculum
             ]));
 
             $result = $stmt->executeQuery()->fetchAllAssociative();
