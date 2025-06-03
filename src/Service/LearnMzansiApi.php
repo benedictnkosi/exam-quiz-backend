@@ -4577,17 +4577,17 @@ class LearnMzansiApi extends AbstractController
             $grade = $learner->getGrade();
             $gradeId = $grade instanceof Grade ? $grade->getId() : $grade;
 
-            $sql = "SELECT DISTINCT 
+            $sql = "SELECT 
                     q.topic AS sub_topic,
                     t.name AS main_topic,
-                    COUNT(q.id) AS question_count
+                    COUNT(DISTINCT q.id) AS question_count
                 FROM 
                     question q
-                LEFT JOIN 
-                    topic t ON (
-                        t.sub_topic = q.topic AND 
-                        t.subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
-                    )
+                LEFT JOIN (
+                    SELECT DISTINCT sub_topic, name
+                    FROM topic
+                    WHERE subject_id IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
+                ) t ON q.topic = t.sub_topic
                 WHERE 
                     q.subject IN (" . implode(',', array_fill(0, count($subjectIds), '?')) . ")
                     AND q.active = ?
