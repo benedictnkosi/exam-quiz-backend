@@ -4643,34 +4643,33 @@ class LearnMzansiApi extends AbstractController
             // Format the results
             $topics = [];
             foreach ($topicResults as $result) {
-                $mainTopic = $result['mainTopic'];
+                $mainTopic = $result['mainTopic'] ?? 'Uncategorized';
                 if (!isset($topics[$mainTopic])) {
-                    $topics[$mainTopic] = [
-                        'name' => $mainTopic,
-                        'subTopics' => [],
-                        'totalQuestions' => 0
-                    ];
+                    $topics[$mainTopic] = [];
                 }
-                if (!in_array($result['subTopic'], array_column($topics[$mainTopic]['subTopics'], 'name'))) {
-                    $questionCount = $subTopicCounts[$result['subTopic']] ?? 0;
-                    $topics[$mainTopic]['subTopics'][] = [
-                        'name' => $result['subTopic'],
-                        'questionCount' => $questionCount
-                    ];
-                    $topics[$mainTopic]['totalQuestions'] += $questionCount;
-                }
-            }
 
-            $this->logger->info("Formatted topics before sorting: " . json_encode($topics));
+                $questionCount = $subTopicCounts[$result['subTopic']] ?? 0;
+                $topics[$mainTopic][] = [
+                    'name' => $result['subTopic'],
+                    'questionCount' => $questionCount
+                ];
+            }
 
             // Sort topics alphabetically
             ksort($topics);
 
-            $this->logger->info("Final topics array: " . json_encode(array_values($topics)));
+            // Sort subtopics within each main topic by name
+            foreach ($topics as &$subTopics) {
+                usort($subTopics, function ($a, $b) {
+                    return strcmp($a['name'], $b['name']);
+                });
+            }
+
+            $this->logger->info("Final topics array: " . json_encode($topics));
 
             return [
                 'status' => 'OK',
-                'topics' => array_values($topics)
+                'topics' => $topics
             ];
 
         } catch (\Exception $e) {
