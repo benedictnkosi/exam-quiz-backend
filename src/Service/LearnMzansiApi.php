@@ -4704,7 +4704,7 @@ class LearnMzansiApi extends AbstractController
             if (empty($uid) || empty($topic) || empty($subjectName)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'User ID, topic, and subject name are required'
+                    'message' => 'User ID, topic, and subject name are requiredc.'
                 ];
             }
 
