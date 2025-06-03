@@ -4669,6 +4669,7 @@ class LearnMzansiApi extends AbstractController
 
             return [
                 'status' => 'OK',
+                'test' => 'OK',
                 'topics' => $topics
             ];
 
