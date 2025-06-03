@@ -86,8 +86,7 @@ class QuestionTopicService
                         ['role' => 'system', 'content' => 'You are a topic classifier. Your task is to return an exact topic from the provided list.'],
                         ['role' => 'user', 'content' => $prompt]
                     ],
-                    'temperature' => 0.1,
-                    'max_tokens' => 50
+                    'temperature' => 0
                 ]
             ]);
 
