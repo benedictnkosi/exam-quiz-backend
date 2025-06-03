@@ -4694,7 +4694,7 @@ class LearnMzansiApi extends AbstractController
             if (empty($uid) || empty($topic) || empty($subjectName)) {
                 return [
                     'status' => 'NOK',
-                    'message' => 'User ID, topic, and subject name are requiredc.'
+                    'message' => 'User ID, topic, and subject name are required.'
                 ];
             }
 
@@ -4728,31 +4728,32 @@ class LearnMzansiApi extends AbstractController
                 return $subject->getId();
             }, $subjects);
 
-            // Get total questions for this topic and subject
-            $qb = $this->em->createQueryBuilder();
-            $qb->select('COUNT(q.id)')
-                ->from('App\Entity\Question', 'q')
-                ->join('q.subject', 's')
-                ->join('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic')
-                ->where('t.name = :topic')
-                ->andWhere('q.subject IN (:subjects)')
-                ->andWhere('q.active = true')
-                ->andWhere('q.status = :status')
-                ->setParameter('topic', $topic)
-                ->setParameter('subjects', $subjectIds)
-                ->setParameter('status', 'approved');
-
-            // Add terms filter if learner has terms
+            // Get learner's terms
             $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
                 return trim(str_replace('"', '', $term));
             }, explode(',', $learner->getTerms())) : [];
 
+            // Get total questions for this topic and subject
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('COUNT(q.id) as totalQuestions')
+                ->from('App\Entity\Question', 'q')
+                ->join('q.subject', 's')
+                ->where('s.id IN (:subjectIds)')
+                ->andWhere('q.active = :active')
+                ->andWhere('q.status = :status')
+                ->andWhere('q.topic = :topic')
+                ->setParameter('subjectIds', $subjectIds)
+                ->setParameter('active', true)
+                ->setParameter('status', 'approved')
+                ->setParameter('topic', $topic);
+
+            // Add terms filter if learner has terms
             if (!empty($learnerTerms)) {
                 $qb->andWhere('q.term IN (:terms)')
                     ->setParameter('terms', $learnerTerms);
             }
 
-            $totalQuestions = $qb->getQuery()->getSingleScalarResult();
+            $totalQuestions = (int) $qb->getQuery()->getSingleScalarResult();
 
             // Get viewed questions from topic tracker
             $topicLessonsTracker = $learner->getTopicLessonsTracker() ?? [];
@@ -4763,16 +4764,17 @@ class LearnMzansiApi extends AbstractController
 
             return [
                 'status' => 'OK',
-                'total_questions' => (int) $totalQuestions,
+                'total_questions' => $totalQuestions,
                 'viewed_questions' => $viewedCount,
                 'progress_percentage' => $progressPercentage
             ];
 
         } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
+            $this->logger->error("Error in getTopicProgress: " . $e->getMessage());
+            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             return [
                 'status' => 'NOK',
-                'message' => 'Error getting topic progress ' . $e->getMessage()
+                'message' => 'Error getting topic progress: ' . $e->getMessage()
             ];
         }
     }
