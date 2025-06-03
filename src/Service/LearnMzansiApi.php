@@ -4733,20 +4733,48 @@ class LearnMzansiApi extends AbstractController
                 return trim(str_replace('"', '', $term));
             }, explode(',', $learner->getTerms())) : [];
 
-            // Get total questions for this main topic and subject
+            // First, get all subtopics for this main topic
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('t.subTopic')
+                ->from('App\Entity\Topic', 't')
+                ->where('t.name = :topic')
+                ->andWhere('t.subject IN (:subjectIds)')
+                ->setParameter('topic', $topic)
+                ->setParameter('subjectIds', $subjectIds);
+
+            $this->logger->info("Topics query: " . $qb->getQuery()->getSQL());
+            $this->logger->info("Topics parameters: " . json_encode([
+                'topic' => $topic,
+                'subjectIds' => $subjectIds
+            ]));
+
+            $subTopics = $qb->getQuery()->getResult();
+            $this->logger->info("Found subtopics: " . json_encode($subTopics));
+
+            if (empty($subTopics)) {
+                return [
+                    'status' => 'OK',
+                    'total_questions' => 0,
+                    'viewed_questions' => 0,
+                    'progress_percentage' => 0
+                ];
+            }
+
+            $subTopicNames = array_column($subTopics, 'subTopic');
+
+            // Now count questions for each subtopic
             $qb = $this->em->createQueryBuilder();
             $qb->select('COUNT(q.id) as totalQuestions')
                 ->from('App\Entity\Question', 'q')
                 ->join('q.subject', 's')
-                ->join('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
                 ->where('s.id IN (:subjectIds)')
                 ->andWhere('q.active = :active')
                 ->andWhere('q.status = :status')
-                ->andWhere('t.name = :topic')
+                ->andWhere('q.topic IN (:subTopics)')
                 ->setParameter('subjectIds', $subjectIds)
                 ->setParameter('active', true)
                 ->setParameter('status', 'approved')
-                ->setParameter('topic', $topic);
+                ->setParameter('subTopics', $subTopicNames);
 
             // Add terms filter if learner has terms
             if (!empty($learnerTerms)) {
@@ -4754,12 +4782,12 @@ class LearnMzansiApi extends AbstractController
                     ->setParameter('terms', $learnerTerms);
             }
 
-            $this->logger->info("Topic progress query: " . $qb->getQuery()->getSQL());
-            $this->logger->info("Topic progress parameters: " . json_encode([
+            $this->logger->info("Questions count query: " . $qb->getQuery()->getSQL());
+            $this->logger->info("Questions count parameters: " . json_encode([
                 'subjectIds' => $subjectIds,
                 'active' => true,
                 'status' => 'approved',
-                'topic' => $topic,
+                'subTopics' => $subTopicNames,
                 'terms' => $learnerTerms ?? []
             ]));
 
