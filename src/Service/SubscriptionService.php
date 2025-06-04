@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Psr\Log\LoggerInterface;
 use DateTime;
 
 class SubscriptionService
@@ -12,23 +13,30 @@ class SubscriptionService
     private EntityManagerInterface $entityManager;
     private HttpClientInterface $httpClient;
     private string $revenueCatApiKey;
+    private LoggerInterface $logger;
 
     private const REVENUECAT_API_BASE_URL = 'https://api.revenuecat.com/v1';
     private const FREE_SUBSCRIPTION_IDENTIFIER = 'free';
 
     private const SUBSCRIPTION_PRIORITY = [
         'dimpo_gold_annual' => 4,
-        'dimpo_silver_annual' => 3,
-        'dimpo_silver_monthly' => 2,
-        'dimpo_bronze_annual' => 1,
-        'free' => 0
+        'dimpo_gold_monthly' => 3,
+        'dimpo_silver_annual' => 2,
+        'dimpo_silver_monthly' => 1,
+        'dimpoweekly' => 0,
+        'free' => -1
     ];
 
-    public function __construct(EntityManagerInterface $entityManager, HttpClientInterface $httpClient, string $revenueCatApiKey)
-    {
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        HttpClientInterface $httpClient,
+        string $revenueCatApiKey,
+        LoggerInterface $logger
+    ) {
         $this->entityManager = $entityManager;
         $this->httpClient = $httpClient;
         $this->revenueCatApiKey = $revenueCatApiKey;
+        $this->logger = $logger;
     }
 
     public function updateLearnerSubscriptionByUid(string $learnerUid, ?string $subscription): Learner
@@ -39,7 +47,12 @@ class SubscriptionService
             throw new \Exception("Learner not found with UID: {$learnerUid}");
         }
 
-        $learner->setSubscription($subscription);
+        if ($subscription === 'free') {
+            $learner->setSubscription($subscription);
+        } else {
+            $learner->setSubscription("dimpo_gold");
+        }
+
         $this->entityManager->persist($learner);
 
         // Create new subscription entry
@@ -92,7 +105,7 @@ class SubscriptionService
             'Accept' => 'application/json',
         ];
 
-        error_log("RevenueCat: Attempting to fetch subscription for appUser '{$appUserId}' from {$url}");
+        $this->logger->info("RevenueCat: Attempting to fetch subscription for appUser '{$appUserId}' from {$url}");
 
         try {
             $response = $this->httpClient->request('GET', $url, ['headers' => $headers]);
@@ -100,14 +113,14 @@ class SubscriptionService
 
             $resolvedLearnerIdentifier = null;
             $now = new DateTime('now', new \DateTimeZone('UTC'));
-            error_log("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
+            $this->logger->info("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
             $activeFreeEntitlementEncountered = false;
             $highestPrioritySubscription = null;
             $highestPriority = -1;
 
             // First check entitlements
             if (isset($data['subscriber']['entitlements']) && is_array($data['subscriber']['entitlements'])) {
-                error_log("RevenueCat: Checking entitlements for appUser '{$appUserId}'");
+                $this->logger->info("RevenueCat: Checking entitlements for appUser '{$appUserId}'");
                 $entitlements = $data['subscriber']['entitlements'];
 
                 foreach ($entitlements as $entitlementData) {
@@ -123,14 +136,14 @@ class SubscriptionService
                     if ($expiresDateStr === null) {
                         $isActive = true; // Entitlement never expires
                     } else {
-                        error_log("RevenueCat: Entitlement expires date: {$expiresDateStr}");
+                        $this->logger->info("RevenueCat: Entitlement expires date: {$expiresDateStr}");
                         try {
                             $expiresDate = new DateTime($expiresDateStr);
                             if ($expiresDate > $now) {
                                 $isActive = true; // Entitlement expires in the future
                             }
                         } catch (\Exception $e) {
-                            error_log("RevenueCat: Invalid date format for entitlement '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
+                            $this->logger->error("RevenueCat: Invalid date format for entitlement '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
                             continue;
                         }
                     }
@@ -151,28 +164,52 @@ class SubscriptionService
 
             // If no active entitlements found, check subscriptions
             if ($highestPrioritySubscription === null && isset($data['subscriber']['subscriptions']) && is_array($data['subscriber']['subscriptions'])) {
-                error_log("RevenueCat: No active entitlements found, checking subscriptions for appUser '{$appUserId}'");
+                $this->logger->info("RevenueCat: No active entitlements found, checking subscriptions for appUser '{$appUserId}'");
                 $subscriptions = $data['subscriber']['subscriptions'];
 
+                if (count($subscriptions) == 0) {
+                    $this->logger->info("RevenueCat: No subscriptions found for appUser '{$appUserId}'");
+                }
+
                 foreach ($subscriptions as $subscriptionData) {
-                    if (!is_array($subscriptionData) || !isset($subscriptionData['product_plan_identifier']) || !isset($subscriptionData['expires_date'])) {
+                    $this->logger->info("RevenueCat: Subscription data: " . json_encode($subscriptionData));
+                    if (!is_array($subscriptionData) || !isset($subscriptionData['expires_date'])) {
+                        $this->logger->info("RevenueCat: Skipping subscription - missing required fields");
                         continue;
                     }
 
-                    $productIdentifier = (string) $subscriptionData['product_plan_identifier'];
+                    // Try display_name first, then fall back to product_plan_identifier
+                    $productIdentifier = null;
+                    if (isset($subscriptionData['display_name'])) {
+                        $productIdentifier = (string) $subscriptionData['display_name'];
+                        $this->logger->info("RevenueCat: Using display_name: '{$productIdentifier}'");
+                    } elseif (isset($subscriptionData['product_plan_identifier'])) {
+                        $productIdentifier = (string) $subscriptionData['product_plan_identifier'];
+                        $this->logger->info("RevenueCat: Using product_plan_identifier: '{$productIdentifier}'");
+                    }
+
+                    if ($productIdentifier === null) {
+                        $this->logger->info("RevenueCat: Skipping subscription - no valid identifier found");
+                        continue;
+                    }
+
                     $expiresDateStr = $subscriptionData['expires_date'];
 
                     try {
                         $expiresDate = new DateTime($expiresDateStr);
                         if ($expiresDate > $now) {
-                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
+                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? -1;
+                            $this->logger->info("RevenueCat: Found active subscription '{$productIdentifier}' with priority {$priority}");
                             if ($priority > $highestPriority) {
                                 $highestPriority = $priority;
                                 $highestPrioritySubscription = $productIdentifier;
+                                $this->logger->info("RevenueCat: New highest priority subscription: '{$productIdentifier}'");
                             }
+                        } else {
+                            $this->logger->info("RevenueCat: Subscription '{$productIdentifier}' has expired");
                         }
                     } catch (\Exception $e) {
-                        error_log("RevenueCat: Invalid date format for subscription '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
+                        $this->logger->error("RevenueCat: Invalid date format for subscription '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
                         continue;
                     }
                 }
@@ -183,13 +220,13 @@ class SubscriptionService
                 try {
                     $this->updateLearnerSubscriptionByUid($appUserId, $highestPrioritySubscription);
 
-                    error_log("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'.");
+                    $this->logger->info("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with highest priority subscription '{$highestPrioritySubscription}'.");
                     return [
                         'success' => true,
                         'subscription' => $highestPrioritySubscription
                     ];
                 } catch (\Exception $learnerUpdateException) {
-                    error_log("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser \'{$appUserId}\' with highest priority subscription \'{$highestPrioritySubscription}\'. Error: " . $learnerUpdateException->getMessage());
+                    $this->logger->error("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with highest priority subscription '{$highestPrioritySubscription}'. Error: " . $learnerUpdateException->getMessage());
                     return [
                         'success' => false,
                         'error' => 'Learner update failed',
@@ -202,18 +239,17 @@ class SubscriptionService
             try {
                 $this->updateLearnerSubscriptionByUid($appUserId, self::FREE_SUBSCRIPTION_IDENTIFIER);
 
-
                 if ($activeFreeEntitlementEncountered) {
-                    error_log("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}) based on an active free entitlement.");
+                    $this->logger->info("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}) based on an active free entitlement.");
                 } else {
-                    error_log("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}.");
+                    $this->logger->info("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}.");
                 }
                 return [
                     'success' => true,
                     'subscription' => self::FREE_SUBSCRIPTION_IDENTIFIER
                 ];
             } catch (\Exception $learnerUpdateException) {
-                error_log("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser \'{$appUserId}\' (ID: {$resolvedLearnerIdentifier}, . Error: " . $learnerUpdateException->getMessage());
+                $this->logger->error("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}, . Error: " . $learnerUpdateException->getMessage());
                 return [
                     'success' => false,
                     'error' => 'Free subscription update failed',
@@ -222,14 +258,14 @@ class SubscriptionService
             }
 
         } catch (\Symfony\Contracts\HttpClient\Exception\ExceptionInterface $e) {
-            error_log("RevenueCat: HTTP Client Exception for appUser \'{$appUserId}\'. Error: " . $e->getMessage());
+            $this->logger->error("RevenueCat: HTTP Client Exception for appUser '{$appUserId}'. Error: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'HTTP Client Error',
                 'details' => $e->getMessage()
             ];
         } catch (\Exception $e) {
-            error_log("RevenueCat: General Exception for appUser \'{$appUserId}\'. Error: " . $e->getMessage());
+            $this->logger->error("RevenueCat: General Exception for appUser '{$appUserId}'. Error: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'General Error',

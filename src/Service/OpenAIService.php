@@ -5,6 +5,7 @@ namespace App\Service;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Psr\Log\LoggerInterface;
 
 class OpenAIService
 {
@@ -12,8 +13,10 @@ class OpenAIService
     private string $apiKey;
     private string $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-    public function __construct(string $openaiApiKey)
-    {
+    public function __construct(
+        string $openaiApiKey,
+        private readonly LoggerInterface $logger
+    ) {
         $this->client = HttpClient::create();
         $this->apiKey = $openaiApiKey;
     }
@@ -79,7 +82,7 @@ At the end of the script, provide a search text for Google to find the best imag
 
             return $data['choices'][0]['message']['content'] ?? 'Failed to generate lecture content.';
         } catch (\Exception $e) {
-            error_log('OpenAI API Error: ' . $e->getMessage());
+            $this->logger->error('OpenAI API Error: ' . $e->getMessage());
             return 'Failed to generate lecture content due to an API error.';
         }
     }
@@ -196,7 +199,7 @@ Format your response as follows:
 ]";
 
         // Log the prompt for debugging
-        error_log("AI Prompt for Chapter '{$chapterName}':\n" . $prompt);
+        $this->logger->debug("AI Prompt for Chapter '{$chapterName}':\n" . $prompt);
 
         try {
             $response = $this->client->request('POST', $this->apiUrl, [
@@ -227,13 +230,13 @@ Format your response as follows:
             $promptTokens = $data['usage']['prompt_tokens'] ?? 0;
             $completionTokens = $data['usage']['completion_tokens'] ?? 0;
             $totalTokens = $data['usage']['total_tokens'] ?? 0;
-            error_log("Token Usage for Chapter '{$chapterName}':\n" .
+            $this->logger->debug("Token Usage for Chapter '{$chapterName}':\n" .
                 "Prompt tokens: {$promptTokens}\n" .
                 "Completion tokens: {$completionTokens}\n" .
                 "Total tokens: {$totalTokens}");
 
             // Log the full AI response
-            error_log("AI Response for Chapter '{$chapterName}':\n" . $content);
+            $this->logger->debug("AI Response for Chapter '{$chapterName}':\n" . $content);
 
             // Parse the response to separate chapter, summary, and quiz
             preg_match('/\[CHAPTER\](.*?)\[SUMMARY\](.*?)\[CHAT_THREAD_TITLE\](.*?)\[CHAT_THREAD_CONTENT\](.*?)\[QUIZ\](.*?)$/s', $content, $matches);
@@ -247,7 +250,7 @@ Format your response as follows:
             ];
 
             // Log the parsed result
-            error_log("Parsed Result for Chapter '{$chapterName}':\n" .
+            $this->logger->debug("Parsed Result for Chapter '{$chapterName}':\n" .
                 "Content length: " . strlen($result['content']) . " characters\n" .
                 "Summary: " . $result['summary'] . "\n" .
                 "Chat Thread Title: " . ($result['chat_thread_title'] ?? 'Not generated') . "\n" .
@@ -256,6 +259,7 @@ Format your response as follows:
 
             return $result;
         } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error: ' . $e->getMessage());
             error_log('OpenAI API Error: ' . $e->getMessage());
             return [
                 'content' => 'Failed to generate chapter content due to an API error.',
@@ -392,13 +396,7 @@ Format your response as follows:
         ?string $originalChatThreadTitle = null,
         ?string $originalChatThreadContent = null
     ): array {
-        // Log input parameters
-        error_log("Debug - Rewrite Chapter Input Parameters:");
-        error_log("Target Reading Level: " . $targetReadingLevel);
-        error_log("Word Count Limit: " . $wordCountLimit);
-        error_log("Original Chat Thread Title: " . ($originalChatThreadTitle ?? 'null'));
-        error_log("Original Chat Thread Content: " . ($originalChatThreadContent ?? 'null'));
-        error_log("Original Content Length: " . strlen($originalContent));
+
 
         $minWords = $wordCountLimit - 50;
         $maxWords = $wordCountLimit + 50;
