@@ -9,27 +9,94 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Entity\Question;
 use App\Repository\ResultRepository;
+use Doctrine\DBAL\Logging\LoggerChain;
+use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
+use Doctrine\DBAL\Driver\Connection;
+use Doctrine\DBAL\Driver\Statement;
+use Doctrine\DBAL\Driver\Result as DriverResult;
 
 class LearnerReportService
 {
+    private array $queries = [];
+    private int $currentQuery = 0;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private readonly ResultRepository $resultRepository
     ) {
+        // Initialize SQL logger
+        $configuration = $this->entityManager->getConnection()->getConfiguration();
+        $configuration->setMiddlewares([
+            new class ($this->logger) extends AbstractDriverMiddleware {
+            public function __construct(private LoggerInterface $logger)
+            {
+            }
+
+            public function connect(array $params): Connection
+            {
+                return new class ($this->driver->connect($params), $this->logger) implements Connection {
+                    public function __construct(
+                        private Connection $connection,
+                        private LoggerInterface $logger
+                    ) {
+                    }
+
+                    public function prepare(string $sql): Statement
+                    {
+                        $this->logger->debug(sprintf('SQL Query: %s', $sql));
+                        return $this->connection->prepare($sql);
+                    }
+
+                    public function query(string $sql): DriverResult
+                    {
+                        $this->logger->debug(sprintf('SQL Query: %s', $sql));
+                        return $this->connection->query($sql);
+                    }
+
+                    public function quote($value, $type = \Doctrine\DBAL\ParameterType::STRING): string
+                    {
+                        return $this->connection->quote($value, $type);
+                    }
+
+                    public function exec(string $sql): int
+                    {
+                        $this->logger->debug(sprintf('SQL Query: %s', $sql));
+                        return $this->connection->exec($sql);
+                    }
+
+                    public function lastInsertId($name = null): string|int
+                    {
+                        return $this->connection->lastInsertId($name);
+                    }
+
+                    public function beginTransaction(): bool
+                    {
+                        return $this->connection->beginTransaction();
+                    }
+
+                    public function commit(): bool
+                    {
+                        return $this->connection->commit();
+                    }
+
+                    public function rollBack(): bool
+                    {
+                        return $this->connection->rollBack();
+                    }
+                };
+            }
+            }
+        ]);
+    }
+
+    private function logQuery(string $methodName): void
+    {
+        $this->logger->debug(sprintf('[%s] Query executed', $methodName));
     }
 
     public function getSubjectPerformance(Learner $learner): array
     {
-        // Get learner's terms and curriculum
-        $learnerTerms = $learner->getTerms() ? array_map(function ($term) {
-            return trim(str_replace('"', '', $term));
-        }, explode(',', $learner->getTerms())) : [];
-
-        $learnerCurriculum = $learner->getCurriculum() ? array_map(function ($curr) {
-            return trim(str_replace('"', '', $curr));
-        }, explode(',', $learner->getCurriculum())) : [];
-
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select([
             's.name as subject_name',
@@ -43,34 +110,19 @@ class LearnerReportService
             ->join('q.subject', 's')
             ->where('r.learner = :learner')
             ->andWhere('q.active = :active')
-            ->andWhere('q.status = :status');
-
-        // Add term condition if learner has terms specified
-        if (!empty($learnerTerms)) {
-            $qb->andWhere('q.term IN (:terms)');
-        }
-
-        // Add curriculum condition if learner has curriculum specified
-        if (!empty($learnerCurriculum)) {
-            $qb->andWhere('q.curriculum IN (:curriculum)');
-        }
-
-        $qb->groupBy('s.id')
+            ->groupBy('s.id')
             ->setParameter('learner', $learner)
             ->setParameter('correct', 'correct')
             ->setParameter('incorrect', 'incorrect')
-            ->setParameter('active', true)
-            ->setParameter('status', 'approved');
+            ->setParameter('active', true);
 
-        if (!empty($learnerTerms)) {
-            $qb->setParameter('terms', $learnerTerms);
-        }
-
-        if (!empty($learnerCurriculum)) {
-            $qb->setParameter('curriculum', $learnerCurriculum);
-        }
-
-        $results = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
+        $this->logger->debug(sprintf(
+            '[getSubjectPerformance] SQL Query: %s, Parameters: %s',
+            $query->getSQL(),
+            json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray())
+        ));
+        $results = $query->getResult();
 
         $report = [];
         foreach ($results as $result) {
@@ -123,7 +175,13 @@ class LearnerReportService
                 ->setParameter('subjectId', $subjectId);
         }
 
-        $results = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
+        $this->logger->debug(sprintf(
+            '[getDailyActivity] SQL Query: %s, Parameters: %s',
+            $query->getSQL(),
+            json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray())
+        ));
+        $results = $query->getResult();
 
         // Format the dates to be more readable
         $formattedResults = [];
@@ -174,7 +232,13 @@ class LearnerReportService
                 ->setParameter('subjectId', $subjectId);
         }
 
-        $results = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
+        $this->logger->debug(sprintf(
+            '[getWeeklyProgress] SQL Query: %s, Parameters: %s',
+            $query->getSQL(),
+            json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray())
+        ));
+        $results = $query->getResult();
 
         // Group results by week in PHP
         $weeklyResults = [];
@@ -296,7 +360,13 @@ class LearnerReportService
             ->setParameter('learner', $learner)
             ->setParameter('subjectName', '%' . $subjectName . '%');
 
-        $results = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
+        $this->logger->debug(sprintf(
+            '[getLearnerReport] SQL Query: %s, Parameters: %s',
+            $query->getSQL(),
+            json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray())
+        ));
+        $results = $query->getResult();
 
         // Group results by main topic
         $groupedResults = [];
