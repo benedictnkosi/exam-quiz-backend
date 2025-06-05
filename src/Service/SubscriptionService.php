@@ -19,14 +19,15 @@ class SubscriptionService
     private const FREE_SUBSCRIPTION_IDENTIFIER = 'free';
 
     private const SUBSCRIPTION_PRIORITY = [
-        'dimpo_gold_annual' => 4,
-        'dimpo_gold_monthly' => 3,
-        'dimpo_silver_annual' => 2,
-        'dimpo_silver_monthly' => 1,
-        'dimpo_monthly_silver' => 1,
-        'dimpo_monthly_gold' => 1,
-        'dimpomonthlysilver' => 1,
-        'dimpoweekly' => 0,
+        'dimpo_gold_annual' => 9,
+        'dimpo_gold_monthly' => 8,
+        'dimpo_silver_annual' => 7,
+        'dimpo_silver_monthly' => 6,
+        'dimpo_monthly_silver' => 5,
+        'dimpo_monthly_gold' => 4,
+        'dimpomonthlysilver' => 3,
+        'dimpo_gold_weekly' => 2,
+        'dimpoweekly' => 1,
         'free' => -1
     ];
 
