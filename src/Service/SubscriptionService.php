@@ -23,6 +23,8 @@ class SubscriptionService
         'dimpo_gold_monthly' => 3,
         'dimpo_silver_annual' => 2,
         'dimpo_silver_monthly' => 1,
+        'dimpo_monthly_silver' => 1,
+        'dimpo_monthly_gold' => 1,
         'dimpoweekly' => 0,
         'free' => -1
     ];
