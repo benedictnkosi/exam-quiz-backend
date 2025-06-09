@@ -34,3 +34,6 @@
 ###> log files ###
 /dev.log
 ###< log files ###
+
+/public/assets/languages/*
+!/public/assets/languages/.gitkeep
