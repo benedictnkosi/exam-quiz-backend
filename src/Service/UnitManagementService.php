@@ -34,10 +34,17 @@ class UnitManagementService
     public function getUnitsByLanguage(string $language): array
     {
         $allUnits = $this->getUnits();
-        return array_filter($allUnits, function ($unit) use ($language) {
+        $filteredUnits = array_filter($allUnits, function ($unit) use ($language) {
             $langs = $unit->getAvailableLanguages() ?? [];
             return in_array($language, $langs);
         });
+
+        // Sort units by unitOrder
+        usort($filteredUnits, function ($a, $b) {
+            return $a->getUnitOrder() - $b->getUnitOrder();
+        });
+
+        return $filteredUnits;
     }
 
     public function deleteUnit(int $id): bool

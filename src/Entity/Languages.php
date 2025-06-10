@@ -7,7 +7,7 @@ use Doctrine\DBAL\Types\Types;
 use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'language_unit')]
+#[ORM\Table(name: 'languages')]
 class Languages
 {
     #[ORM\Id]

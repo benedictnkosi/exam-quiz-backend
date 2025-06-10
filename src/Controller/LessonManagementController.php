@@ -9,6 +9,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Entity\LanguageQuestions;
+use App\Entity\Word;
 
 #[Route('/api/lessons')]
 class LessonManagementController extends AbstractController
@@ -43,17 +45,37 @@ class LessonManagementController extends AbstractController
     }
 
     #[Route('', name: 'get_lessons', methods: ['GET'])]
-    public function getLessons(): JsonResponse
+    public function getLessons(Request $request): JsonResponse
     {
+        $language = $request->query->get('language');
         $lessons = $this->lessonService->getLessons();
-        $result = array_map(function ($lesson) {
+        $result = array_map(function ($lesson) use ($language) {
+            $unit = $lesson->getUnit();
+            $hasLanguage = true;
+
+            if ($language) {
+                $availableLanguages = $unit->getAvailableLanguages() ?? [];
+                $hasLanguage = in_array($language, $availableLanguages);
+            }
+
             return [
                 'id' => $lesson->getId(),
                 'title' => $lesson->getTitle(),
                 'lessonOrder' => $lesson->getLessonOrder(),
-                'unitId' => $lesson->getUnit()->getId(),
+                'unitId' => $unit->getId(),
+                'unitOrder' => $unit->getUnitOrder(),
+                'unitName' => $unit->getTitle(),
+                'hasLanguage' => $hasLanguage
             ];
         }, $lessons);
+
+        // Filter out lessons without the requested language if language is specified
+        if ($language) {
+            $result = array_filter($result, function ($lesson) {
+                return $lesson['hasLanguage'];
+            });
+        }
+
         return $this->json($result);
     }
 
@@ -102,17 +124,19 @@ class LessonManagementController extends AbstractController
     public function getLessonsByUnit(int $unitId): JsonResponse
     {
         $lessons = $this->lessonService->getLessons();
-        $result = array_filter($lessons, function ($lesson) use ($unitId) {
+        $result = array_values(array_filter($lessons, function ($lesson) use ($unitId) {
             return $lesson->getUnit()->getId() === $unitId;
-        });
+        }));
+
         $response = array_map(function ($lesson) {
             return [
                 'id' => $lesson->getId(),
                 'title' => $lesson->getTitle(),
                 'lessonOrder' => $lesson->getLessonOrder(),
-                'unitId' => $lesson->getUnit()->getId(),
+                'unitId' => $lesson->getUnit()->getId()
             ];
         }, $result);
+
         return $this->json($response);
     }
 }

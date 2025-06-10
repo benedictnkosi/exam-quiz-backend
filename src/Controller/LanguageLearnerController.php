@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\LanguageLearner;
+use App\Entity\Lesson;
+use App\Entity\LanguageLearnerProgress;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -177,5 +179,110 @@ class LanguageLearnerController extends AbstractController
         $this->em->remove($l);
         $this->em->flush();
         return $this->json(['success' => true]);
+    }
+
+    #[Route('/uid/{uid}', name: 'get_language_learner_by_uid', methods: ['GET'])]
+    public function getLanguageLearnerByUid(string $uid): JsonResponse
+    {
+        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+        return $this->json([
+            'id' => $learner->getId(),
+            'uid' => $learner->getUid(),
+            'name' => $learner->getName(),
+            'created' => $learner->getCreated()->format(DATE_ATOM),
+            'lastSeen' => $learner->getLastSeen()->format(DATE_ATOM),
+            'email' => $learner->getEmail(),
+            'points' => $learner->getPoints(),
+            'streak' => $learner->getStreak(),
+            'streakLastUpdated' => $learner->getStreakLastUpdated()->format(DATE_ATOM),
+            'avatar' => $learner->getAvatar(),
+            'expoPushToken' => $learner->getExpoPushToken(),
+            'followMeCode' => $learner->getFollowMeCode(),
+            'version' => $learner->getVersion(),
+            'os' => $learner->getOs(),
+            'reminders' => $learner->getReminders(),
+        ]);
+    }
+
+    #[Route('/{uid}/progress', name: 'add_lesson_progress', methods: ['POST'])]
+    public function addLessonProgress(string $uid, Request $request): JsonResponse
+    {
+        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        // Validate required fields
+        if (!isset($data['lessonId']) || !isset($data['language']) || !isset($data['status'])) {
+            return $this->json(['error' => 'Missing required fields: lessonId, language, status'], 400);
+        }
+
+        // Find the lesson
+        $lesson = $this->em->getRepository(Lesson::class)->find($data['lessonId']);
+        if (!$lesson) {
+            return $this->json(['error' => 'Lesson not found.'], 404);
+        }
+
+        // Create or update progress
+        $progress = $this->em->getRepository(LanguageLearnerProgress::class)->findOneBy([
+            'learner' => $learner,
+            'lesson' => $lesson,
+            'language' => $data['language']
+        ]);
+
+        if (!$progress) {
+            $progress = new LanguageLearnerProgress();
+            $progress->setLearner($learner);
+            $progress->setLesson($lesson);
+            $progress->setUnit($lesson->getUnit());
+            $progress->setLanguage($data['language']);
+        }
+
+        $progress->setStatus($data['status']);
+        $progress->setLastUpdate(new \DateTime());
+
+        $this->em->persist($progress);
+        $this->em->flush();
+
+        return $this->json([
+            'id' => $progress->getId(),
+            'learnerUid' => $learner->getUid(),
+            'lessonId' => $lesson->getId(),
+            'language' => $progress->getLanguage(),
+            'status' => $progress->getStatus(),
+            'lastUpdate' => $progress->getLastUpdate()->format(DATE_ATOM)
+        ]);
+    }
+
+    #[Route('/{uid}/progress/{language}', name: 'get_language_progress', methods: ['GET'])]
+    public function getLanguageProgress(string $uid, string $language): JsonResponse
+    {
+        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        $progress = $this->em->getRepository(LanguageLearnerProgress::class)->findBy([
+            'learner' => $learner,
+            'language' => $language
+        ]);
+
+        $result = array_map(function ($p) {
+            return [
+                'id' => $p->getId(),
+                'lessonId' => $p->getLesson()->getId(),
+                'lessonTitle' => $p->getLesson()->getTitle(),
+                'unitId' => $p->getUnit()->getId(),
+                'status' => $p->getStatus(),
+                'lastUpdate' => $p->getLastUpdate()->format(DATE_ATOM)
+            ];
+        }, $progress);
+
+        return $this->json($result);
     }
 }

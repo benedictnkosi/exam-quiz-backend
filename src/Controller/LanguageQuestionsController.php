@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\LanguageQuestions;
 use App\Entity\LanguageQuestionTypes;
 use App\Entity\Lesson;
+use App\Entity\Word;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -28,6 +29,25 @@ class LanguageQuestionsController extends AbstractController
         $type = $this->em->getRepository(LanguageQuestionTypes::class)->findOneBy(['name' => $data['type']]);
         if (!$type) {
             return $this->json(['error' => 'Question type not found.'], 404);
+        }
+
+        // Validate select_image type
+        if ($type->getName() === 'select_image') {
+            $options = $data['content']['options'] ?? $data['options'] ?? [];
+            foreach ($options as $wordId) {
+                if (!is_numeric($wordId)) {
+                    return $this->json(['error' => 'Invalid word ID format: ' . $wordId], 400);
+                }
+
+                $word = $this->em->getRepository(Word::class)->find((int) $wordId);
+                if (!$word) {
+                    return $this->json(['error' => 'Word not found for ID: ' . $wordId], 404);
+                }
+
+                if (!$word->getImage()) {
+                    return $this->json(['error' => 'Word with ID ' . $wordId . ' does not have an image set.'], 400);
+                }
+            }
         }
 
         // Find lesson if lessonId is provided
@@ -133,6 +153,29 @@ class LanguageQuestionsController extends AbstractController
         }
         $data = json_decode($request->getContent(), true);
 
+        // Validate select_image type if type is being updated or is already select_image
+        $type = isset($data['type'])
+            ? $this->em->getRepository(LanguageQuestionTypes::class)->findOneBy(['name' => $data['type']])
+            : $q->getType();
+
+        if ($type->getName() === 'select_image') {
+            $options = $data['content']['options'] ?? $data['options'] ?? $q->getOptions() ?? [];
+            foreach ($options as $wordId) {
+                if (!is_numeric($wordId)) {
+                    return $this->json(['error' => 'Invalid word ID format: ' . $wordId], 400);
+                }
+
+                $word = $this->em->getRepository(Word::class)->find((int) $wordId);
+                if (!$word) {
+                    return $this->json(['error' => 'Word not found for ID: ' . $wordId], 404);
+                }
+
+                if (!$word->getImage()) {
+                    return $this->json(['error' => 'Word with ID ' . $wordId . ' does not have an image set.'], 400);
+                }
+            }
+        }
+
         // Handle content.options if it exists
         if (isset($data['content']) && isset($data['content']['options'])) {
             $q->setOptions($data['content']['options']);
@@ -235,8 +278,31 @@ class LanguageQuestionsController extends AbstractController
     {
         $questions = $this->em->getRepository(LanguageQuestions::class)->findBy(['lesson' => $lessonId], ['questionOrder' => 'ASC']);
         $result = array_map(function ($q) {
+            $options = $q->getOptions();
+            $optionsWithResources = [];
+
+            // If options are word IDs, fetch their resources
+            if (is_array($options)) {
+                foreach ($options as $wordId) {
+                    if (is_numeric($wordId)) {
+                        $word = $this->em->getRepository(Word::class)->find((int) $wordId);
+                        if ($word) {
+                            $optionsWithResources[] = [
+                                'id' => $word->getId(),
+                                'image' => $word->getImage(),
+                                'audio' => $word->getAudio(),
+                                'translations' => $word->getTranslations()
+                            ];
+                        }
+                    } else {
+                        $optionsWithResources[] = $wordId;
+                    }
+                }
+            }
+
             return [
                 'id' => $q->getId(),
+                'words' => $optionsWithResources,
                 'options' => $q->getOptions(),
                 'correctOption' => $q->getCorrectOption(),
                 'questionOrder' => $q->getQuestionOrder(),
