@@ -10,6 +10,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Response;
+use App\Entity\Unit;
+use App\Entity\Lesson;
+use App\Entity\LanguageQuestions;
+use App\Entity\Word;
 
 #[Route('/api/words')]
 class WordManagementController extends AbstractController
@@ -196,5 +200,54 @@ class WordManagementController extends AbstractController
             'groupId' => $word->getWordGroup()->getId(),
             'image' => $word->getImage()
         ]);
+    }
+
+    #[Route('/unit/{unitId}', name: 'get_words_by_unit', methods: ['GET'])]
+    public function getWordsByUnit(int $unitId): JsonResponse
+    {
+        // Get the unit
+        $unit = $this->em->getRepository(Unit::class)->find($unitId);
+        if (!$unit) {
+            return $this->json(['error' => 'Unit not found.'], 404);
+        }
+
+        // Get all lessons for this unit
+        $lessons = $this->em->getRepository(Lesson::class)->findBy(['unit' => $unitId]);
+
+        $words = [];
+        $processedWordIds = [];
+
+        // For each lesson, get its questions
+        foreach ($lessons as $lesson) {
+            $questions = $this->em->getRepository(LanguageQuestions::class)->findBy(['lesson' => $lesson->getId()]);
+
+            // For each question, get its words from options
+            foreach ($questions as $question) {
+                $options = $question->getOptions();
+                if (is_array($options)) {
+                    foreach ($options as $option) {
+                        if (is_numeric($option)) {
+                            $wordId = (int) $option;
+                            // Only process each word once
+                            if (!in_array($wordId, $processedWordIds)) {
+                                $word = $this->em->getRepository(Word::class)->find($wordId);
+                                if ($word) {
+                                    $words[] = [
+                                        'id' => $word->getId(),
+                                        'audio' => $word->getAudio(),
+                                        'translations' => $word->getTranslations(),
+                                        'groupId' => $word->getWordGroup()->getId(),
+                                        'image' => $word->getImage(),
+                                    ];
+                                    $processedWordIds[] = $wordId;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $this->json($words);
     }
 }
