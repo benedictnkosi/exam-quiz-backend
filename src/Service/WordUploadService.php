@@ -176,7 +176,7 @@ class WordUploadService
         }
 
         $files = [];
-        $audioFiles = glob($audioDirectory . '/*.{mp3,wav,ogg}', GLOB_BRACE);
+        $audioFiles = glob($audioDirectory . '/*.{mp3,wav,ogg,m4a}', GLOB_BRACE);
 
         foreach ($audioFiles as $file) {
             $filename = basename($file);

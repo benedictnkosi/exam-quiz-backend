@@ -44,6 +44,7 @@ class WordUploadController extends AbstractController
                     'mimeTypes' => [
                         'audio/mpeg',
                         'audio/mp3',
+                        'audio/m4a',
                         'audio/wav',
                         'audio/ogg',
                     ],
