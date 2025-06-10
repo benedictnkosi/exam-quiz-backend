@@ -55,27 +55,34 @@ class WordUploadService
             $cmdExtract = sprintf('sox "%s" "%s" trim 0 0.5', $tempFilePath, $noiseSample);
             exec($cmdExtract, $out1, $ret1);
             if ($ret1 !== 0) {
-                throw new \RuntimeException('Failed to extract noise sample for profile.');
+                $this->logger->warning('Failed to extract noise sample, saving original file');
+                copy($tempFilePath, $cleanedFile);
+            } else {
+                // Generate noise profile
+                $cmdProfile = sprintf('sox "%s" -n noiseprof "%s"', $noiseSample, $noiseProfile);
+                exec($cmdProfile, $out2, $ret2);
+                if ($ret2 !== 0) {
+                    $this->logger->warning('Failed to generate noise profile, saving original file');
+                    copy($tempFilePath, $cleanedFile);
+                } else {
+                    // Step 2: Apply noise reduction
+                    $cmdReduce = sprintf('sox "%s" "%s" noisered "%s" 0.21', $tempFilePath, $cleanedFile, $noiseProfile);
+                    exec($cmdReduce, $out3, $ret3);
+                    if ($ret3 !== 0) {
+                        $this->logger->warning('Failed to apply noise reduction, saving original file');
+                        copy($tempFilePath, $cleanedFile);
+                    }
+                }
             }
 
-            // Generate noise profile
-            $cmdProfile = sprintf('sox "%s" -n noiseprof "%s"', $noiseSample, $noiseProfile);
-            exec($cmdProfile, $out2, $ret2);
-            if ($ret2 !== 0) {
-                throw new \RuntimeException('Failed to generate noise profile.');
-            }
-
-            // Step 2: Apply noise reduction
-            $cmdReduce = sprintf('sox "%s" "%s" noisered "%s" 0.21', $tempFilePath, $cleanedFile, $noiseProfile);
-            exec($cmdReduce, $out3, $ret3);
-            if ($ret3 !== 0) {
-                throw new \RuntimeException('Failed to apply noise reduction.');
-            }
-
-            $this->logger->info('Audio noise reduction completed successfully');
+            $this->logger->info('Audio processing completed successfully');
 
         } catch (\Exception $e) {
             $this->logger->error('Error processing audio: ' . $e->getMessage());
+            // Save original file as fallback
+            if (file_exists($tempFilePath)) {
+                copy($tempFilePath, $cleanedFile);
+            }
             throw $e;
         } finally {
             // Clean up temporary directory
