@@ -31,9 +31,16 @@ class LanguageQuestionsController extends AbstractController
             return $this->json(['error' => 'Question type not found.'], 404);
         }
 
+        // Get options from either content.options or options field
+        $options = $data['content']['options'] ?? $data['options'] ?? [];
+
+        // Check for duplicate options
+        if (count($options) !== count(array_unique($options))) {
+            return $this->json(['error' => 'Duplicate options are not allowed.'], 400);
+        }
+
         // Validate select_image type
         if ($type->getName() === 'select_image') {
-            $options = $data['content']['options'] ?? $data['options'] ?? [];
             foreach ($options as $wordId) {
                 if (!is_numeric($wordId)) {
                     return $this->json(['error' => 'Invalid word ID format: ' . $wordId], 400);
