@@ -34,6 +34,12 @@ class LanguageQuestionsController extends AbstractController
         // Get options from either content.options or options field
         $options = $data['content']['options'] ?? $data['options'] ?? [];
 
+        // Remove empty options
+        $options = array_filter($options, function ($option) {
+            return $option !== "" && $option !== null;
+        });
+        $options = array_values($options); // Re-index array after filtering
+
         // Check for duplicate options
         if (count($options) !== count(array_unique($options))) {
             return $this->json(['error' => 'Duplicate options are not allowed.'], 400);
@@ -68,6 +74,11 @@ class LanguageQuestionsController extends AbstractController
 
         $question = new LanguageQuestions();
 
+        // Set matchType if provided in content
+        if (isset($data['content']) && isset($data['content']['matchType'])) {
+            $question->setMatchType($data['content']['matchType']);
+        }
+
         // Handle content.correct if it exists
         if (isset($data['content']) && isset($data['content']['correct'])) {
             $question->setCorrectOption($data['content']['correct']);
@@ -84,10 +95,10 @@ class LanguageQuestionsController extends AbstractController
                 $question->setOptions($data['content']['options']);
                 $question->setSentenceWords($data['content']['sentence']);
             } else if (isset($data['content']['options'])) {
-                $question->setOptions($data['content']['options']);
+                $question->setOptions($options); // Use filtered options
             }
         } else {
-            $question->setOptions($data['options']);
+            $question->setOptions($options); // Use filtered options
         }
 
         // Handle content.blankIndex if it exists
@@ -97,14 +108,44 @@ class LanguageQuestionsController extends AbstractController
             $question->setBlankIndex($data['blankIndex'] ?? null);
         }
 
+        // Handle content.direction if it exists
+        if (isset($data['content']) && isset($data['content']['direction'])) {
+            $question->setDirection($data['content']['direction']);
+        } else {
+            $question->setDirection($data['direction'] ?? null);
+        }
+
         $question->setQuestionOrder($data['questionOrder']);
         $question->setType($type);
         if (!isset($data['content']['possibleAnswers']) && !isset($data['content']['sentence'])) {
             $question->setSentenceWords($data['sentenceWords'] ?? null);
         }
-        $question->setDirection($data['direction'] ?? null);
         if ($lesson) {
             $question->setLesson($lesson);
+        }
+
+        // Check for duplicate questions
+        $existingQuestion = $this->em->getRepository(LanguageQuestions::class)->findOneBy([
+            'type' => $type,
+            'correctOption' => $question->getCorrectOption(),
+            'sentenceWords' => $question->getSentenceWords()
+        ]);
+
+        if ($existingQuestion) {
+            // Compare options arrays
+            $existingOptions = $existingQuestion->getOptions();
+            $newOptions = $question->getOptions();
+
+            if (
+                is_array($existingOptions) && is_array($newOptions) &&
+                count($existingOptions) === count($newOptions) &&
+                empty(array_diff($existingOptions, $newOptions))
+            ) {
+                return $this->json([
+                    'error' => 'A question with the same options, sentence words, type, and correct option already exists.',
+                    'existingQuestionId' => $existingQuestion->getId()
+                ], 409);
+            }
         }
 
         $this->em->persist($question);

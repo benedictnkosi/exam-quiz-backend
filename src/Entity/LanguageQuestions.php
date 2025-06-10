@@ -40,6 +40,9 @@ class LanguageQuestions
     #[ORM\JoinColumn(name: 'lesson_id', referencedColumnName: 'id')]
     private ?Lesson $lesson = null;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $matchType = null;
+
     // Getters and setters ...
     public function getId(): ?int
     {
@@ -131,6 +134,17 @@ class LanguageQuestions
     public function setLesson(?Lesson $lesson): self
     {
         $this->lesson = $lesson;
+        return $this;
+    }
+
+    public function getMatchType(): ?string
+    {
+        return $this->matchType;
+    }
+
+    public function setMatchType(?string $matchType): self
+    {
+        $this->matchType = $matchType;
         return $this;
     }
 }
