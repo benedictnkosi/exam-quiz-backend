@@ -75,9 +75,17 @@ class LanguageQuestionsController extends AbstractController
             $question->setCorrectOption($data['correctOption'] ?? null);
         }
 
-        // Handle content.options if it exists
-        if (isset($data['content']) && isset($data['content']['options'])) {
-            $question->setOptions($data['content']['options']);
+        // Handle content fields
+        if (isset($data['content'])) {
+            if (isset($data['content']['possibleAnswers']) && isset($data['content']['options'])) {
+                $question->setOptions($data['content']['possibleAnswers']);
+                $question->setSentenceWords($data['content']['options']);
+            } else if (isset($data['content']['sentence']) && isset($data['content']['options'])) {
+                $question->setOptions($data['content']['options']);
+                $question->setSentenceWords($data['content']['sentence']);
+            } else if (isset($data['content']['options'])) {
+                $question->setOptions($data['content']['options']);
+            }
         } else {
             $question->setOptions($data['options']);
         }
@@ -91,7 +99,9 @@ class LanguageQuestionsController extends AbstractController
 
         $question->setQuestionOrder($data['questionOrder']);
         $question->setType($type);
-        $question->setSentenceWords($data['sentenceWords'] ?? null);
+        if (!isset($data['content']['possibleAnswers']) && !isset($data['content']['sentence'])) {
+            $question->setSentenceWords($data['sentenceWords'] ?? null);
+        }
         $question->setDirection($data['direction'] ?? null);
         if ($lesson) {
             $question->setLesson($lesson);
