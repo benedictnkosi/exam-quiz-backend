@@ -32,10 +32,8 @@ class WordUploadController extends AbstractController
                 return $this->json(['error' => 'No file uploaded'], Response::HTTP_BAD_REQUEST);
             }
 
-            $word = $request->request->get('word');
-            if (!$word) {
-                return $this->json(['error' => 'Word is required'], Response::HTTP_BAD_REQUEST);
-            }
+            $startTime = $request->request->get('startTime');
+            $endTime = $request->request->get('endTime');
 
             // Validate the file
             $violations = $this->validator->validate($file, [
@@ -47,8 +45,10 @@ class WordUploadController extends AbstractController
                         'audio/m4a',
                         'audio/wav',
                         'audio/ogg',
+                        'audio/webm',
+                        'video/webm',
                     ],
-                    'mimeTypesMessage' => 'Please upload a valid audio file (MP3, WAV, or OGG)',
+                    'mimeTypesMessage' => 'Please upload a valid audio file (MP3, WAV, OGG, or WebM)',
                 ])
             ]);
 
@@ -56,7 +56,7 @@ class WordUploadController extends AbstractController
                 return $this->json(['error' => (string) $violations], Response::HTTP_BAD_REQUEST);
             }
 
-            $result = $this->uploadService->uploadAudio($file, $word);
+            $result = $this->uploadService->uploadAudio($file, $startTime, $endTime);
 
             return new JsonResponse([
                 'message' => 'Audio file uploaded successfully',

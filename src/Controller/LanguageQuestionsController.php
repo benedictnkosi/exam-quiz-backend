@@ -368,6 +368,7 @@ class LanguageQuestionsController extends AbstractController
                 'blankIndex' => $q->getBlankIndex(),
                 'sentenceWords' => $q->getSentenceWords(),
                 'direction' => $q->getDirection(),
+                'matchType' => $q->getMatchType()
             ];
         }, $questions);
         return $this->json($result);
