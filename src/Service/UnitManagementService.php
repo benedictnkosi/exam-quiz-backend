@@ -21,6 +21,7 @@ class UnitManagementService
         $unit->setUnitId($data['unitId']);
         $unit->setUnitOrder($data['unitOrder']);
         $unit->setAvailableLanguages($data['availableLanguages'] ?? []);
+        $unit->setDescription($data['description'] ?? null);
         $this->em->persist($unit);
         $this->em->flush();
         return $unit;
@@ -75,6 +76,9 @@ class UnitManagementService
         }
         if (isset($data['availableLanguages'])) {
             $unit->setAvailableLanguages($data['availableLanguages']);
+        }
+        if (isset($data['description'])) {
+            $unit->setDescription($data['description']);
         }
         $this->em->flush();
         return $unit;

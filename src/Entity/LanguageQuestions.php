@@ -43,6 +43,9 @@ class LanguageQuestions
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $matchType = null;
 
+    #[ORM\Column(type: 'string', length: 20)]
+    private string $status = 'approved';
+
     // Getters and setters ...
     public function getId(): ?int
     {
@@ -145,6 +148,17 @@ class LanguageQuestions
     public function setMatchType(?string $matchType): self
     {
         $this->matchType = $matchType;
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): self
+    {
+        $this->status = $status;
         return $this;
     }
 }

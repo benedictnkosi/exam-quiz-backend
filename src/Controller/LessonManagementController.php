@@ -65,6 +65,7 @@ class LessonManagementController extends AbstractController
                 'unitId' => $unit->getId(),
                 'unitOrder' => $unit->getUnitOrder(),
                 'unitName' => $unit->getTitle(),
+                'unitDescription' => $unit->getDescription(),
                 'hasLanguage' => $hasLanguage
             ];
         }, $lessons);

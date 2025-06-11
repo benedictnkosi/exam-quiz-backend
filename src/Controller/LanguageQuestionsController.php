@@ -334,7 +334,10 @@ class LanguageQuestionsController extends AbstractController
     #[Route('/lesson/{lessonId}', name: 'get_questions_by_lesson', methods: ['GET'])]
     public function getQuestionsByLesson(int $lessonId): JsonResponse
     {
-        $questions = $this->em->getRepository(LanguageQuestions::class)->findBy(['lesson' => $lessonId], ['questionOrder' => 'ASC']);
+        $questions = $this->em->getRepository(LanguageQuestions::class)->findBy(
+            ['lesson' => $lessonId, 'status' => 'approved'],
+            ['questionOrder' => 'ASC']
+        );
         $result = array_map(function ($q) {
             $options = $q->getOptions();
             $optionsWithResources = [];
@@ -372,5 +375,20 @@ class LanguageQuestionsController extends AbstractController
             ];
         }, $questions);
         return $this->json($result);
+    }
+
+    #[Route('/{id}/report', name: 'report_question', methods: ['POST'])]
+    public function reportQuestion(
+        LanguageQuestions $question
+    ): JsonResponse {
+        $question->setStatus('rejected');
+
+        $this->em->persist($question);
+        $this->em->flush();
+
+        return $this->json([
+            'message' => 'Question reported successfully',
+            'status' => $question->getStatus()
+        ]);
     }
 }

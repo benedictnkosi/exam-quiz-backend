@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\LanguageLearner;
 use App\Entity\Lesson;
 use App\Entity\LanguageLearnerProgress;
+use App\Service\LanguageLearnerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,10 +16,12 @@ use Symfony\Component\Routing\Annotation\Route;
 class LanguageLearnerController extends AbstractController
 {
     private EntityManagerInterface $em;
+    private LanguageLearnerService $learnerService;
 
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(EntityManagerInterface $em, LanguageLearnerService $learnerService)
     {
         $this->em = $em;
+        $this->learnerService = $learnerService;
     }
 
     #[Route('', name: 'add_language_learner', methods: ['POST'])]
@@ -241,9 +244,14 @@ class LanguageLearnerController extends AbstractController
             $progress->setLesson($lesson);
             $progress->setUnit($lesson->getUnit());
             $progress->setLanguage($data['language']);
+            $progress->setStatus($data['status']);
+        } else {
+            // Only update status if the lesson is not already completed
+            if ($progress->getStatus() !== 'completed') {
+                $progress->setStatus($data['status']);
+            }
         }
 
-        $progress->setStatus($data['status']);
         $progress->setLastUpdate(new \DateTime());
 
         $this->em->persist($progress);
@@ -284,5 +292,47 @@ class LanguageLearnerController extends AbstractController
         }, $progress);
 
         return $this->json($result);
+    }
+
+    #[Route('/{uid}/increment-points', name: 'increment_learner_points', methods: ['POST'])]
+    public function incrementPoints(string $uid, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['points']) || !is_numeric($data['points'])) {
+            return $this->json(['error' => 'Invalid points value'], 400);
+        }
+
+        if (!isset($data['lessonId'])) {
+            return $this->json(['error' => 'Lesson ID is required'], 400);
+        }
+
+        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        // Check if the lesson is already completed
+        $progress = $this->em->getRepository(LanguageLearnerProgress::class)->findOneBy([
+            'learner' => $learner,
+            'lesson' => $data['lessonId']
+        ]);
+
+        if ($progress && $progress->getStatus() === 'completed') {
+            return $this->json([
+                'id' => $learner->getId(),
+                'uid' => $learner->getUid(),
+                'points' => $learner->getPoints(),
+                'message' => 'Points not awarded - lesson already completed'
+            ]);
+        }
+
+        $this->learnerService->incrementPoints($learner, (int) $data['points']);
+
+        return $this->json([
+            'id' => $learner->getId(),
+            'uid' => $learner->getUid(),
+            'points' => $learner->getPoints()
+        ]);
     }
 }

@@ -30,6 +30,7 @@ class UnitManagementController extends AbstractController
             'unitId' => $unit->getUnitId(),
             'unitOrder' => $unit->getUnitOrder(),
             'availableLanguages' => $unit->getAvailableLanguages(),
+            'description' => $unit->getDescription(),
         ]);
     }
 
@@ -44,6 +45,7 @@ class UnitManagementController extends AbstractController
                 'unitId' => $unit->getUnitId(),
                 'unitOrder' => $unit->getUnitOrder(),
                 'availableLanguages' => $unit->getAvailableLanguages(),
+                'description' => $unit->getDescription(),
             ];
         }, $units);
         return $this->json($result);
@@ -64,6 +66,7 @@ class UnitManagementController extends AbstractController
                 'unitId' => $unit->getUnitId(),
                 'unitOrder' => $unit->getUnitOrder(),
                 'availableLanguages' => $unit->getAvailableLanguages(),
+                'description' => $unit->getDescription(),
             ];
         }, $units);
         return $this->json($result);
@@ -93,6 +96,7 @@ class UnitManagementController extends AbstractController
             'unitId' => $unit->getUnitId(),
             'unitOrder' => $unit->getUnitOrder(),
             'availableLanguages' => $unit->getAvailableLanguages(),
+            'description' => $unit->getDescription(),
         ]);
     }
 
@@ -112,6 +116,7 @@ class UnitManagementController extends AbstractController
             'unitId' => $unit->getUnitId(),
             'unitOrder' => $unit->getUnitOrder(),
             'availableLanguages' => $unit->getAvailableLanguages(),
+            'description' => $unit->getDescription(),
         ]);
     }
 }

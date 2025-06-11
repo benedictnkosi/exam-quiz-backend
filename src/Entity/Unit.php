@@ -25,6 +25,9 @@ class Unit
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $availableLanguages = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $description = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -71,6 +74,17 @@ class Unit
     public function setAvailableLanguages(?array $availableLanguages): self
     {
         $this->availableLanguages = $availableLanguages;
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): self
+    {
+        $this->description = $description;
         return $this;
     }
 
