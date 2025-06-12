@@ -96,6 +96,10 @@ class LanguageQuestionsController extends AbstractController
             } else if (isset($data['content']['options'])) {
                 $question->setOptions($data['content']['options']);
             }
+
+            if (isset($data['content']['sentence'])) {
+                $question->setSentenceWords($data['content']['sentence']);
+            }
         } else {
             $question->setOptions($options); // Use filtered options
         }
@@ -274,6 +278,10 @@ class LanguageQuestionsController extends AbstractController
         if (array_key_exists('sentenceWords', $data)) {
             $q->setSentenceWords($data['sentenceWords']);
         }
+        if (array_key_exists('sentence', $data)) {
+            $q->setSentenceWords($data['sentence']);
+        }
+
         if (array_key_exists('direction', $data)) {
             $q->setDirection($data['direction']);
         }
