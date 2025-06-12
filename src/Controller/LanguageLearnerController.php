@@ -335,4 +335,27 @@ class LanguageLearnerController extends AbstractController
             'points' => $learner->getPoints()
         ]);
     }
+
+    #[Route('/{uid}/name', name: 'update_learner_name', methods: ['PUT'])]
+    public function updateLearnerName(string $uid, Request $request): JsonResponse
+    {
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['name'])) {
+            return $this->json(['error' => 'Name is required'], 400);
+        }
+
+        $learner->setName($data['name']);
+        $this->em->flush();
+
+        return $this->json([
+            'id' => $learner->getId(),
+            'uid' => $learner->getUid(),
+            'name' => $learner->getName()
+        ]);
+    }
 }
