@@ -88,14 +88,13 @@ class LanguageQuestionsController extends AbstractController
 
         // Handle content fields
         if (isset($data['content'])) {
-            if (isset($data['content']['possibleAnswers']) && isset($data['content']['options'])) {
+            if (isset($data['content']['possibleAnswers'])) {
                 $question->setOptions($data['content']['possibleAnswers']);
-                $question->setSentenceWords($data['content']['options']);
-            } else if (isset($data['content']['sentence']) && isset($data['content']['options'])) {
-                $question->setOptions($data['content']['options']);
-                $question->setSentenceWords($data['content']['sentence']);
+                if (isset($data['content']['options'])) {
+                    $question->setSentenceWords($data['content']['options']);
+                }
             } else if (isset($data['content']['options'])) {
-                $question->setOptions($options); // Use filtered options
+                $question->setOptions($data['content']['options']);
             }
         } else {
             $question->setOptions($options); // Use filtered options
