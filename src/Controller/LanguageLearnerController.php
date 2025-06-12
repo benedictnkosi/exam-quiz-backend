@@ -2,10 +2,10 @@
 
 namespace App\Controller;
 
-use App\Entity\LanguageLearner;
 use App\Entity\Lesson;
 use App\Entity\LanguageLearnerProgress;
-use App\Service\LanguageLearnerService;
+use App\Service\LearnerService;
+use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,9 +16,9 @@ use Symfony\Component\Routing\Annotation\Route;
 class LanguageLearnerController extends AbstractController
 {
     private EntityManagerInterface $em;
-    private LanguageLearnerService $learnerService;
+    private LearnerService $learnerService;
 
-    public function __construct(EntityManagerInterface $em, LanguageLearnerService $learnerService)
+    public function __construct(EntityManagerInterface $em, LearnerService $learnerService)
     {
         $this->em = $em;
         $this->learnerService = $learnerService;
@@ -28,7 +28,7 @@ class LanguageLearnerController extends AbstractController
     public function addLanguageLearner(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $learner = new LanguageLearner();
+        $learner = new Learner();
         $learner->setUid($data['uid']);
         $learner->setName($data['name']);
         $learner->setCreated(new \DateTime($data['created'] ?? 'now'));
@@ -42,7 +42,7 @@ class LanguageLearnerController extends AbstractController
         $learner->setFollowMeCode($data['followMeCode']);
         $learner->setVersion($data['version']);
         $learner->setOs($data['os']);
-        $learner->setReminders($data['reminders']);
+        $learner->setSubscription($data['subscription'] ?? 'free');
         $this->em->persist($learner);
         $this->em->flush();
         return $this->json([
@@ -60,14 +60,14 @@ class LanguageLearnerController extends AbstractController
             'followMeCode' => $learner->getFollowMeCode(),
             'version' => $learner->getVersion(),
             'os' => $learner->getOs(),
-            'reminders' => $learner->getReminders(),
+            'subscription' => $learner->getSubscription()
         ]);
     }
 
     #[Route('', name: 'get_language_learners', methods: ['GET'])]
     public function getLanguageLearners(): JsonResponse
     {
-        $learners = $this->em->getRepository(LanguageLearner::class)->findAll();
+        $learners = $this->em->getRepository(Learner::class)->findAll();
         $result = array_map(function ($l) {
             return [
                 'id' => $l->getId(),
@@ -84,7 +84,7 @@ class LanguageLearnerController extends AbstractController
                 'followMeCode' => $l->getFollowMeCode(),
                 'version' => $l->getVersion(),
                 'os' => $l->getOs(),
-                'reminders' => $l->getReminders(),
+                'subscription' => $l->getSubscription()
             ];
         }, $learners);
         return $this->json($result);
@@ -93,7 +93,7 @@ class LanguageLearnerController extends AbstractController
     #[Route('/{id}', name: 'get_language_learner', methods: ['GET'])]
     public function getLanguageLearner(int $id): JsonResponse
     {
-        $l = $this->em->getRepository(LanguageLearner::class)->find($id);
+        $l = $this->em->getRepository(Learner::class)->find($id);
         if (!$l) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -112,14 +112,14 @@ class LanguageLearnerController extends AbstractController
             'followMeCode' => $l->getFollowMeCode(),
             'version' => $l->getVersion(),
             'os' => $l->getOs(),
-            'reminders' => $l->getReminders(),
+            'subscription' => $l->getSubscription()
         ]);
     }
 
     #[Route('/{id}', name: 'update_language_learner', methods: ['PUT'])]
     public function updateLanguageLearner(int $id, Request $request): JsonResponse
     {
-        $l = $this->em->getRepository(LanguageLearner::class)->find($id);
+        $l = $this->em->getRepository(Learner::class)->find($id);
         if (!$l) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -150,8 +150,8 @@ class LanguageLearnerController extends AbstractController
             $l->setVersion($data['version']);
         if (isset($data['os']))
             $l->setOs($data['os']);
-        if (isset($data['reminders']))
-            $l->setReminders($data['reminders']);
+        if (isset($data['subscription']))
+            $l->setSubscription($data['subscription']);
         $this->em->flush();
         return $this->json([
             'id' => $l->getId(),
@@ -168,14 +168,14 @@ class LanguageLearnerController extends AbstractController
             'followMeCode' => $l->getFollowMeCode(),
             'version' => $l->getVersion(),
             'os' => $l->getOs(),
-            'reminders' => $l->getReminders(),
+            'subscription' => $l->getSubscription()
         ]);
     }
 
     #[Route('/{id}', name: 'delete_language_learner', methods: ['DELETE'])]
     public function deleteLanguageLearner(int $id): JsonResponse
     {
-        $l = $this->em->getRepository(LanguageLearner::class)->find($id);
+        $l = $this->em->getRepository(Learner::class)->find($id);
         if (!$l) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -187,7 +187,7 @@ class LanguageLearnerController extends AbstractController
     #[Route('/uid/{uid}', name: 'get_language_learner_by_uid', methods: ['GET'])]
     public function getLanguageLearnerByUid(string $uid): JsonResponse
     {
-        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$learner) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -206,14 +206,14 @@ class LanguageLearnerController extends AbstractController
             'followMeCode' => $learner->getFollowMeCode(),
             'version' => $learner->getVersion(),
             'os' => $learner->getOs(),
-            'reminders' => $learner->getReminders(),
+            'subscription' => $learner->getSubscription()
         ]);
     }
 
     #[Route('/{uid}/progress', name: 'add_lesson_progress', methods: ['POST'])]
     public function addLessonProgress(string $uid, Request $request): JsonResponse
     {
-        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$learner) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -270,7 +270,7 @@ class LanguageLearnerController extends AbstractController
     #[Route('/{uid}/progress/{language}', name: 'get_language_progress', methods: ['GET'])]
     public function getLanguageProgress(string $uid, string $language): JsonResponse
     {
-        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$learner) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -307,7 +307,7 @@ class LanguageLearnerController extends AbstractController
             return $this->json(['error' => 'Lesson ID is required'], 400);
         }
 
-        $learner = $this->em->getRepository(LanguageLearner::class)->findOneBy(['uid' => $uid]);
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$learner) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }

@@ -235,8 +235,16 @@ class LanguageQuestionsController extends AbstractController
         }
 
         // Handle content.options if it exists
-        if (isset($data['content']) && isset($data['content']['options'])) {
-            $q->setOptions($data['content']['options']);
+        if (isset($data['content'])) {
+            if (isset($data['content']['possibleAnswers'])) {
+                $q->setOptions($data['content']['possibleAnswers']);
+                // Set sentenceWords as array from options
+                if (isset($data['content']['options'])) {
+                    $q->setSentenceWords($data['content']['options']);
+                }
+            } else if (isset($data['content']['options'])) {
+                $q->setOptions($data['content']['options']);
+            }
         } else if (isset($data['options'])) {
             $q->setOptions($data['options']);
         }

@@ -14,9 +14,9 @@ class LanguageLearnerProgress
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: LanguageLearner::class)]
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
     #[ORM\JoinColumn(nullable: false)]
-    private ?LanguageLearner $learner = null;
+    private ?Learner $learner = null;
 
     #[ORM\ManyToOne(targetEntity: Unit::class)]
     #[ORM\JoinColumn(nullable: false)]
@@ -40,12 +40,12 @@ class LanguageLearnerProgress
         return $this->id;
     }
 
-    public function getLearner(): ?LanguageLearner
+    public function getLearner(): ?Learner
     {
         return $this->learner;
     }
 
-    public function setLearner(?LanguageLearner $learner): static
+    public function setLearner(?Learner $learner): static
     {
         $this->learner = $learner;
         return $this;

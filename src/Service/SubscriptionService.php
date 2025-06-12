@@ -45,6 +45,7 @@ class SubscriptionService
 
     public function updateLearnerSubscriptionByUid(string $learnerUid, ?string $subscription): Learner
     {
+        // Find learner in the main learner table
         $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['uid' => $learnerUid]);
 
         if (!$learner) {

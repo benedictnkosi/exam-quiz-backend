@@ -2,56 +2,28 @@
 
 namespace App\Service;
 
-use App\Repository\LearnerRepository;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Entity\Learner;
+use Doctrine\ORM\EntityManagerInterface;
 
 class LearnerService
 {
-    public function __construct(
-        private readonly LearnerRepository $learnerRepository
-    ) {
+    private EntityManagerInterface $em;
+
+    public function __construct(EntityManagerInterface $em)
+    {
+        $this->em = $em;
     }
 
-    /**
-     * Get learner's grade by UID
-     * 
-     * @param string $uid
-     * @return int
-     * @throws NotFoundHttpException if learner not found
-     */
-    public function getLearnerGrade(string $uid): int
+    public function incrementPoints(Learner $learner, int $points): void
     {
-        $learner = $this->learnerRepository->findOneBy(['uid' => $uid]);
-
-        if (!$learner) {
-            throw new NotFoundHttpException('Learner not found');
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Points must be a positive number');
         }
 
-        $grade = $learner->getGrade();
-        if (!$grade) {
-            throw new NotFoundHttpException('Learner grade not found');
-        }
+        $currentPoints = $learner->getPoints();
+        $learner->setPoints($currentPoints + $points);
 
-        return $grade->getNumber();
-    }
-
-    /**
-     * Update learner's terms
-     * 
-     * @param string $uid
-     * @param string $terms
-     * @return void
-     * @throws NotFoundHttpException if learner not found
-     */
-    public function updateLearnerTerms(string $uid, string $terms): void
-    {
-        $learner = $this->learnerRepository->findOneBy(['uid' => $uid]);
-
-        if (!$learner) {
-            throw new NotFoundHttpException('Learner not found');
-        }
-
-        $learner->setTerms($terms);
-        $this->learnerRepository->save($learner, true);
+        $this->em->persist($learner);
+        $this->em->flush();
     }
 }
