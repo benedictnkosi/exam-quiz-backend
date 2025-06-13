@@ -215,13 +215,26 @@ class LanguageQuestionsController extends AbstractController
         }
         $data = json_decode($request->getContent(), true);
 
+        // Get options from either content.options or options field
+        $options = $data['content']['options'] ?? $data['options'] ?? [];
+
+        // Remove empty options
+        $options = array_filter($options, function ($option) {
+            return $option !== "" && $option !== null;
+        });
+        $options = array_values($options); // Re-index array after filtering
+
+        // Check for duplicate options
+        if (count($options) !== count(array_unique($options))) {
+            return $this->json(['error' => 'Duplicate options are not allowed.'], 400);
+        }
+
         // Validate select_image type if type is being updated or is already select_image
         $type = isset($data['type'])
             ? $this->em->getRepository(LanguageQuestionTypes::class)->findOneBy(['name' => $data['type']])
             : $q->getType();
 
         if ($type->getName() === 'select_image') {
-            $options = $data['content']['options'] ?? $data['options'] ?? $q->getOptions() ?? [];
             foreach ($options as $wordId) {
                 if (!is_numeric($wordId)) {
                     return $this->json(['error' => 'Invalid word ID format: ' . $wordId], 400);
@@ -238,11 +251,22 @@ class LanguageQuestionsController extends AbstractController
             }
         }
 
-        // Handle content.options if it exists
+        // Set matchType if provided in content
+        if (isset($data['content']) && isset($data['content']['matchType'])) {
+            $q->setMatchType($data['content']['matchType']);
+        }
+
+        // Handle content.correct if it exists
+        if (isset($data['content']) && isset($data['content']['correct'])) {
+            $q->setCorrectOption($data['content']['correct']);
+        } else {
+            $q->setCorrectOption($data['correctOption'] ?? null);
+        }
+
+        // Handle content fields
         if (isset($data['content'])) {
             if (isset($data['content']['possibleAnswers'])) {
                 $q->setOptions($data['content']['possibleAnswers']);
-                // Set sentenceWords as array from options
                 if (isset($data['content']['options'])) {
                     $q->setSentenceWords($data['content']['options']);
                 }
@@ -253,40 +277,36 @@ class LanguageQuestionsController extends AbstractController
             if (isset($data['content']['sentence'])) {
                 $q->setSentenceWords($data['content']['sentence']);
             }
-        } else if (isset($data['options'])) {
-            $q->setOptions($data['options']);
-        }
-
-        // Handle content.correct if it exists
-        if (isset($data['content']) && isset($data['content']['correct'])) {
-            $q->setCorrectOption($data['content']['correct']);
-        } else if (array_key_exists('correctOption', $data)) {
-            $q->setCorrectOption($data['correctOption']);
+            if (isset($data['content']['sentenceWords'])) {
+                $q->setSentenceWords($data['content']['sentenceWords'] ?? null);
+            }
+        } else {
+            $q->setOptions($options); // Use filtered options
         }
 
         // Handle content.blankIndex if it exists
         if (isset($data['content']) && isset($data['content']['blankIndex'])) {
             $q->setBlankIndex($data['content']['blankIndex']);
-        } else if (array_key_exists('blankIndex', $data)) {
-            $q->setBlankIndex($data['blankIndex']);
+        } else {
+            $q->setBlankIndex($data['blankIndex'] ?? null);
+        }
+
+        // Handle content.direction if it exists
+        if (isset($data['content']) && isset($data['content']['direction'])) {
+            $q->setDirection($data['content']['direction']);
+        } else {
+            $q->setDirection($data['direction'] ?? null);
         }
 
         if (isset($data['questionOrder'])) {
             $q->setQuestionOrder($data['questionOrder']);
         }
+
         if (isset($data['type'])) {
             $type = $this->em->getRepository(LanguageQuestionTypes::class)->findOneBy(['name' => $data['type']]);
             if ($type) {
                 $q->setType($type);
             }
-        }
-        if (array_key_exists('sentenceWords', $data)) {
-            $q->setSentenceWords($data['sentenceWords']);
-        }
-
-
-        if (array_key_exists('direction', $data)) {
-            $q->setDirection($data['direction']);
         }
 
         // Handle lesson update if lessonId is provided
