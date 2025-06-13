@@ -193,7 +193,7 @@ class WordUploadService
         // Generate a unique filename
         $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $safeFilename = $this->slugger->slug($originalFilename);
-        $newFilename = $safeFilename . '-' . uniqid() . '.jpg';
+        $newFilename = $safeFilename . '-' . uniqid() . '.png';
 
         // Create images directory if it doesn't exist
         $imagesDirectory = $this->uploadDirectory . '/images';
@@ -201,13 +201,12 @@ class WordUploadService
             mkdir($imagesDirectory, 0777, true);
         }
 
-        // Process and compress the image
+        // Process the image while preserving transparency
         $image = $this->imageManager->read($file->getPathname());
-        $image->scaleDown(512); // Max width/height of 1920px
-        $image->toJpeg(90); // 90% quality
+        $image->scaleDown(width: 200); // Reduce width to 200px while maintaining aspect ratio
 
-        // Save the compressed image
-        $image->save($imagesDirectory . '/' . $newFilename);
+        // Optimize the image size while preserving transparency
+        $image->save($imagesDirectory . '/' . $newFilename, quality: 80);
 
         $this->logger->info('Image upload completed successfully for word: ' . $word);
 
