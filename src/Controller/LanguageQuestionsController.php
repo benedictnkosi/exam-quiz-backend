@@ -100,6 +100,9 @@ class LanguageQuestionsController extends AbstractController
             if (isset($data['content']['sentence'])) {
                 $question->setSentenceWords($data['content']['sentence']);
             }
+            if (isset($data['content']['sentenceWords'])) {
+                $question->setSentenceWords($data['content']['sentenceWords'] ?? null);
+            }
         } else {
             $question->setOptions($options); // Use filtered options
         }
@@ -120,9 +123,7 @@ class LanguageQuestionsController extends AbstractController
 
         $question->setQuestionOrder($data['questionOrder']);
         $question->setType($type);
-        if (!isset($data['content']['possibleAnswers']) && !isset($data['content']['sentence'])) {
-            $question->setSentenceWords($data['sentenceWords'] ?? null);
-        }
+
         if ($lesson) {
             $question->setLesson($lesson);
         }

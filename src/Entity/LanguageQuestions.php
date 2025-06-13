@@ -14,8 +14,8 @@ class LanguageQuestions
     #[ORM\Column(type: 'integer')]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'json')]
-    private array $options;
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $options = null;
 
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $correctOption = null;
@@ -52,12 +52,12 @@ class LanguageQuestions
         return $this->id;
     }
 
-    public function getOptions(): array
+    public function getOptions(): ?array
     {
         return $this->options;
     }
 
-    public function setOptions(array $options): self
+    public function setOptions(?array $options): self
     {
         $this->options = $options;
         return $this;
