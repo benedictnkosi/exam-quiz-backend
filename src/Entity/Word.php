@@ -21,6 +21,9 @@ class Word
     private ?array $audio = null;
 
     #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $audioCapturers = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
     private ?array $translations = null;
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
@@ -50,6 +53,17 @@ class Word
     public function setAudio(?array $audio): self
     {
         $this->audio = $audio;
+        return $this;
+    }
+
+    public function getAudioCapturers(): ?array
+    {
+        return $this->audioCapturers;
+    }
+
+    public function setAudioCapturers(?array $audioCapturers): self
+    {
+        $this->audioCapturers = $audioCapturers;
         return $this;
     }
 

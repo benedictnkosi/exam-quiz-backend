@@ -14,6 +14,7 @@ use App\Entity\Unit;
 use App\Entity\Lesson;
 use App\Entity\LanguageQuestions;
 use App\Entity\Word;
+use App\Entity\Learner;
 
 #[Route('/api/words')]
 class WordManagementController extends AbstractController
@@ -94,14 +95,56 @@ class WordManagementController extends AbstractController
     public function addAudioToWord(int $id, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        if (!isset($data['languageCode'], $data['audioUrl'])) {
-            return $this->json(['error' => 'languageCode and audioUrl are required.'], 400);
+        if (!isset($data['languageCode'], $data['audioUrl'], $data['uid'])) {
+            return $this->json(['error' => 'languageCode, audioUrl and uid are required.'], 400);
         }
-        $audio = $this->wordService->addAudioToWord($id, $data['languageCode'], $data['audioUrl']);
-        if ($audio === null) {
+
+        $word = $this->em->getRepository(Word::class)->find($id);
+        if (!$word) {
             return $this->json(['error' => 'Word not found.'], 404);
         }
-        return $this->json(['audio' => $audio]);
+
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $data['uid']]);
+        if (!$learner) {
+            return $this->json(['error' => 'Learner not found.'], 404);
+        }
+
+        // Get current audio and capturers
+        $currentAudio = $word->getAudio() ?? [];
+        $currentCapturers = $word->getAudioCapturers() ?? [];
+
+        // Add new audio
+        $currentAudio[$data['languageCode']] = $data['audioUrl'];
+        $word->setAudio($currentAudio);
+
+        // Create new capturer info
+        $capturerInfo = [
+            'learnerId' => $learner->getId(),
+            'languageCode' => $data['languageCode'],
+            'date' => (new \DateTime())->format('Y-m-d H:i:s')
+        ];
+
+        // Find and replace existing entry for this language, or add new one
+        $found = false;
+        foreach ($currentCapturers as $key => $capturer) {
+            if ($capturer['languageCode'] === $data['languageCode']) {
+                $currentCapturers[$key] = $capturerInfo;
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            $currentCapturers[] = $capturerInfo;
+        }
+
+        $word->setAudioCapturers($currentCapturers);
+        $this->em->flush();
+
+        return $this->json([
+            'audio' => $word->getAudio(),
+            'audioCapturers' => $word->getAudioCapturers()
+        ]);
     }
 
     #[Route('/all', name: 'get_all_words', methods: ['GET'])]
@@ -249,5 +292,72 @@ class WordManagementController extends AbstractController
         }
 
         return $this->json($words);
+    }
+
+    #[Route('/report/recordings', name: 'get_recordings_report', methods: ['GET'])]
+    public function getRecordingsReport(Request $request): JsonResponse
+    {
+        $fromDate = $request->query->get('fromDate');
+        $endDate = $request->query->get('endDate');
+
+        if (!$fromDate || !$endDate) {
+            return $this->json(['error' => 'fromDate and endDate are required.'], 400);
+        }
+
+        try {
+            $fromDateTime = new \DateTime($fromDate);
+            $endDateTime = new \DateTime($endDate);
+            $endDateTime->setTime(23, 59, 59); // Include the entire end date
+        } catch (\Exception $e) {
+            return $this->json(['error' => 'Invalid date format. Use YYYY-MM-DD.'], 400);
+        }
+
+        // Get all words with audio capturers
+        $words = $this->em->getRepository(Word::class)->findAll();
+
+        $report = [];
+        $learnerStats = [];
+
+        foreach ($words as $word) {
+            $audioCapturers = $word->getAudioCapturers() ?? [];
+
+            foreach ($audioCapturers as $capturer) {
+                $captureDate = new \DateTime($capturer['date']);
+
+                // Check if the capture date is within the range
+                if ($captureDate >= $fromDateTime && $captureDate <= $endDateTime) {
+                    $learnerId = $capturer['learnerId'];
+                    $languageCode = $capturer['languageCode'];
+
+                    // Initialize learner stats if not exists
+                    if (!isset($learnerStats[$learnerId])) {
+                        $learner = $this->em->getRepository(Learner::class)->find($learnerId);
+                        $learnerStats[$learnerId] = [
+                            'learnerId' => $learnerId,
+                            'learnerName' => $learner ? $learner->getName() : 'Unknown',
+                            'totalRecordings' => 0,
+
+                        ];
+                    }
+
+                    // Update stats
+                    $learnerStats[$learnerId]['totalRecordings']++;
+
+
+                }
+            }
+        }
+
+        // Convert to array and sort by total recordings
+        $report = array_values($learnerStats);
+        usort($report, function ($a, $b) {
+            return $b['totalRecordings'] - $a['totalRecordings'];
+        });
+
+        return $this->json([
+            'fromDate' => $fromDate,
+            'endDate' => $endDate,
+            'report' => $report
+        ]);
     }
 }
