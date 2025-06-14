@@ -46,6 +46,18 @@ class LanguageQuestions
     #[ORM\Column(type: 'string', length: 20)]
     private string $status = 'approved';
 
+    #[ORM\ManyToOne(targetEntity: Learner::class)]
+    #[ORM\JoinColumn(name: 'capturer_id', referencedColumnName: 'id')]
+    private ?Learner $capturer = null;
+
+    #[ORM\Column(type: 'datetime', options: ["default" => "CURRENT_TIMESTAMP"])]
+    private \DateTime $createdAt;
+
+    public function __construct()
+    {
+        $this->createdAt = new \DateTime();
+    }
+
     // Getters and setters ...
     public function getId(): ?int
     {
@@ -159,6 +171,29 @@ class LanguageQuestions
     public function setStatus(string $status): self
     {
         $this->status = $status;
+        return $this;
+    }
+
+    public function getCapturer(): ?Learner
+    {
+        return $this->capturer;
+    }
+
+    public function setCapturer(?Learner $capturer): self
+    {
+        $this->capturer = $capturer;
+        return $this;
+    }
+
+    public function getCreatedAt(): \DateTime
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTime $createdAt): self
+    {
+        // Always set to current time when creating a new question
+        $this->createdAt = new \DateTime();
         return $this;
     }
 }

@@ -6,6 +6,7 @@ use App\Entity\LanguageQuestions;
 use App\Entity\LanguageQuestionTypes;
 use App\Entity\Lesson;
 use App\Entity\Word;
+use App\Entity\Learner;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,9 +27,23 @@ class LanguageQuestionsController extends AbstractController
     public function addLanguageQuestion(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        // Remove createdAt if it exists in the request data
+        unset($data['createdAt']);
+
         $type = $this->em->getRepository(LanguageQuestionTypes::class)->findOneBy(['name' => $data['type']]);
         if (!$type) {
             return $this->json(['error' => 'Question type not found.'], 404);
+        }
+
+        // Validate capturer
+        if (!isset($data['capturerId'])) {
+            return $this->json(['error' => 'Capturer ID is required.'], 400);
+        }
+
+        $capturer = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $data['capturerId']]);
+        if (!$capturer) {
+            return $this->json(['error' => 'Capturer not found.'], 404);
         }
 
         // Get options from either content.options or options field
@@ -73,6 +88,7 @@ class LanguageQuestionsController extends AbstractController
         }
 
         $question = new LanguageQuestions();
+        $question->setCapturer($capturer);
 
         // Set matchType if provided in content
         if (isset($data['content']) && isset($data['content']['matchType'])) {
@@ -164,7 +180,9 @@ class LanguageQuestionsController extends AbstractController
             'blankIndex' => $question->getBlankIndex(),
             'sentenceWords' => $question->getSentenceWords(),
             'direction' => $question->getDirection(),
-            'lessonId' => $lesson ? $lesson->getId() : null
+            'lessonId' => $lesson ? $lesson->getId() : null,
+            'capturerId' => $question->getCapturer()->getId(),
+            'createdAt' => $question->getCreatedAt()->format('Y-m-d H:i:s')
         ]);
     }
 
@@ -182,6 +200,8 @@ class LanguageQuestionsController extends AbstractController
                 'blankIndex' => $q->getBlankIndex(),
                 'sentenceWords' => $q->getSentenceWords(),
                 'direction' => $q->getDirection(),
+                'capturerId' => $q->getCapturer() ? $q->getCapturer()->getId() : null,
+                'createdAt' => $q->getCreatedAt()->format('Y-m-d H:i:s')
             ];
         }, $questions);
         return $this->json($result);
@@ -203,6 +223,8 @@ class LanguageQuestionsController extends AbstractController
             'blankIndex' => $q->getBlankIndex(),
             'sentenceWords' => $q->getSentenceWords(),
             'direction' => $q->getDirection(),
+            'capturerId' => $q->getCapturer() ? $q->getCapturer()->getId() : null,
+            'createdAt' => $q->getCreatedAt()->format('Y-m-d H:i:s')
         ]);
     }
 
@@ -214,6 +236,9 @@ class LanguageQuestionsController extends AbstractController
             return $this->json(['error' => 'Language question not found.'], 404);
         }
         $data = json_decode($request->getContent(), true);
+
+        // Remove createdAt if it exists in the request data
+        unset($data['createdAt']);
 
         // Get options from either content.options or options field
         $options = $data['content']['options'] ?? $data['options'] ?? [];
@@ -427,6 +452,52 @@ class LanguageQuestionsController extends AbstractController
         return $this->json([
             'message' => 'Question reported successfully',
             'status' => $question->getStatus()
+        ]);
+    }
+
+    #[Route('/capturer/stats', name: 'get_capturer_stats', methods: ['GET'])]
+    public function getCapturerStats(Request $request): JsonResponse
+    {
+        $fromDate = $request->query->get('fromDate');
+        $endDate = $request->query->get('endDate');
+
+        if (!$fromDate || !$endDate) {
+            return $this->json([
+                'error' => 'Missing required parameters: fromDate and endDate are required'
+            ], 400);
+        }
+
+        try {
+            $fromDateTime = new \DateTime($fromDate);
+            $endDateTime = new \DateTime($endDate);
+            $endDateTime->setTime(23, 59, 59); // Set to end of day
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Invalid date format. Use YYYY-MM-DD format'
+            ], 400);
+        }
+
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('l.name as capturerName', 'COUNT(q.id) as questionCount')
+            ->from(LanguageQuestions::class, 'q')
+            ->join('q.capturer', 'l')
+            ->where('q.createdAt BETWEEN :fromDate AND :endDate')
+            ->groupBy('l.name')
+            ->orderBy('questionCount', 'DESC')
+            ->setParameter('fromDate', $fromDateTime)
+            ->setParameter('endDate', $endDateTime);
+
+        $results = $qb->getQuery()->getResult();
+
+        return $this->json([
+            'fromDate' => $fromDate,
+            'endDate' => $endDate,
+            'stats' => array_map(function ($result) {
+                return [
+                    'capturerName' => $result['capturerName'],
+                    'questionCount' => (int) $result['questionCount']
+                ];
+            }, $results)
         ]);
     }
 }
