@@ -90,9 +90,9 @@ class LanguageLearnerController extends AbstractController
     }
 
     #[Route('/{id}', name: 'get_language_learner', methods: ['GET'])]
-    public function getLanguageLearner(int $id): JsonResponse
+    public function getLanguageLearner(string $id): JsonResponse
     {
-        $l = $this->em->getRepository(Learner::class)->find($id);
+        $l = $this->em->getRepository(Learner::class)->find((int) $id);
         if (!$l) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
@@ -458,5 +458,63 @@ class LanguageLearnerController extends AbstractController
             'dailyLimit' => $dailyLimit,
             'hasReachedLimit' => $hasReachedLimit
         ]);
+    }
+
+    #[Route('/scoreboard/{uid}', name: 'get_learner_scoreboard', methods: ['GET'])]
+    public function getScoreboard(string $uid): JsonResponse
+    {
+        // Get all learners sorted by points, excluding those with 0 points
+        $learners = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
+            ->where('l.points > 0')
+            ->orderBy('l.points', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Get the current learner
+        $currentLearner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$currentLearner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        // If current learner has 0 points, return error
+        if ($currentLearner->getLanguagePoints() <= 0) {
+            return $this->json(['error' => 'No points earned yet.'], 400);
+        }
+
+        // Find current learner's position
+        $currentPosition = 0;
+        foreach ($learners as $index => $learner) {
+            if ($learner->getUid() === $uid) {
+                $currentPosition = $index + 1;
+                break;
+            }
+        }
+
+        // Get top 10 learners
+        $topLearners = array_slice($learners, 0, 10);
+
+        $result = [
+            'topLearners' => array_map(function ($learner) {
+                return [
+                    'id' => $learner->getId(),
+                    'uid' => $learner->getUid(),
+                    'name' => $learner->getName(),
+                    'points' => $learner->getLanguagePoints(),
+                    'avatar' => $learner->getAvatar(),
+                    'subscription' => $learner->getSubscription()
+                ];
+            }, $topLearners),
+            'currentLearner' => [
+                'id' => $currentLearner->getId(),
+                'uid' => $currentLearner->getUid(),
+                'name' => $currentLearner->getName(),
+                'points' => $currentLearner->getLanguagePoints(),
+                'avatar' => $currentLearner->getAvatar(),
+                'subscription' => $currentLearner->getSubscription(),
+                'position' => $currentPosition
+            ]
+        ];
+
+        return $this->json($result);
     }
 }
