@@ -36,6 +36,10 @@ class Learner
     #[Serializer\Groups(['learner:read'])]
     private int $readingPoints = 0;
 
+    #[ORM\Column(name: 'language_points', type: Types::INTEGER, options: ['default' => 0])]
+    #[Serializer\Groups(['learner:read'])]
+    private int $languagePoints = 0;
+
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
     #[Serializer\Groups(['learner:read'])]
     private ?string $name = null;
@@ -251,6 +255,17 @@ class Learner
     public function setReadingPoints(int $readingPoints): self
     {
         $this->readingPoints = $readingPoints;
+        return $this;
+    }
+
+    public function getLanguagePoints(): int
+    {
+        return $this->languagePoints;
+    }
+
+    public function setLanguagePoints(int $languagePoints): self
+    {
+        $this->languagePoints = $languagePoints;
         return $this;
     }
 

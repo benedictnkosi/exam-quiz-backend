@@ -76,8 +76,7 @@ class LanguageLearnerController extends AbstractController
                 'created' => $l->getCreated()->format(DATE_ATOM),
                 'lastSeen' => $l->getLastSeen()->format(DATE_ATOM),
                 'email' => $l->getEmail(),
-                'points' => $l->getPoints(),
-                'streak' => $l->getStreak(),
+                'points' => $l->getLanguagePoints(),
                 'streakLastUpdated' => $l->getStreakLastUpdated()->format(DATE_ATOM),
                 'avatar' => $l->getAvatar(),
                 'expoPushToken' => $l->getExpoPushToken(),
@@ -327,12 +326,12 @@ class LanguageLearnerController extends AbstractController
             ]);
         }
 
-        $this->learnerService->incrementPoints($learner, (int) $data['points']);
+        $this->learnerService->incrementLanguagePoints($learner, (int) $data['points']);
 
         return $this->json([
             'id' => $learner->getId(),
             'uid' => $learner->getUid(),
-            'points' => $learner->getPoints()
+            'points' => $learner->getLanguagePoints()
         ]);
     }
 
