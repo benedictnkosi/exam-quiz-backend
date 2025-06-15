@@ -415,4 +415,48 @@ class LanguageLearnerController extends AbstractController
             'calculatedFromProgress' => true
         ]);
     }
+
+    #[Route('/{uid}/lesson-limit', name: 'check_lesson_limit', methods: ['GET'])]
+    public function checkLessonLimit(string $uid): JsonResponse
+    {
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        // Get today's date at midnight
+        $today = new \DateTime();
+        $today->setTime(0, 0, 0);
+
+        // Get tomorrow's date at midnight
+        $tomorrow = clone $today;
+        $tomorrow->modify('+1 day');
+
+        // Count completed lessons for today
+        $completedLessons = $this->em->getRepository(LanguageLearnerProgress::class)->createQueryBuilder('p')
+            ->select('COUNT(DISTINCT p.lesson)')
+            ->where('p.learner = :learner')
+            ->andWhere('p.status = :status')
+            ->andWhere('p.lastUpdate >= :today')
+            ->andWhere('p.lastUpdate < :tomorrow')
+            ->setParameter('learner', $learner)
+            ->setParameter('status', 'completed')
+            ->setParameter('today', $today)
+            ->setParameter('tomorrow', $tomorrow)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Set limits based on subscription
+        $dailyLimit = $learner->getSubscription() === 'pro' ? 3 : 1;
+        $hasReachedLimit = $completedLessons >= $dailyLimit;
+
+        return $this->json([
+            'id' => $learner->getId(),
+            'uid' => $learner->getUid(),
+            'subscription' => $learner->getSubscription(),
+            'completedLessonsToday' => (int) $completedLessons,
+            'dailyLimit' => $dailyLimit,
+            'hasReachedLimit' => $hasReachedLimit
+        ]);
+    }
 }
