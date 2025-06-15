@@ -358,4 +358,64 @@ class LanguageLearnerController extends AbstractController
             'name' => $learner->getName()
         ]);
     }
+
+    #[Route('/{uid}/streak', name: 'get_learner_streak', methods: ['GET'])]
+    public function getLearnerStreak(string $uid): JsonResponse
+    {
+        $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
+        if (!$learner) {
+            return $this->json(['error' => 'Language learner not found.'], 404);
+        }
+
+        // Get all progress entries for this learner
+        $progressEntries = $this->em->getRepository(LanguageLearnerProgress::class)->findBy(
+            ['learner' => $learner],
+            ['lastUpdate' => 'DESC']
+        );
+
+        $currentStreak = 0;
+        $lastActivityDate = null;
+        $today = new \DateTime();
+        $today->setTime(0, 0, 0);
+
+        foreach ($progressEntries as $progress) {
+            $activityDate = clone $progress->getLastUpdate();
+            $activityDate->setTime(0, 0, 0);
+
+            // Skip if this is the same day as the last activity
+            if ($lastActivityDate && $activityDate == $lastActivityDate) {
+                continue;
+            }
+
+            // If this is the first activity we're checking
+            if ($lastActivityDate === null) {
+                // If the activity is from today or yesterday, start the streak
+                if ($activityDate == $today || $activityDate == (clone $today)->modify('-1 day')) {
+                    $currentStreak = 1;
+                    $lastActivityDate = $activityDate;
+                } else {
+                    break; // No streak if the last activity was more than a day ago
+                }
+            } else {
+                // Check if this activity was the day before the last activity
+                $expectedDate = clone $lastActivityDate;
+                $expectedDate->modify('-1 day');
+
+                if ($activityDate == $expectedDate) {
+                    $currentStreak++;
+                    $lastActivityDate = $activityDate;
+                } else {
+                    break; // Streak broken
+                }
+            }
+        }
+
+        return $this->json([
+            'id' => $learner->getId(),
+            'uid' => $learner->getUid(),
+            'streak' => $currentStreak,
+            'lastActivityDate' => $lastActivityDate ? $lastActivityDate->format(DATE_ATOM) : null,
+            'calculatedFromProgress' => true
+        ]);
+    }
 }
