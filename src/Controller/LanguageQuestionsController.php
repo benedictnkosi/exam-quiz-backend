@@ -394,16 +394,19 @@ class LanguageQuestionsController extends AbstractController
         }
     }
 
-    #[Route('/lesson/{lessonId}', name: 'get_questions_by_lesson', methods: ['GET'])]
-    public function getQuestionsByLesson(int $lessonId): JsonResponse
+    #[Route('/lesson/{lessonId}/language/{language}', name: 'get_questions_by_lesson', methods: ['GET'])]
+    public function getQuestionsByLesson(int $lessonId, string $language): JsonResponse
     {
         $questions = $this->em->getRepository(LanguageQuestions::class)->findBy(
             ['lesson' => $lessonId, 'status' => 'approved'],
             ['questionOrder' => 'ASC']
         );
-        $result = array_map(function ($q) {
+
+        $result = [];
+        foreach ($questions as $q) {
             $options = $q->getOptions();
             $optionsWithResources = [];
+            $hasValidTranslations = false;
 
             // If options are word IDs, fetch their resources
             if (is_array($options)) {
@@ -411,12 +414,17 @@ class LanguageQuestionsController extends AbstractController
                     if (is_numeric($wordId)) {
                         $word = $this->em->getRepository(Word::class)->find((int) $wordId);
                         if ($word) {
-                            $optionsWithResources[] = [
-                                'id' => $word->getId(),
-                                'image' => $word->getImage(),
-                                'audio' => $word->getAudio(),
-                                'translations' => $word->getTranslations()
-                            ];
+                            $translations = $word->getTranslations();
+                            // Check if translations exist and contain the requested language
+                            if (is_array($translations) && isset($translations[$language])) {
+                                $hasValidTranslations = true;
+                                $optionsWithResources[] = [
+                                    'id' => $word->getId(),
+                                    'image' => $word->getImage(),
+                                    'audio' => $word->getAudio(),
+                                    'translations' => $translations
+                                ];
+                            }
                         }
                     } else {
                         $optionsWithResources[] = $wordId;
@@ -424,19 +432,22 @@ class LanguageQuestionsController extends AbstractController
                 }
             }
 
-            return [
-                'id' => $q->getId(),
-                'words' => $optionsWithResources,
-                'options' => $q->getOptions(),
-                'correctOption' => $q->getCorrectOption(),
-                'questionOrder' => $q->getQuestionOrder(),
-                'type' => $q->getType()->getName(),
-                'blankIndex' => $q->getBlankIndex(),
-                'sentenceWords' => $q->getSentenceWords(),
-                'direction' => $q->getDirection(),
-                'matchType' => $q->getMatchType()
-            ];
-        }, $questions);
+            // Only include questions that have valid translations for the requested language
+            if ($hasValidTranslations) {
+                $result[] = [
+                    'id' => $q->getId(),
+                    'words' => $optionsWithResources,
+                    'options' => $q->getOptions(),
+                    'correctOption' => $q->getCorrectOption(),
+                    'questionOrder' => $q->getQuestionOrder(),
+                    'type' => $q->getType()->getName(),
+                    'blankIndex' => $q->getBlankIndex(),
+                    'sentenceWords' => $q->getSentenceWords(),
+                    'direction' => $q->getDirection(),
+                    'matchType' => $q->getMatchType()
+                ];
+            }
+        }
         return $this->json($result);
     }
 
