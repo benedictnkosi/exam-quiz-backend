@@ -33,7 +33,15 @@ class WordManagementService
         $word = new Word();
         $word->setWordGroup($group);
         $word->setAudio($data['audio'] ?? []);
-        $word->setTranslations($data['translations'] ?? []);
+
+        // Convert translations to lowercase
+        $translations = $data['translations'] ?? [];
+        $lowercaseTranslations = [];
+        foreach ($translations as $lang => $translation) {
+            $lowercaseTranslations[$lang] = mb_strtolower($translation);
+        }
+        $word->setTranslations($lowercaseTranslations);
+
         $word->setImage($data['image'] ?? null);
         $this->em->persist($word);
         $this->em->flush();
@@ -81,7 +89,7 @@ class WordManagementService
             return null;
         }
         $translations = $word->getTranslations() ?? [];
-        $translations[$languageCode] = $translation;
+        $translations[$languageCode] = mb_strtolower($translation);
         $word->setTranslations($translations);
         $this->em->flush();
         return $translations;
