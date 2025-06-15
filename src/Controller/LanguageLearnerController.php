@@ -476,17 +476,14 @@ class LanguageLearnerController extends AbstractController
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
 
-        // If current learner has 0 points, return error
-        if ($currentLearner->getLanguagePoints() <= 0) {
-            return $this->json(['error' => 'No points earned yet.'], 400);
-        }
-
-        // Find current learner's position
+        // Find current learner's position (0 if they have no points)
         $currentPosition = 0;
-        foreach ($learners as $index => $learner) {
-            if ($learner->getUid() === $uid) {
-                $currentPosition = $index + 1;
-                break;
+        if ($currentLearner->getLanguagePoints() > 0) {
+            foreach ($learners as $index => $learner) {
+                if ($learner->getUid() === $uid) {
+                    $currentPosition = $index + 1;
+                    break;
+                }
             }
         }
 
