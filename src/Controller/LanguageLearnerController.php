@@ -463,7 +463,7 @@ class LanguageLearnerController extends AbstractController
     #[Route('/scoreboard/{uid}', name: 'get_learner_scoreboard', methods: ['GET'])]
     public function getScoreboard(string $uid): JsonResponse
     {
-        // Get all learners sorted by points, excluding those with 0 points
+        // Get all learners with points > 0, sorted by points in descending order
         $learners = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
             ->where('l.points > 0')
             ->orderBy('l.points', 'DESC')
@@ -476,14 +476,15 @@ class LanguageLearnerController extends AbstractController
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
 
-        // Find current learner's position (0 if they have no points)
+        // Find current learner's position
         $currentPosition = 0;
         if ($currentLearner->getLanguagePoints() > 0) {
-            foreach ($learners as $index => $learner) {
+            $currentPosition = 1;
+            foreach ($learners as $learner) {
                 if ($learner->getUid() === $uid) {
-                    $currentPosition = $index + 1;
                     break;
                 }
+                $currentPosition++;
             }
         }
 
