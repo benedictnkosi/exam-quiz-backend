@@ -410,7 +410,7 @@ class LanguageQuestionsController extends AbstractController
             $hasValidTranslations = false;
 
             // Handle sentence words for fill_in_blank type
-            if (($q->getType()->getName() === 'fill_in_blank' || $q->getType()->getName() === 'complete_translation') && is_array($q->getSentenceWords())) {
+            if (is_array($q->getSentenceWords())) {
                 $hasValidTranslations = true; // Start with true, will be set to false if any word fails
                 foreach ($q->getSentenceWords() as $wordId) {
                     if (is_numeric($wordId)) {
@@ -438,7 +438,7 @@ class LanguageQuestionsController extends AbstractController
                 }
             }
             // Handle regular options
-            else if (is_array($options)) {
+            else if (is_array(value: $options)) {
                 foreach ($options as $wordId) {
                     if (is_numeric($wordId)) {
                         $word = $this->em->getRepository(Word::class)->find((int) $wordId);
