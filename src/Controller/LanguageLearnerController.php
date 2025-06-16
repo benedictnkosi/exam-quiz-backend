@@ -469,10 +469,10 @@ class LanguageLearnerController extends AbstractController
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
 
-        // Get top 10 learners with points > 0
+        // Get top 10 learners with language points > 0
         $topLearners = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
-            ->where('l.points > 0')
-            ->orderBy('l.points', 'DESC')
+            ->where('l.languagePoints > 0')
+            ->orderBy('l.languagePoints', 'DESC')
             ->setMaxResults(10)
             ->getQuery()
             ->getResult();
@@ -482,7 +482,7 @@ class LanguageLearnerController extends AbstractController
         if ($currentLearner->getLanguagePoints() > 0) {
             $qb = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
                 ->select('COUNT(l.id)')
-                ->where('l.points > :currentPoints')
+                ->where('l.languagePoints > :currentPoints')
                 ->setParameter('currentPoints', $currentLearner->getLanguagePoints());
 
             $currentPosition = (int) $qb->getQuery()->getSingleScalarResult() + 1;
