@@ -463,39 +463,30 @@ class LanguageLearnerController extends AbstractController
     #[Route('/scoreboard/{uid}', name: 'get_learner_scoreboard', methods: ['GET'])]
     public function getScoreboard(string $uid): JsonResponse
     {
-        // Get all learners
-        $learners = $this->em->getRepository(Learner::class)->findAll();
-
-        // Filter out learners with zero points and sort by points
-        $activeLearners = array_filter($learners, function ($learner) {
-            return $learner->getLanguagePoints() > 0;
-        });
-
-        // Sort by points in descending order
-        usort($activeLearners, function ($a, $b) {
-            return $b->getLanguagePoints() - $a->getLanguagePoints();
-        });
-
-        // Get the current learner
+        // Get the current learner first
         $currentLearner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
         if (!$currentLearner) {
             return $this->json(['error' => 'Language learner not found.'], 404);
         }
 
-        // Find current learner's position
+        // Get top 10 learners with points > 0
+        $topLearners = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
+            ->where('l.points > 0')
+            ->orderBy('l.points', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+
+        // Get current learner's position
         $currentPosition = 0;
         if ($currentLearner->getLanguagePoints() > 0) {
-            $currentPosition = 1;
-            foreach ($activeLearners as $learner) {
-                if ($learner->getUid() === $uid) {
-                    break;
-                }
-                $currentPosition++;
-            }
-        }
+            $qb = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
+                ->select('COUNT(l.id)')
+                ->where('l.points > :currentPoints')
+                ->setParameter('currentPoints', $currentLearner->getLanguagePoints());
 
-        // Get top 10 learners
-        $topLearners = array_slice($activeLearners, 0, 10);
+            $currentPosition = (int) $qb->getQuery()->getSingleScalarResult() + 1;
+        }
 
         $result = [
             'topLearners' => array_map(function ($learner) {
