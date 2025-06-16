@@ -463,12 +463,18 @@ class LanguageLearnerController extends AbstractController
     #[Route('/scoreboard/{uid}', name: 'get_learner_scoreboard', methods: ['GET'])]
     public function getScoreboard(string $uid): JsonResponse
     {
-        // Get all learners with points > 0, sorted by points in descending order
-        $learners = $this->em->getRepository(Learner::class)->createQueryBuilder('l')
-            ->where('l.points > 0')
-            ->orderBy('l.points', 'DESC')
-            ->getQuery()
-            ->getResult();
+        // Get all learners
+        $learners = $this->em->getRepository(Learner::class)->findAll();
+
+        // Filter out learners with zero points and sort by points
+        $activeLearners = array_filter($learners, function ($learner) {
+            return $learner->getLanguagePoints() > 0;
+        });
+
+        // Sort by points in descending order
+        usort($activeLearners, function ($a, $b) {
+            return $b->getLanguagePoints() - $a->getLanguagePoints();
+        });
 
         // Get the current learner
         $currentLearner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
@@ -480,7 +486,7 @@ class LanguageLearnerController extends AbstractController
         $currentPosition = 0;
         if ($currentLearner->getLanguagePoints() > 0) {
             $currentPosition = 1;
-            foreach ($learners as $learner) {
+            foreach ($activeLearners as $learner) {
                 if ($learner->getUid() === $uid) {
                     break;
                 }
@@ -489,7 +495,7 @@ class LanguageLearnerController extends AbstractController
         }
 
         // Get top 10 learners
-        $topLearners = array_slice($learners, 0, 10);
+        $topLearners = array_slice($activeLearners, 0, 10);
 
         $result = [
             'topLearners' => array_map(function ($learner) {
