@@ -414,14 +414,47 @@ class LanguageQuestionsController extends AbstractController
             $hasValidTranslations = false;
             $failedWords = [];
 
-            // If options are word IDs, fetch their resources
-            if (is_array($options)) {
+            // Handle sentence words for fill_in_blank type
+            if ($q->getType()->getName() === 'fill_in_blank' && is_array($q->getSentenceWords())) {
+                $hasValidTranslations = true; // Start with true, will be set to false if any word fails
+                foreach ($q->getSentenceWords() as $wordId) {
+                    if (is_numeric($wordId)) {
+                        $word = $this->em->getRepository(Word::class)->find((int) $wordId);
+                        if ($word) {
+                            $translations = $word->getTranslations();
+                            if (is_array($translations) && isset($translations[$language])) {
+                                $optionsWithResources[] = [
+                                    'id' => $word->getId(),
+                                    'image' => $word->getImage(),
+                                    'audio' => $word->getAudio(),
+                                    'translations' => $translations
+                                ];
+                            } else {
+                                $hasValidTranslations = false;
+                                $failedWords[] = [
+                                    'wordId' => $word->getId(),
+                                    'reason' => 'Missing translation for language: ' . $language
+                                ];
+                            }
+                        } else {
+                            $hasValidTranslations = false;
+                            $failedWords[] = [
+                                'wordId' => $wordId,
+                                'reason' => 'Word not found'
+                            ];
+                        }
+                    } else {
+                        $optionsWithResources[] = $wordId;
+                    }
+                }
+            }
+            // Handle regular options
+            else if (is_array($options)) {
                 foreach ($options as $wordId) {
                     if (is_numeric($wordId)) {
                         $word = $this->em->getRepository(Word::class)->find((int) $wordId);
                         if ($word) {
                             $translations = $word->getTranslations();
-                            // Check if translations exist and contain the requested language
                             if (is_array($translations) && isset($translations[$language])) {
                                 $hasValidTranslations = true;
                                 $optionsWithResources[] = [
