@@ -402,11 +402,17 @@ class LanguageQuestionsController extends AbstractController
             ['questionOrder' => 'ASC']
         );
 
-        $result = [];
+        $result = [
+            'questions' => [],
+            'skippedQuestions' => [],
+            'failedWords' => []
+        ];
+
         foreach ($questions as $q) {
             $options = $q->getOptions();
             $optionsWithResources = [];
             $hasValidTranslations = false;
+            $failedWords = [];
 
             // If options are word IDs, fetch their resources
             if (is_array($options)) {
@@ -424,7 +430,17 @@ class LanguageQuestionsController extends AbstractController
                                     'audio' => $word->getAudio(),
                                     'translations' => $translations
                                 ];
+                            } else {
+                                $failedWords[] = [
+                                    'wordId' => $word->getId(),
+                                    'reason' => 'Missing translation for language: ' . $language
+                                ];
                             }
+                        } else {
+                            $failedWords[] = [
+                                'wordId' => $wordId,
+                                'reason' => 'Word not found'
+                            ];
                         }
                     } else {
                         $optionsWithResources[] = $wordId;
@@ -432,22 +448,29 @@ class LanguageQuestionsController extends AbstractController
                 }
             }
 
-            // Only include questions that have valid translations for the requested language
+            $questionData = [
+                'id' => $q->getId(),
+                'words' => $optionsWithResources,
+                'options' => $q->getOptions(),
+                'correctOption' => $q->getCorrectOption(),
+                'questionOrder' => $q->getQuestionOrder(),
+                'type' => $q->getType()->getName(),
+                'blankIndex' => $q->getBlankIndex(),
+                'sentenceWords' => $q->getSentenceWords(),
+                'direction' => $q->getDirection(),
+                'matchType' => $q->getMatchType()
+            ];
+
             if ($hasValidTranslations) {
-                $result[] = [
-                    'id' => $q->getId(),
-                    'words' => $optionsWithResources,
-                    'options' => $q->getOptions(),
-                    'correctOption' => $q->getCorrectOption(),
-                    'questionOrder' => $q->getQuestionOrder(),
-                    'type' => $q->getType()->getName(),
-                    'blankIndex' => $q->getBlankIndex(),
-                    'sentenceWords' => $q->getSentenceWords(),
-                    'direction' => $q->getDirection(),
-                    'matchType' => $q->getMatchType()
+                $result['questions'][] = $questionData;
+            } else {
+                $result['skippedQuestions'][] = [
+                    'question' => $questionData,
+                    'failedWords' => $failedWords
                 ];
             }
         }
+
         return $this->json($result);
     }
 
