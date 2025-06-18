@@ -37,10 +37,8 @@ class QuestionStatsService
                 ->leftJoin('q.subject', 's')  // Add join to ensure we get questions even without subjects
                 ->where('q.created >= :fromDate')
                 ->andWhere('q.created <= :endDate')
-                ->andWhere('q.term = :term')
                 ->setParameter('fromDate', $fromDateTime)
-                ->setParameter('endDate', $endDateTime)
-                ->setParameter('term', '2');
+                ->setParameter('endDate', $endDateTime);
 
             $questions = $qb->getQuery()->getResult();
 
