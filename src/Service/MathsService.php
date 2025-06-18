@@ -126,7 +126,7 @@ class MathsService
     {
         // Create query to get topics and subtopics with question counts
         $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('DISTINCT t.name as mainTopic, t.subTopic, COUNT(q.id) as questionCount')
+        $qb->select('DISTINCT t.name as mainTopic, t.subTopic, COUNT(DISTINCT q.id) as questionCount')
             ->from('App\Entity\Topic', 't')
             ->join('App\Entity\Question', 'q', 'WITH', 'q.topic = t.subTopic')
             ->join('q.subject', 's')
