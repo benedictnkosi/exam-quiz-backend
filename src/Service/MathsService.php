@@ -94,7 +94,7 @@ class MathsService
     {
         // Create query to get question IDs
         $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('q.id')
+        $qb->select('DISTINCT q.id')
             ->from(Question::class, 'q')
             ->join('q.subject', 's')
             ->join('s.grade', 'g')
