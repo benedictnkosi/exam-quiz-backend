@@ -80,6 +80,42 @@ class MathsController extends AbstractController
         ]);
     }
 
+    #[Route('/questions-with-steps-by-topic', name: 'get_questions_with_steps_by_topic', methods: ['GET'])]
+    public function getQuestionsWithStepsByTopic(Request $request): JsonResponse
+    {
+        $topic = $request->query->get('topic');
+        $grade = $request->query->get('grade');
+        $subjectName = $request->query->get('subject_name');
+
+        if (empty($topic)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Topic is required'
+            ], 400);
+        }
+
+        if (empty($grade) || !is_numeric($grade)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Valid grade number is required'
+            ], 400);
+        }
+
+        if (empty($subjectName)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Subject name is required'
+            ], 400);
+        }
+
+        $questionIds = $this->mathsService->getQuestionIdsWithStepsByTopic($topic, (int) $grade, $subjectName);
+
+        return $this->json([
+            'status' => 'OK',
+            'question_ids' => $questionIds
+        ]);
+    }
+
     #[Route('/topics-subtopics-with-steps', name: 'get_topics_subtopics_with_steps', methods: ['GET'])]
     public function getTopicsAndSubtopicsWithSteps(Request $request): JsonResponse
     {

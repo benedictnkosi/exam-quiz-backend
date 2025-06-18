@@ -84,6 +84,38 @@ class MathsService
     }
 
     /**
+     * Get question IDs with steps for a specific topic and grade
+     * 
+     * @param string $topic The topic name to filter by
+     * @param int $grade The grade number to filter by
+     * @return array Array of question IDs
+     */
+    public function getQuestionIdsWithStepsByTopic(string $topic, int $grade, string $subjectName): array
+    {
+        // Create query to get question IDs
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('q.id')
+            ->from(Question::class, 'q')
+            ->join('q.subject', 's')
+            ->join('s.grade', 'g')
+            ->join('App\Entity\Topic', 't', 'WITH', 'q.topic = t.subTopic')
+            ->where('q.steps IS NOT NULL')
+            ->andWhere('t.name = :topic')
+            ->andWhere('g.number = :grade')
+            ->andWhere('q.active = :active')
+            ->andWhere('s.name LIKE :subjectName')
+            ->setParameter('topic', $topic)
+            ->setParameter('grade', $grade)
+            ->setParameter('active', true)
+            ->setParameter('subjectName', $subjectName . '%')
+            ->orderBy('q.id', 'ASC');
+
+        $result = $qb->getQuery()->getResult();
+
+        return array_column($result, 'id');
+    }
+
+    /**
      * Get topics and subtopics for questions with steps for a particular grade
      * 
      * @param int $grade The grade number to filter by
