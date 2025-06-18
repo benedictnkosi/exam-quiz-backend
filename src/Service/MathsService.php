@@ -82,4 +82,82 @@ class MathsService
 
         return array_column($result, 'id');
     }
+
+    /**
+     * Get topics and subtopics for questions with steps for a particular grade
+     * 
+     * @param int $grade The grade number to filter by
+     * @param string $subjectName The subject name to filter by
+     * @return array Array of topics with their subtopics and question counts
+     */
+    public function getTopicsAndSubtopicsWithSteps(int $grade, string $subjectName): array
+    {
+        // Create query to get topics and subtopics with question counts
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('DISTINCT t.name as mainTopic, t.subTopic, COUNT(q.id) as questionCount')
+            ->from('App\Entity\Topic', 't')
+            ->join('App\Entity\Question', 'q', 'WITH', 'q.topic = t.subTopic')
+            ->join('q.subject', 's')
+            ->join('s.grade', 'g')
+            ->where('q.steps IS NOT NULL')
+            ->andWhere('g.number = :grade')
+            ->andWhere('q.active = :active')
+            ->andWhere('s.name LIKE :subjectName')
+            ->andWhere('t.name IS NOT NULL')
+            ->andWhere('t.subTopic IS NOT NULL')
+            ->setParameter('grade', $grade)
+            ->setParameter('active', true)
+            ->setParameter('subjectName', '%' . $subjectName . '%')
+            ->groupBy('t.name, t.subTopic')
+            ->orderBy('t.name', 'ASC')
+            ->addOrderBy('t.subTopic', 'ASC');
+
+        $result = $qb->getQuery()->getResult();
+
+        // Group results by main topic
+        $groupedTopics = [];
+        foreach ($result as $row) {
+            $mainTopic = $row['mainTopic'];
+            $subTopic = $row['subTopic'];
+            $questionCount = (int) $row['questionCount'];
+
+            if (!isset($groupedTopics[$mainTopic])) {
+                $groupedTopics[$mainTopic] = [
+                    'mainTopic' => $mainTopic,
+                    'questionCount' => 0,
+                    'subtopics' => []
+                ];
+            }
+
+            // Add to main topic total
+            $groupedTopics[$mainTopic]['questionCount'] += $questionCount;
+
+            // Check if subtopic already exists and update question count if needed
+            $subtopicExists = false;
+            foreach ($groupedTopics[$mainTopic]['subtopics'] as &$existingSubtopic) {
+                if ($existingSubtopic['name'] === $subTopic) {
+                    $existingSubtopic['questionCount'] = $questionCount;
+                    $subtopicExists = true;
+                    break;
+                }
+            }
+
+            if (!$subtopicExists) {
+                $groupedTopics[$mainTopic]['subtopics'][] = [
+                    'name' => $subTopic,
+                    'questionCount' => $questionCount
+                ];
+            }
+        }
+
+        // Convert to indexed array and sort subtopics
+        $topics = array_values($groupedTopics);
+        foreach ($topics as &$topic) {
+            usort($topic['subtopics'], function ($a, $b) {
+                return strcmp($a['name'], $b['name']);
+            });
+        }
+
+        return $topics;
+    }
 }
