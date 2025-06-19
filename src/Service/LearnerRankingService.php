@@ -15,7 +15,7 @@ class LearnerRankingService
     ) {
     }
 
-    public function getTopLearnersWithCurrentPosition(string $currentLearnerUid): array
+    public function getTopLearnersWithCurrentPosition(string $currentLearnerUid, bool $isMathsApp = false): array
     {
         try {
             // Get current learner
@@ -29,11 +29,12 @@ class LearnerRankingService
                 ];
             }
 
+            $pointsField = $isMathsApp ? 'mathsPoints' : 'points';
             // Get ALL learners with their points
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('l.uid, l.name, l.points, l.avatar, l.schoolName, l.publicProfile, l.followMeCode, l.subscription')
+            $qb->select('l.uid, l.name, l.' . $pointsField . ' as points, l.avatar, l.schoolName, l.publicProfile, l.followMeCode, l.subscription')
                 ->from(Learner::class, 'l')
-                ->where('l.points > 0')
+                ->where('l.' . $pointsField . ' > 0')
                 ->andWhere('l.role = :role')
                 ->andWhere('l.email NOT LIKE :testEmail')
                 ->andWhere('l.name NOT LIKE :testName')
@@ -42,7 +43,7 @@ class LearnerRankingService
                 ->setParameter('testEmail', '%test%')
                 ->setParameter('testName', '%test%')
                 ->setParameter('grade', $currentLearner->getGrade())
-                ->orderBy('l.points', 'DESC');
+                ->orderBy('l.' . $pointsField, 'DESC');
 
             $allLearners = $qb->getQuery()->getResult();
 
@@ -77,7 +78,8 @@ class LearnerRankingService
             $rankings = [];
             $currentLearnerInTop10 = false;
             $currentLearnerPosition = null;
-            $currentLearnerPoints = $currentLearner->getPoints();
+            $getter = $isMathsApp ? 'getMathsPoints' : 'getPoints';
+            $currentLearnerPoints = $currentLearner->$getter();
 
             foreach ($topLearners as $learner) {
                 $isCurrentLearner = ($learner['uid'] === $currentLearnerUid);

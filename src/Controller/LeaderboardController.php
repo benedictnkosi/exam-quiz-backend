@@ -21,11 +21,12 @@ class LeaderboardController extends AbstractController
     public function getLeaderboard(Request $request): JsonResponse
     {
         $uid = $request->query->get('uid');
-        $result = $this->leaderboardService->getTopLearnersWithCurrentPosition($uid);
+        $isMathsApp = filter_var($request->query->get('isMathsApp', false), FILTER_VALIDATE_BOOLEAN);
+        $result = $this->leaderboardService->getTopLearnersWithCurrentPosition($uid, $isMathsApp);
 
         return $this->json([
             'success' => true,
             'data' => $result
         ]);
     }
-} 
+}

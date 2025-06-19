@@ -26,4 +26,17 @@ class LearnerService
         $this->em->persist($learner);
         $this->em->flush();
     }
+
+    public function incrementMathsPoints(Learner $learner, int $points): void
+    {
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Points must be a positive number');
+        }
+
+        $currentPoints = $learner->getMathsPoints();
+        $learner->setMathsPoints($currentPoints + $points);
+
+        $this->em->persist($learner);
+        $this->em->flush();
+    }
 }

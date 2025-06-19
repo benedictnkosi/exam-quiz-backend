@@ -1120,6 +1120,7 @@ class LearnMzansiApiController extends AbstractController
 
         $uid = $request->query->get('uid');
         $period = $request->query->get('period', 'weekly');
+        $isMathsApp = filter_var($request->query->get('isMathsApp', false), FILTER_VALIDATE_BOOLEAN);
 
         if (!$uid) {
             return new JsonResponse([
@@ -1128,7 +1129,7 @@ class LearnMzansiApiController extends AbstractController
             ], Response::HTTP_BAD_REQUEST, ['Access-Control-Allow-Origin' => '*']);
         }
 
-        $response = $scoreboardService->getScoreboard($uid, $period);
+        $response = $scoreboardService->getScoreboard($uid, $period, $isMathsApp);
         $statusCode = $response['status'] === 'OK' ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST;
 
         return new JsonResponse($response, $statusCode, ['Access-Control-Allow-Origin' => '*']);

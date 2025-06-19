@@ -6,12 +6,14 @@ use App\Entity\Question;
 use App\Entity\Learner;
 use App\Repository\QuestionRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 class MathsService
 {
     public function __construct(
         private readonly QuestionRepository $questionRepository,
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -98,7 +100,7 @@ class MathsService
             ->from(Question::class, 'q')
             ->join('q.subject', 's')
             ->join('s.grade', 'g')
-            ->join('App\Entity\Topic', 't', 'WITH', 'q.topic = t.subTopic')
+            ->join('App\\Entity\\Topic', 't', 'WITH', 'q.topic = t.subTopic')
             ->where('q.steps IS NOT NULL')
             ->andWhere('t.name = :topic')
             ->andWhere('g.number = :grade')
@@ -110,7 +112,10 @@ class MathsService
             ->setParameter('subjectName', $subjectName . '%')
             ->orderBy('q.id', 'ASC');
 
-        $result = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
+        $this->logger->debug('[getQuestionIdsWithStepsByTopic] SQL: ' . $query->getSQL() . ' | Params: ' . json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray()));
+
+        $result = $query->getResult();
 
         return array_column($result, 'id');
     }
@@ -139,7 +144,7 @@ class MathsService
             ->andWhere('t.subTopic IS NOT NULL')
             ->setParameter('grade', $grade)
             ->setParameter('active', true)
-            ->setParameter('subjectName', '%' . $subjectName . '%')
+            ->setParameter('subjectName', $subjectName . '%')
             ->groupBy('t.name, t.subTopic')
             ->orderBy('t.name', 'ASC')
             ->addOrderBy('t.subTopic', 'ASC');

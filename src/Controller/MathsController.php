@@ -7,6 +7,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Service\LearnerService;
 
 #[Route('/api/maths')]
 class MathsController extends AbstractController
@@ -134,6 +136,44 @@ class MathsController extends AbstractController
         return $this->json([
             'status' => 'OK',
             'topics' => $topics
+        ]);
+    }
+
+    #[Route('/update-maths-points', name: 'update_maths_points', methods: ['POST'])]
+    public function updateMathsPoints(Request $request, EntityManagerInterface $em, LearnerService $learnerService): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $learnerUid = $data['uid'] ?? $request->request->get('uid');
+        $points = $data['points'] ?? $request->request->get('points');
+
+        if (empty($learnerUid)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Learner UID is required'
+            ], 400);
+        }
+
+        if (empty($points) || !is_numeric($points) || $points <= 0) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Valid points value is required'
+            ], 400);
+        }
+
+        $learner = $em->getRepository(\App\Entity\Learner::class)->findOneBy(['uid' => $learnerUid]);
+        if (!$learner) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Learner not found'
+            ], 404);
+        }
+
+        $learnerService->incrementMathsPoints($learner, (int) $points);
+
+        return $this->json([
+            'status' => 'OK',
+            'message' => 'Maths points updated successfully',
+            'maths_points' => $learner->getMathsPoints()
         ]);
     }
 }

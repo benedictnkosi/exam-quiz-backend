@@ -34,63 +34,92 @@ class LearnerDailyUsageService
 
     public function getDailyUsageByLearnerUid(string $learnerUid): array
     {
-        $this->logger->info("Starting Method: " . __METHOD__);
+        $this->logger->info("Starting Method: " . __METHOD__ . " with learnerUid: {$learnerUid}");
 
         try {
             // Find the learner
+            $this->logger->debug("Searching for learner with UID: {$learnerUid}");
             $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
             if (!$learner) {
+                $this->logger->warning("Learner not found with UID: {$learnerUid}");
                 return [
                     'status' => 'NOK',
                     'message' => 'Learner not found'
                 ];
             }
+            $this->logger->debug("Learner found with ID: {$learner->getId()}, subscription: {$learner->getSubscription()}");
 
             // Get today's date with timezone
             $timezone = new \DateTimeZone(self::TIMEZONE);
             $today = new \DateTimeImmutable('now', $timezone);
+            $this->logger->debug("Today's date in timezone " . self::TIMEZONE . ": " . $today->format('Y-m-d H:i:s'));
 
             // Get or create today's usage record
+            $this->logger->debug("Looking for existing usage record for learner {$learner->getId()} on date {$today->format('Y-m-d')}");
             $usage = $this->usageRepository->findByLearnerAndDate($learner->getId(), $today);
             if (!$usage) {
+                $this->logger->debug("No existing usage record found, creating new one");
                 $usage = new LearnerDailyUsage();
                 $usage->setLearner($learner);
                 $usage->setDate($today);
                 $this->entityManager->persist($usage);
                 $this->entityManager->flush();
+                $this->logger->debug("New usage record created and persisted");
+            } else {
+                $this->logger->debug("Existing usage record found - Quiz: {$usage->getQuiz()}, Lesson: {$usage->getLesson()}, MathsPractice: {$usage->getMathsPractice()}");
             }
 
             // Get podcast usage from podcast requests
+            $this->logger->debug("Counting daily podcast requests for learner {$learner->getId()}");
             $dailyPodcastRequests = $this->podcastRequestRepository->countDailyRequests($learner->getId(), $today);
+            $this->logger->debug("Daily podcast requests count: {$dailyPodcastRequests}");
 
             $subscription = $learner->getSubscription();
+            $this->logger->debug("Processing subscription type: {$subscription}");
+
             $remainingQuiz = 0;
             $remainingLesson = 0;
             $remainingPodcast = 0;
             $remainingMathsPractice = 0;
+
             if (str_contains($subscription, 'silver')) {
+                $this->logger->debug("Silver subscription detected - setting unlimited limits");
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
                 $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'gold')) {
+                $this->logger->debug("Gold subscription detected - setting unlimited limits");
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
                 $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'bronze')) {
+                $this->logger->debug("Bronze subscription detected - setting unlimited limits");
                 $remainingQuiz = 999;
                 $remainingLesson = 999;
                 $remainingPodcast = 999;
                 $remainingMathsPractice = 999;
             } else if (str_contains($subscription, 'free')) {
+                $this->logger->debug("Free subscription detected - calculating remaining limits");
+                $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
+                $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
+                $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $dailyPodcastRequests;
+                $remainingMathsPractice = $this->DAILY_MATHS_PRACTICE_LIMIT - $usage->getMathsPractice();
+
+                $this->logger->debug("Free subscription limits - Quiz: {$this->DAILY_QUIZ_LIMIT} - {$usage->getQuiz()} = {$remainingQuiz}");
+                $this->logger->debug("Free subscription limits - Lesson: {$this->DAILY_LESSON_LIMIT} - {$usage->getLesson()} = {$remainingLesson}");
+                $this->logger->debug("Free subscription limits - Podcast: {$this->DAILY_PODCAST_LIMIT} - {$dailyPodcastRequests} = {$remainingPodcast}");
+                $this->logger->debug("Free subscription limits - MathsPractice: {$this->DAILY_MATHS_PRACTICE_LIMIT} - {$usage->getMathsPractice()} = {$remainingMathsPractice}");
+            } else {
+                $this->logger->warning("Unknown subscription type: {$subscription}, treating as free");
                 $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
                 $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
                 $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $dailyPodcastRequests;
                 $remainingMathsPractice = $this->DAILY_MATHS_PRACTICE_LIMIT - $usage->getMathsPractice();
             }
 
-            return [
+            $result = [
                 'status' => 'OK',
                 'data' => [
                     'quiz' => $remainingQuiz,
@@ -101,8 +130,14 @@ class LearnerDailyUsageService
                 ]
             ];
 
+            $this->logger->debug("Returning result: " . json_encode($result));
+            return $result;
+
         } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
+            $this->logger->error("Exception in " . __METHOD__ . ": " . $e->getMessage(), [
+                'learnerUid' => $learnerUid,
+                'exception' => $e
+            ]);
             return [
                 'status' => 'NOK',
                 'message' => 'Error retrieving daily usage data'

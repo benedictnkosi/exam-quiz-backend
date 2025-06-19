@@ -72,11 +72,16 @@ class LearnMzansiApi extends AbstractController
 
             $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $uid]);
             if (!$learner) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Learner not found'
-                );
+                $learner = $this->em->getRepository(Learner::class)->findOneBy(['followMeCode' => $uid]);
+                if (!$learner) {
+                    return array(
+                        'status' => 'NOK',
+                        'message' => 'Learner not found'
+                    );
+                }
             }
+
+
 
 
             return $learner;
@@ -596,8 +601,9 @@ class LearnMzansiApi extends AbstractController
 
             if ($topic) {
                 // Join with Topic entity to filter by main topic
-                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
-                    ->andWhere('t.name = :mainTopic');
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = q.subject')
+                    ->andWhere('t.name = :mainTopic')
+                    ->setParameter('mainTopic', $topic);
             }
 
             // Exclude previously viewed questions if any
@@ -3704,7 +3710,7 @@ class LearnMzansiApi extends AbstractController
                 ->andWhere('q.status = :status');
 
             if ($topic) {
-                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = q.subject')
                     ->andWhere('t.name = :mainTopic')
                     ->andWhere('s.name LIKE :subjectName')
                     ->setParameter('mainTopic', $topic)
@@ -3752,7 +3758,7 @@ class LearnMzansiApi extends AbstractController
                         ->andWhere('q.status = :status');
 
                     if ($topic) {
-                        $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
+                        $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = q.subject')
                             ->andWhere('t.name = :mainTopic')
                             ->andWhere('s.name LIKE :subjectName')
                             ->setParameter('mainTopic', $topic)
@@ -4301,9 +4307,8 @@ class LearnMzansiApi extends AbstractController
 
             if ($topic) {
                 // Join with Topic entity to filter by main topic
-                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = s')
-                    ->andWhere('t.name = :mainTopic')
-                    ->setParameter('mainTopic', $topic);
+                $qb->leftJoin('App\Entity\Topic', 't', 'WITH', 't.subTopic = q.topic AND t.subject = q.subject')
+                    ->andWhere('t.name = :mainTopic');
             }
 
 

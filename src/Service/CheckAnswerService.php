@@ -198,6 +198,13 @@ class CheckAnswerService
             $newPoints = max(0, $learner->getPoints() + $pointsChange);
             $learner->setPoints($newPoints);
 
+            // Update mathsPoints if subject is Mathemetics
+            $subject = $question->getSubject();
+            if ($subject && stripos($subject->getName(), 'Mathemetics') !== false) {
+                $newMathsPoints = max(0, $learner->getMathsPoints() + $pointsChange);
+                $learner->setMathsPoints($newMathsPoints);
+            }
+
             // Update streak
             $currentStreak = $learner->getStreak();
             $streakUpdated = false;

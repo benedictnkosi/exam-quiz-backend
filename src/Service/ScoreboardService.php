@@ -15,7 +15,7 @@ class ScoreboardService
     ) {
     }
 
-    public function getScoreboard(string $currentLearnerUid, string $period = 'weekly'): array
+    public function getScoreboard(string $currentLearnerUid, string $period = 'weekly', bool $isMathsApp = false): array
     {
         try {
             // Get current learner
@@ -60,6 +60,13 @@ class ScoreboardService
                 ->groupBy('l.id')
                 ->having('score > 0')
                 ->orderBy('score', 'DESC');
+
+            if ($isMathsApp) {
+                $qb->join('r.question', 'q')
+                    ->join('q.subject', 's')
+                    ->andWhere('LOWER(s.name) LIKE :mathsName')
+                    ->setParameter('mathsName', '%mathematics%');
+            }
 
             $periodResults = $qb->getQuery()->getResult();
 
