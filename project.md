@@ -119,3 +119,8 @@ php bin/console app:generate-question-topics 1  # For grade 1
 
 ### send message to a grade
 php bin/console app:send-grade-message 12 "Accounting Quiz Added" "Download the latest version to start" "60"
+
+mac1@Mac1s-MacBook-Pro SouthAfricanLanguages % crontab -l
+0 23 * * * /Users/mac1/Documents/ExamQuiz/backups/backup_images.sh >> /Users/mac1/Documents/ExamQuiz/backups/images.log 2>&1
+* * * * * /Users/mac1/Documents/ExamQuiz/backups/backup_db.sh >> /Users/mac1/Documents/ExamQuiz/backups/database.log 2>&1
+0 15 * * * cd /Users/mac1/Documents/cursor/exam-quiz-admin && npx ts-node scripts/Grade12/populateDailyChat.ts >> logs/populateDailyChat.log 2>&1
