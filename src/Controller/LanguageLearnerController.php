@@ -44,6 +44,7 @@ class LanguageLearnerController extends AbstractController
         $learner->setVersion($data['version']);
         $learner->setOs($data['os']);
         $learner->setSubscription($data['subscription'] ?? 'free');
+        $learner->setGrade($data['grade']);
         $this->em->persist($learner);
         $this->em->flush();
         return $this->json([

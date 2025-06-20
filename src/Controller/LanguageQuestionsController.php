@@ -407,7 +407,7 @@ class LanguageQuestionsController extends AbstractController
         foreach ($questions as $q) {
             $options = $q->getOptions();
             $optionsWithResources = [];
-            $hasValidTranslations = false;
+            $allWordsHaveTranslations = true;
 
             // Process both sentenceWords and options arrays
             $wordIds = array_merge(
@@ -424,21 +424,29 @@ class LanguageQuestionsController extends AbstractController
                     if ($word) {
                         $translations = $word->getTranslations();
                         if (is_array($translations) && isset($translations[$language])) {
-                            $hasValidTranslations = true;
                             $optionsWithResources[] = [
                                 'id' => $word->getId(),
                                 'image' => $word->getImage(),
                                 'audio' => $word->getAudio(),
                                 'translations' => $translations
                             ];
+                        } else {
+                            // Word doesn't have translation for the requested language
+                            $allWordsHaveTranslations = false;
+                            break; // Exit the loop early since we know this question won't be included
                         }
+                    } else {
+                        // Word not found
+                        $allWordsHaveTranslations = false;
+                        break;
                     }
                 } else {
                     $optionsWithResources[] = $wordId;
                 }
             }
 
-            if ($hasValidTranslations) {
+            // Only include the question if all words have translations for the requested language
+            if ($allWordsHaveTranslations) {
                 $result[] = [
                     'id' => $q->getId(),
                     'words' => $optionsWithResources,
