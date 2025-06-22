@@ -200,9 +200,12 @@ class CheckAnswerService
 
             // Update mathsPoints if subject is Mathemetics
             $subject = $question->getSubject();
-            if ($subject && stripos($subject->getName(), 'Mathemetics') !== false) {
+            if ($subject && stripos($subject->getName(), 'Mathematics') !== false) {
                 $newMathsPoints = max(0, $learner->getMathsPoints() + $pointsChange);
                 $learner->setMathsPoints($newMathsPoints);
+                $this->logger->info("newMathsPoints: " . $newMathsPoints);
+            }else{
+                $this->logger->info("subject is not maths: " . $subject->getName());
             }
 
             // Update streak
@@ -265,7 +268,8 @@ class CheckAnswerService
                 'subject' => $question->getSubject() ? $question->getSubject()->getName() : null,
                 'is_favorited' => false,
                 'topic' => $topic,
-                'recordingFileName' => $recordingFileName
+                'recordingFileName' => $recordingFileName,
+                'mathsPoints' => $newMathsPoints
             ];
 
         } catch (\Exception $e) {
