@@ -31,8 +31,7 @@ class GenerateMathStepsCommand extends Command
             'retry',
             'r',
             InputOption::VALUE_NONE,
-            'Retry questions that previously failed (practice_status = fail)',
-            false
+            'Retry questions that previously failed (practice_status = fail)'
         );
     }
 
