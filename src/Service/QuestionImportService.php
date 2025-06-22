@@ -67,6 +67,7 @@ class QuestionImportService
                 $question->setSubject($subject);
                 $question->setCapturer($capturer);
                 $question->setReviewer($reviewer);
+                $question->setStatus('Approved');
 
                 // Set topic to sub_topic if topic information was provided
                 if (isset($questionData['sub_topic'])) {
