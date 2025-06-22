@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -24,26 +25,55 @@ class GenerateMathStepsCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->addOption(
+            'retry',
+            'r',
+            InputOption::VALUE_NONE,
+            'Retry questions that previously failed (practice_status = fail)',
+            false
+        );
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $io->title('Generating steps for mathematics questions');
+        $io = new SymfonyStyle($input, output: $output);
+        $retry = $input->getOption('retry');
+        
+        if ($retry) {
+            $io->title('Retrying failed mathematics questions');
+        } else {
+            $io->title('Generating steps for mathematics questions');
+        }
 
-        // Get questions that need steps and practice_status is not fail
+        // Build query based on retry parameter
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('q')
             ->from(Question::class, 'q')
             ->join('q.subject', 's')
             ->where('s.name LIKE :subject')
             ->andWhere('q.steps IS NULL')
-            ->andWhere('q.practice_status IS NULL')
             ->setParameter('subject', '%Mathematics%');
+
+        if ($retry) {
+            // When retry is true, get questions where practice_status is fail
+            $qb->andWhere('q.practice_status = :status')
+                ->setParameter('status', 'fail');
+        } else {
+            // When retry is false, get questions where practice_status is NULL
+            $qb->andWhere('q.practice_status IS NULL');
+        }
 
         $questions = $qb->getQuery()->getResult();
         $total = count($questions);
 
         if ($total === 0) {
-            $io->success('No questions found that need steps generated.');
+            if ($retry) {
+                $io->success('No failed questions found to retry.');
+            } else {
+                $io->success('No questions found that need steps generated.');
+            }
             return Command::SUCCESS;
         }
 
