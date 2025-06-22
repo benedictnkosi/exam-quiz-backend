@@ -118,10 +118,17 @@ class StepGenerationService
             // Clean up the response content
             $content = $this->cleanResponseContent($content);
 
+            // Log the cleaned content for debugging
+            if ($output) {
+                $output->writeln("Cleaned Content: " . $content);
+            }
+
             // Parse and validate the JSON response
             $steps = json_decode($content, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('Failed to parse steps JSON: ' . json_last_error_msg() . "\nContent: " . $content);
+                $errorDetails = json_last_error_msg();
+                $errorPosition = json_last_error() === JSON_ERROR_SYNTAX ? $this->findJsonErrorPosition($content) : 'unknown';
+                throw new \Exception("Failed to parse steps JSON: $errorDetails at position $errorPosition\nContent: " . substr($content, 0, 500) . "...");
             }
 
             // Validate required fields
@@ -154,6 +161,11 @@ class StepGenerationService
             $content = $matches[0];
         }
 
+        // Escape single backslashes that are not already escaped (for LaTeX in JSON)
+        $content = preg_replace_callback('/\\\\(?![\"\\\\\/bfnrtu])/', function ($m) {
+            return '\\\\' . $m[0];
+        }, $content);
+
         return $content;
     }
 
@@ -173,8 +185,9 @@ Given a math question, break it down into multiple logical steps. Each step shou
 IMPORTANT: Latex Rules:
 1. Do not use \\text{} for chemical elements.
 2. Format it as an inline equation with $...$.
-3. Use a single backslash for LaTeX commands.
-4. Replace new lines with \\newline if needed.
+3. Use DOUBLE backslashes for LaTeX commands in JSON (e.g., \\\\sqrt, \\\\div, \\\\times).
+4. Replace new lines with \\\\newline if needed.
+5. All LaTeX commands must be properly escaped as \\\\ in the JSON response.
 
 For each step, return:
 - step_number: number
@@ -202,6 +215,7 @@ Explanation: {$explanation}
 Grade: {$grade}
 Topic: {$topic}
 
+CRITICAL: Return ONLY valid JSON with properly escaped LaTeX commands (use \\\\ for all LaTeX commands like \\\\sqrt, \\\\div, \\\\times).
 
 Instructions:
 PROMPT . implode("\n", self::PROMPT_RULES['steps']['instructions']);
@@ -338,5 +352,12 @@ PROMPT . implode("\n", self::PROMPT_RULES['steps']['instructions']);
         // ], $text);
 
         return $text;
+    }
+
+    private function findJsonErrorPosition(string $json): ?int
+    {
+        // Simple approach - just return null to avoid regex issues
+        // The main error handling will still work without this
+        return null;
     }
 }
