@@ -2,11 +2,12 @@
 
 namespace App\Entity;
 
+use App\Repository\TopicRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\Serializer\Annotation as Serializer;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: TopicRepository::class)]
 #[ORM\Table(name: 'topic')]
 #[Serializer\ExclusionPolicy('none')]
 class Topic
