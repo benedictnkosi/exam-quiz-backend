@@ -198,6 +198,9 @@ class CheckAnswerService
             $newPoints = max(0, $learner->getPoints() + $pointsChange);
             $learner->setPoints($newPoints);
 
+            // Initialize mathsPoints variable
+            $newMathsPoints = $learner->getMathsPoints();
+
             // Update mathsPoints if subject is Mathemetics
             $subject = $question->getSubject();
             if ($subject && stripos($subject->getName(), 'Mathematics') !== false) {
