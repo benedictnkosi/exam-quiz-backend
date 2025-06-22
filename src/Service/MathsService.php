@@ -87,6 +87,7 @@ class MathsService
 
     /**
      * Get question IDs with steps for a specific topic and grade
+     * First tries to find questions by main topic, then by subtopic if none found
      * 
      * @param string $topic The topic name to filter by
      * @param int $grade The grade number to filter by
@@ -94,7 +95,7 @@ class MathsService
      */
     public function getQuestionIdsWithStepsByTopic(string $topic, int $grade, string $subjectName): array
     {
-        // Create query to get question IDs
+        // First, try to find questions by main topic
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('DISTINCT q.id')
             ->from(Question::class, 'q')
@@ -113,11 +114,39 @@ class MathsService
             ->orderBy('q.id', 'ASC');
 
         $query = $qb->getQuery();
-        $this->logger->debug('[getQuestionIdsWithStepsByTopic] SQL: ' . $query->getSQL() . ' | Params: ' . json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray()));
+        $this->logger->debug('[getQuestionIdsWithStepsByTopic] Searching by main topic. SQL: ' . $query->getSQL() . ' | Params: ' . json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray()));
 
         $result = $query->getResult();
+        $questionIds = array_column($result, 'id');
 
-        return array_column($result, 'id');
+        // If no questions found by main topic, try searching by subtopic
+        if (empty($questionIds)) {
+            $this->logger->debug('[getQuestionIdsWithStepsByTopic] No questions found by main topic, searching by subtopic');
+            
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('DISTINCT q.id')
+                ->from(Question::class, 'q')
+                ->join('q.subject', 's')
+                ->join('s.grade', 'g')
+                ->where('q.steps IS NOT NULL')
+                ->andWhere('q.topic = :topic')
+                ->andWhere('g.number = :grade')
+                ->andWhere('q.active = :active')
+                ->andWhere('s.name LIKE :subjectName')
+                ->setParameter('topic', $topic)
+                ->setParameter('grade', $grade)
+                ->setParameter('active', true)
+                ->setParameter('subjectName', $subjectName . '%')
+                ->orderBy('q.id', 'ASC');
+
+            $query = $qb->getQuery();
+            $this->logger->debug('[getQuestionIdsWithStepsByTopic] Searching by subtopic. SQL: ' . $query->getSQL() . ' | Params: ' . json_encode($query->getParameters()->map(fn($param) => $param->getValue())->toArray()));
+
+            $result = $query->getResult();
+            $questionIds = array_column($result, 'id');
+        }
+
+        return $questionIds;
     }
 
     /**
