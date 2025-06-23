@@ -72,9 +72,9 @@ class LessonManagementController extends AbstractController
 
         // Filter out lessons without the requested language if language is specified
         if ($language) {
-            $result = array_filter($result, function ($lesson) {
+            $result = array_values(array_filter($result, function ($lesson) {
                 return $lesson['hasLanguage'];
-            });
+            }));
         }
 
         return $this->json($result);
