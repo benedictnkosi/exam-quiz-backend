@@ -25,6 +25,19 @@ class QuestionImportService
 
         foreach ($questions as $questionData) {
             try {
+                // Check for duplicate question and answer
+                $existingQuestion = $this->entityManager->getRepository(Question::class)->findOneBy([
+                    'question' => $questionData['question'],
+                    'answer' => $questionData['answer']
+                ]);
+                if ($existingQuestion) {
+                    $errors[] = [
+                        'question' => $questionData['question'] ?? 'Unknown',
+                        'error' => 'Duplicate question and answer found. Skipping import.'
+                    ];
+                    continue;
+                }
+
                 $subject = $this->entityManager->getRepository(Subject::class)->findOneBy(['id' => $questionData['subject']]);
                 $capturer = $this->entityManager->getRepository(Learner::class)->findOneBy(['id' => $questionData['capturer']]);
                 $reviewer = $this->entityManager->getRepository(Learner::class)->findOneBy(['id' => $questionData['reviewer']]);
@@ -49,21 +62,21 @@ class QuestionImportService
                 $question->setAnswer($questionData['answer']);
                 $question->setOptions($questionData['options']);
                 $question->setTerm($questionData['term']);
-                $question->setImagePath($questionData['image_path']);
-                $question->setExplanation($questionData['explanation']);
-                $question->setHigherGrade($questionData['higher_grade']);
-                $question->setActive($questionData['active']);
-                $question->setYear($questionData['year']);
-                $question->setAnswerImage($questionData['answer_image']);
+                $question->setImagePath(null);
+                $question->setExplanation(null);
+                $question->setHigherGrade(0);
+                $question->setActive(1);
+                $question->setYear(2025);
+                $question->setAnswerImage(null);
 
-                $question->setQuestionImagePath($questionData['question_image_path']);
-                $question->setImagePath($questionData['image_path']);
-                $question->setAnswerImage($questionData['answer_image']);
+                $question->setQuestionImagePath(null);
+                $question->setImagePath(null);
+                $question->setAnswerImage(null);
 
-                $question->setComment($questionData['comment']);
-                $question->setPosted($questionData['posted']);
-                $question->setAiExplanation($questionData['ai_explanation']);
-                $question->setCurriculum($questionData['curriculum']);
+                $question->setComment(null);
+                $question->setPosted(null);
+                $question->setAiExplanation(null);
+                $question->setCurriculum('CAPS');
                 $question->setSubject($subject);
                 $question->setCapturer($capturer);
                 $question->setReviewer($reviewer);

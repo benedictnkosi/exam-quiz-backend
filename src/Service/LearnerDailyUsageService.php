@@ -348,4 +348,54 @@ class LearnerDailyUsageService
     {
         return $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
     }
+
+    public function getLearnerMathsPracticeCount(string $learnerUid): array
+    {
+        $this->logger->info("Getting maths practice count for learner {$learnerUid}");
+
+        try {
+            // Find the learner
+            $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            // Count mathematics practice results
+            $qb = $this->entityManager->createQueryBuilder();
+            $practiceCount = $qb->select('COUNT(r.id)')
+                ->from(\App\Entity\Result::class, 'r')
+                ->join('r.question', 'q')
+                ->join('q.subject', 's')
+                ->where('r.learner = :learner')
+                ->andWhere('r.outcome = :outcome')
+                ->andWhere('LOWER(s.name) LIKE :mathsSubject')
+                ->setParameter('learner', $learner)
+                ->setParameter('outcome', 'practice')
+                ->setParameter('mathsSubject', '%mathematics%')
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            return [
+                'status' => 'OK',
+                'data' => [
+                    'learner_uid' => $learnerUid,
+                    'learner_name' => $learner->getName(),
+                    'maths_practice_count' => (int) $practiceCount
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $this->logger->error("Error getting maths practice count: " . $e->getMessage(), [
+                'learnerUid' => $learnerUid,
+                'exception' => $e
+            ]);
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving maths practice count'
+            ];
+        }
+    }
 }

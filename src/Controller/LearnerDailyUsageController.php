@@ -109,4 +109,21 @@ class LearnerDailyUsageController extends AbstractController
             ], 500);
         }
     }
+
+    #[Route('/api/learner/maths-practice-count', name: 'get_learner_maths_practice_count', methods: ['GET'])]
+    public function getMathsPracticeCount(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $learnerUid = $request->query->get('uid');
+        if (empty($learnerUid)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner UID is required'
+            ], 400);
+        }
+
+        $result = $this->usageService->getLearnerMathsPracticeCount($learnerUid);
+        return new JsonResponse($result);
+    }
 }
