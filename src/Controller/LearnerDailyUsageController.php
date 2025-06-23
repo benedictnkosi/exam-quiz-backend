@@ -126,4 +126,21 @@ class LearnerDailyUsageController extends AbstractController
         $result = $this->usageService->getLearnerMathsPracticeCount($learnerUid);
         return new JsonResponse($result);
     }
+
+    #[Route('/api/learner/maths-practice-question-ids', name: 'get_learner_maths_practice_question_ids', methods: ['GET'])]
+    public function getMathsPracticeQuestionIds(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $learnerUid = $request->query->get('uid');
+        if (empty($learnerUid)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner UID is required'
+            ], 400);
+        }
+
+        $result = $this->usageService->getLearnerMathsPracticeQuestionIds($learnerUid);
+        return new JsonResponse($result);
+    }
 }

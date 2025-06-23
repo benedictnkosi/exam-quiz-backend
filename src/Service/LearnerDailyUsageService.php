@@ -398,4 +398,56 @@ class LearnerDailyUsageService
             ];
         }
     }
+
+    /**
+     * Get all practice question IDs for a learner (mathematics only)
+     */
+    public function getLearnerMathsPracticeQuestionIds(string $learnerUid): array
+    {
+        $this->logger->info("Getting maths practice question IDs for learner {$learnerUid}");
+
+        try {
+            $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+
+            $qb = $this->entityManager->createQueryBuilder();
+            $questionIds = $qb->select('IDENTITY(r.question)')
+                ->from(\App\Entity\Result::class, 'r')
+                ->join('r.question', 'q')
+                ->join('q.subject', 's')
+                ->where('r.learner = :learner')
+                ->andWhere('r.outcome = :outcome')
+                ->andWhere('LOWER(s.name) LIKE :mathsSubject')
+                ->setParameter('learner', $learner)
+                ->setParameter('outcome', 'practice')
+                ->setParameter('mathsSubject', '%mathematics%')
+                ->getQuery()
+                ->getArrayResult();
+
+            $ids = array_map(fn($row) => $row[1] ?? $row['IDENTITY(r.question)'] ?? $row, $questionIds);
+
+            return [
+                'status' => 'OK',
+                'data' => [
+                    'learner_uid' => $learnerUid,
+                    'learner_name' => $learner->getName(),
+                    'maths_practice_question_ids' => $ids
+                ]
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("Error getting maths practice question IDs: " . $e->getMessage(), [
+                'learnerUid' => $learnerUid,
+                'exception' => $e
+            ]);
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving maths practice question IDs'
+            ];
+        }
+    }
 }
