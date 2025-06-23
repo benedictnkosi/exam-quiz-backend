@@ -256,11 +256,29 @@ class LearnerDailyUsageService
         }
     }
 
-    public function incrementMathsPracticeUsage(Learner $learner): void
+    public function incrementMathsPracticeUsage(Learner $learner, int $questionId): void
     {
-        $this->logger->info(message: "Incrementing maths practice usage for learner {$learner->getId()}");
+        $this->logger->info(message: "Incrementing maths practice usage for learner {$learner->getId()} with question {$questionId}");
+        
+        // Find the question
+        $question = $this->entityManager->getRepository(\App\Entity\Question::class)->find($questionId);
+        if (!$question) {
+            throw new \Exception("Question with ID {$questionId} not found");
+        }
+        
+        // Create Result entry with outcome as "practice"
+        $result = new \App\Entity\Result();
+        $result->setLearner($learner);
+        $result->setQuestion($question);
+        $result->setOutcome('practice');
+        $result->setCreated(new \DateTime());
+        
+        $this->entityManager->persist($result);
+        
+        // Increment daily usage counter
         $usage = $this->getOrCreateDailyUsage($learner);
         $usage->incrementMathsPractice();
+        
         $this->entityManager->flush();
     }
 

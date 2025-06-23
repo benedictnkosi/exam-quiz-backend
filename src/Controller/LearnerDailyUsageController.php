@@ -70,10 +70,19 @@ class LearnerDailyUsageController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
 
         $learnerUid = $request->query->get('uid');
+        $questionId = $request->query->get('question_id');
+        
         if (empty($learnerUid)) {
             return new JsonResponse([
                 'status' => 'NOK',
                 'message' => 'Learner UID is required'
+            ], 400);
+        }
+
+        if (empty($questionId)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Question ID is required'
             ], 400);
         }
 
@@ -86,7 +95,7 @@ class LearnerDailyUsageController extends AbstractController
                 ], 404);
             }
 
-            $this->usageService->incrementMathsPracticeUsage($learner);
+            $this->usageService->incrementMathsPracticeUsage($learner, (int) $questionId);
 
             return new JsonResponse([
                 'status' => 'OK',
