@@ -18,19 +18,6 @@ class SubscriptionService
     private const REVENUECAT_API_BASE_URL = 'https://api.revenuecat.com/v1';
     private const FREE_SUBSCRIPTION_IDENTIFIER = 'free';
 
-    private const SUBSCRIPTION_PRIORITY = [
-        'dimpo_gold_annual' => 9,
-        'dimpo_gold_monthly' => 8,
-        'dimpo_silver_annual' => 7,
-        'dimpo_silver_monthly' => 6,
-        'dimpo_monthly_silver' => 5,
-        'dimpo_monthly_gold' => 4,
-        'dimpomonthlysilver' => 3,
-        'dimpo_gold_weekly' => 2,
-        'dimpoweekly' => 1,
-        'free' => -1
-    ];
-
     public function __construct(
         EntityManagerInterface $entityManager,
         HttpClientInterface $httpClient,
@@ -120,8 +107,7 @@ class SubscriptionService
             $now = new DateTime('now', new \DateTimeZone('UTC'));
             $this->logger->info("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
             $activeFreeEntitlementEncountered = false;
-            $highestPrioritySubscription = null;
-            $highestPriority = -1;
+            $hasActivePaidSubscription = false;
 
             // First check entitlements
             if (isset($data['subscriber']['entitlements']) && is_array($data['subscriber']['entitlements'])) {
@@ -157,18 +143,14 @@ class SubscriptionService
                         if ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER) {
                             $activeFreeEntitlementEncountered = true;
                         } else {
-                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? 0;
-                            if ($priority > $highestPriority) {
-                                $highestPriority = $priority;
-                                $highestPrioritySubscription = $productIdentifier;
-                            }
+                            $hasActivePaidSubscription = true;
                         }
                     }
                 }
             }
 
             // If no active entitlements found, check subscriptions
-            if ($highestPrioritySubscription === null && isset($data['subscriber']['subscriptions']) && is_array($data['subscriber']['subscriptions'])) {
+            if (!$hasActivePaidSubscription && isset($data['subscriber']['subscriptions']) && is_array($data['subscriber']['subscriptions'])) {
                 $this->logger->info("RevenueCat: No active entitlements found, checking subscriptions for appUser '{$appUserId}'");
                 $subscriptions = $data['subscriber']['subscriptions'];
 
@@ -183,55 +165,36 @@ class SubscriptionService
                         continue;
                     }
 
-                    // Try display_name first, then fall back to product_plan_identifier
-                    $productIdentifier = null;
-                    if (isset($subscriptionData['display_name'])) {
-                        $productIdentifier = (string) $subscriptionData['display_name'];
-                        $this->logger->info("RevenueCat: Using display_name: '{$productIdentifier}'");
-                    } elseif (isset($subscriptionData['product_plan_identifier'])) {
-                        $productIdentifier = (string) $subscriptionData['product_plan_identifier'];
-                        $this->logger->info("RevenueCat: Using product_plan_identifier: '{$productIdentifier}'");
-                    }
-
-                    if ($productIdentifier === null) {
-                        $this->logger->info("RevenueCat: Skipping subscription - no valid identifier found");
-                        continue;
-                    }
-
                     $expiresDateStr = $subscriptionData['expires_date'];
 
                     try {
                         $expiresDate = new DateTime($expiresDateStr);
                         if ($expiresDate > $now) {
-                            $priority = self::SUBSCRIPTION_PRIORITY[$productIdentifier] ?? -1;
-                            $this->logger->info("RevenueCat: Found active subscription '{$productIdentifier}' with priority {$priority}");
-                            if ($priority > $highestPriority) {
-                                $highestPriority = $priority;
-                                $highestPrioritySubscription = $productIdentifier;
-                                $this->logger->info("RevenueCat: New highest priority subscription: '{$productIdentifier}'");
-                            }
+                            $hasActivePaidSubscription = true;
+                            $this->logger->info("RevenueCat: Found active paid subscription");
+                            break;
                         } else {
-                            $this->logger->info("RevenueCat: Subscription '{$productIdentifier}' has expired");
+                            $this->logger->info("RevenueCat: Subscription has expired");
                         }
                     } catch (\Exception $e) {
-                        $this->logger->error("RevenueCat: Invalid date format for subscription '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
+                        $this->logger->error("RevenueCat: Invalid date format for subscription for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
                         continue;
                     }
                 }
             }
 
-            // If we found a paid subscription, use it
-            if ($highestPrioritySubscription !== null) {
+            // If we found a paid subscription, set to dimpo_gold
+            if ($hasActivePaidSubscription) {
                 try {
-                    $this->updateLearnerSubscriptionByUid($appUserId, $highestPrioritySubscription);
+                    $this->updateLearnerSubscriptionByUid($appUserId, 'dimpo_gold');
 
-                    $this->logger->info("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with highest priority subscription '{$highestPrioritySubscription}'.");
+                    $this->logger->info("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with dimpo_gold subscription.");
                     return [
                         'success' => true,
-                        'subscription' => $highestPrioritySubscription
+                        'subscription' => 'dimpo_gold'
                     ];
                 } catch (\Exception $learnerUpdateException) {
-                    $this->logger->error("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with highest priority subscription '{$highestPrioritySubscription}'. Error: " . $learnerUpdateException->getMessage());
+                    $this->logger->error("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with dimpo_gold subscription. Error: " . $learnerUpdateException->getMessage());
                     return [
                         'success' => false,
                         'error' => 'Learner update failed',
