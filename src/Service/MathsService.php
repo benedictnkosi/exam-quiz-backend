@@ -173,7 +173,7 @@ class MathsService
             ->andWhere('t.subTopic IS NOT NULL')
             ->setParameter('grade', $grade)
             ->setParameter('active', true)
-            ->setParameter('subjectName', $subjectName . '%')
+            ->setParameter('subjectName', '%' .$subjectName . '%')
             ->groupBy('t.name, t.subTopic')
             ->orderBy('t.name', 'ASC')
             ->addOrderBy('t.subTopic', 'ASC');

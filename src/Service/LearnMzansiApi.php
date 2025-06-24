@@ -2813,7 +2813,13 @@ class LearnMzansiApi extends AbstractController
 
             $learner->setSchoolLatitude($requestBody['school_latitude'] ?? null);
             $learner->setSchoolLongitude($requestBody['school_longitude'] ?? null);
-            $learner->setAvatar($requestBody['avatar'] ?? null);
+            
+            // Handle avatar - remove .png extension if present
+            $avatar = $requestBody['avatar'] ?? null;
+            if ($avatar && str_ends_with($avatar, '.png')) {
+                $avatar = substr($avatar, 0, -4); // Remove the last 4 characters (.png)
+            }
+            $learner->setAvatar($avatar);
 
 
 
