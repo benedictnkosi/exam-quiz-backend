@@ -124,21 +124,28 @@ class WordManagementController extends AbstractController
             'date' => (new \DateTime())->format('Y-m-d H:i:s')
         ];
 
-        // Find and replace existing entry for this language, or add new one
+        // Create a new array to store all capturers (preserving existing ones)
+        $updatedCapturers = [];
         $found = false;
-        foreach ($currentCapturers as $key => $capturer) {
+
+        // First, copy all existing capturers
+        foreach ($currentCapturers as $capturer) {
             if ($capturer['languageCode'] === $data['languageCode']) {
-                $currentCapturers[$key] = $capturerInfo;
+                // Replace existing entry for this language
+                $updatedCapturers[] = $capturerInfo;
                 $found = true;
-                break;
+            } else {
+                // Keep existing capturer for other languages
+                $updatedCapturers[] = $capturer;
             }
         }
 
+        // If no existing entry was found for this language, add the new one
         if (!$found) {
-            $currentCapturers[] = $capturerInfo;
+            $updatedCapturers[] = $capturerInfo;
         }
 
-        $word->setAudioCapturers($currentCapturers);
+        $word->setAudioCapturers($updatedCapturers);
         $this->em->flush();
 
         return $this->json([
