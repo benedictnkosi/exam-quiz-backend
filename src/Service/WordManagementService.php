@@ -43,6 +43,12 @@ class WordManagementService
         $word->setTranslations($lowercaseTranslations);
 
         $word->setImage($data['image'] ?? null);
+        
+        // Set audio capturers if provided
+        if (isset($data['audioCapturers'])) {
+            $word->setAudioCapturers($data['audioCapturers']);
+        }
+        
         $this->em->persist($word);
         $this->em->flush();
         return $word;

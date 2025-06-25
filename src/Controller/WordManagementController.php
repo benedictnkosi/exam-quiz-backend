@@ -54,12 +54,35 @@ class WordManagementController extends AbstractController
         if (!$group) {
             return $this->json(['error' => 'Word group not found'], Response::HTTP_NOT_FOUND);
         }
+
+        // Check if audio is provided and uid is available for capturer tracking
+        $audioCapturers = [];
+        if (isset($data['audio']) && !empty($data['audio']) && isset($data['uid'])) {
+            $learner = $this->em->getRepository(Learner::class)->findOneBy(['uid' => $data['uid']]);
+            if ($learner) {
+                // Create capturer entries for each audio language
+                foreach ($data['audio'] as $languageCode => $audioUrl) {
+                    $audioCapturers[] = [
+                        'learnerId' => $learner->getId(),
+                        'languageCode' => $languageCode,
+                        'date' => (new \DateTime())->format('Y-m-d H:i:s')
+                    ];
+                }
+            }
+        }
+
+        // Add capturer information to the data
+        if (!empty($audioCapturers)) {
+            $data['audioCapturers'] = $audioCapturers;
+        }
+
         $word = $this->wordService->addWord($data, $group);
         return $this->json([
             'id' => $word->getId(),
             'audio' => $word->getAudio(),
             'translations' => $word->getTranslations(),
             'groupId' => $group->getId(),
+            'audioCapturers' => $word->getAudioCapturers(),
         ]);
     }
 
@@ -231,6 +254,22 @@ class WordManagementController extends AbstractController
 
         if (isset($data['translations'])) {
             $word->setTranslations($data['translations']);
+            
+            // Handle capturer cleanup when translations are updated
+            $currentCapturers = $word->getAudioCapturers() ?? [];
+            $newTranslations = $data['translations'];
+            
+            // Filter capturers to only keep those for languages that still have translations
+            $updatedCapturers = [];
+            foreach ($currentCapturers as $capturer) {
+                if (isset($newTranslations[$capturer['languageCode']])) {
+                    // Keep capturer if translation still exists
+                    $updatedCapturers[] = $capturer;
+                }
+                // Remove capturer if translation was removed
+            }
+            
+            $word->setAudioCapturers($updatedCapturers);
         }
 
         if (isset($data['groupId'])) {
@@ -248,7 +287,8 @@ class WordManagementController extends AbstractController
             'audio' => $word->getAudio(),
             'translations' => $word->getTranslations(),
             'groupId' => $word->getWordGroup()->getId(),
-            'image' => $word->getImage()
+            'image' => $word->getImage(),
+            'audioCapturers' => $word->getAudioCapturers()
         ]);
     }
 
