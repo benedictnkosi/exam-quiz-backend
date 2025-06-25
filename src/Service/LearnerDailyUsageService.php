@@ -21,7 +21,8 @@ class LearnerDailyUsageService
     private $GOLD_DAILY_QUIZ_LIMIT = 999;
     private $DAILY_LESSON_LIMIT = 10;
     private $DAILY_PODCAST_LIMIT = 1;
-    private $DAILY_MATHS_PRACTICE_LIMIT = 1;
+    private $DAILY_MATHS_PRACTICE_LIMIT = 5;
+    private $LIFETIME_MATHS_PRACTICE_LIMIT = 30;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -436,6 +437,7 @@ class LearnerDailyUsageService
                 'data' => [
                     'learner_uid' => $learnerUid,
                     'learner_name' => $learner->getName(),
+                    'lifetime_maths_practice_limit' => $this->LIFETIME_MATHS_PRACTICE_LIMIT,
                     'maths_practice_question_ids' => $ids
                 ]
             ];
