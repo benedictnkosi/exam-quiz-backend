@@ -35,6 +35,7 @@ class LearnerCompletedChapterController extends AbstractController
 
         $duration = $data['duration'] ?? null;
         $score = $data['score'] ?? null;
+        $profileId = $data['profileId'] ?? null;
 
         try {
             $completedChapter = $this->learnerCompletedChapterService->addCompletedChapter(
@@ -42,12 +43,14 @@ class LearnerCompletedChapterController extends AbstractController
                 $data['chapterName'],
                 $data['bookTitle'],
                 $duration,
-                $score
+                $score,
+                $profileId
             );
 
             return $this->json([
                 'id' => $completedChapter->getId(),
                 'learnerUid' => $completedChapter->getLearnerUid(),
+                'profileId' => $completedChapter->getProfileId(),
                 'chapterName' => $completedChapter->getChapterName(),
                 'bookTitle' => $completedChapter->getBookTitle(),
                 'completedAt' => $completedChapter->getCompletedAt()->format('Y-m-d H:i:s'),
@@ -71,6 +74,7 @@ class LearnerCompletedChapterController extends AbstractController
                 $response[] = [
                     'id' => $chapter->getId(),
                     'learnerUid' => $chapter->getLearnerUid(),
+                    'profileId' => $chapter->getProfileId(),
                     'chapterName' => $chapter->getChapterName(),
                     'bookTitle' => $chapter->getBookTitle(),
                     'completedAt' => $chapter->getCompletedAt()->format('Y-m-d H:i:s'),
@@ -100,6 +104,7 @@ class LearnerCompletedChapterController extends AbstractController
                 $response[] = [
                     'id' => $chapter->getId(),
                     'learnerUid' => $chapter->getLearnerUid(),
+                    'profileId' => $chapter->getProfileId(),
                     'chapterName' => $chapter->getChapterName(),
                     'bookTitle' => $chapter->getBookTitle(),
                     'completedAt' => $chapter->getCompletedAt()->format('Y-m-d H:i:s'),

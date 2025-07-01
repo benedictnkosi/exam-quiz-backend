@@ -98,7 +98,7 @@ class ExportGenreStoriesCommand extends Command
                 $stories = $this->genreStoryRepository->findCompleteStoryByPlotAndAgeGroup($plot, $ageGroup);
                 
                 if (empty($stories)) {
-                    $io->text("  ⏭️  No stories found for age group {$ageGroup}");
+                    $io->text(" ⏭️  No stories found for age group {$ageGroup}");
                     continue;
                 }
 
@@ -106,7 +106,7 @@ class ExportGenreStoriesCommand extends Command
                 $isComplete = count($stories) >= 5;
                 
                 if ($completeOnly && !$isComplete) {
-                    $io->text("  ⏭️  Skipping incomplete story for age group {$ageGroup} ({$isComplete} chapters)");
+                    $io->text(" ⏭️  Skipping incomplete story for age group {$ageGroup} (has " . count($stories) . " chapters, needs 5)");
                     $incompleteStories++;
                     continue;
                 }
@@ -117,28 +117,30 @@ class ExportGenreStoriesCommand extends Command
                 // Filter stories with images if requested
                 if ($withImagesOnly) {
                     $originalCount = count($stories);
-                    $stories = array_filter($stories, function($story) {
-                        return $this->hasGeneratedImages($story);
+                    $stories = array_filter($stories, function($story) use ($io) {
+                        return $this->hasGeneratedImages($story, $io);
                     });
                     $stories = array_values($stories); // Re-index array
                     
                     if (empty($stories)) {
-                        $io->text("  ⏭️  No stories with generated images found for age group {$ageGroup}");
+                        $io->text(" ⏭️  No stories with generated images found for age group {$ageGroup}");
                         $storiesWithoutImages += $originalCount;
                         continue;
                     }
                     
                     $storiesWithImages += count($stories);
                     $storiesWithoutImages += ($originalCount - count($stories));
-                    $io->text("  📸 Filtered to <info>" . count($stories) . " chapters with images</info> for age group {$ageGroup}");
+                    $io->text(" 📸 Filtered to " . count($stories) . " chapters with images for age group {$ageGroup}");
                 }
 
                 // Create book entry for each chapter
                 foreach ($stories as $story) {
-                    $bookData = $this->formatStoryForExport($story, $includeQuiz, $includeImages);
+                    $bookData = $this->formatStoryForExport($story, $includeQuiz, $includeImages, $io);
                     if ($bookData['images'] !== null) {
                         $exportData['books'][] = $bookData;
                         $totalStories++;
+                    } else {
+                        $io->text(" ⏭️  Skipping chapter " . $story->getChapterNumber() . " for age group {$ageGroup} because it has less than 2 images");
                     }
                 }
 
@@ -148,7 +150,7 @@ class ExportGenreStoriesCommand extends Command
                     $incompleteStories++;
                 }
 
-                $io->text("  ✓ Exported <info>" . count($stories) . " chapters</info> for age group {$ageGroup}" . ($isComplete ? " (complete)" : " (incomplete)"));
+                $io->text("  ✓ Exported " . count($stories) . " chapters for age group {$ageGroup}" . ($isComplete ? " (complete)" : " (incomplete)"));
             }
         }
 
@@ -188,8 +190,9 @@ class ExportGenreStoriesCommand extends Command
         }
     }
 
-    private function formatStoryForExport(GenreStory $story, bool $includeQuiz, bool $includeImages): array
+    private function formatStoryForExport(GenreStory $story, bool $includeQuiz, bool $includeImages, SymfonyStyle $io = null): array
     {
+        
         $plot = $story->getPlot();
         $genre = $plot->getGenre();
         
@@ -213,11 +216,7 @@ class ExportGenreStoriesCommand extends Command
         $vocabulary = $story->getVocabulary() ?? [];
         
         if ($includeImages) {
-            $imagePrompts = $vocabulary['image_prompts'] ?? [];
-            $sharedImages = $vocabulary['shared_images'] ?? [];
-            $oldImages = $vocabulary['images'] ?? [];
-            
-            $images = $this->formatImagesForExport($imagePrompts, $sharedImages, $oldImages, $bookId, $story->getChapterNumber());
+            $images = $this->formatImagesForExport($vocabulary['image_prompts'] ?? [], $vocabulary['shared_images'] ?? [], $vocabulary['images'] ?? [], $bookId, $story->getChapterNumber(), $io);
         }
 
         return [
@@ -258,7 +257,7 @@ class ExportGenreStoriesCommand extends Command
         ];
     }
 
-    private function formatImagesForExport(array $imagePrompts, array $sharedImages, array $oldImages, string $bookId, int $chapterNumber): ?array
+    private function formatImagesForExport(array $imagePrompts, array $sharedImages, array $oldImages, string $bookId, int $chapterNumber, SymfonyStyle $io = null): ?array
     {
         $illustrations = [];
         $baseDir = __DIR__ . '/../../public/assets/story-images/';
@@ -266,16 +265,20 @@ class ExportGenreStoriesCommand extends Command
         // Add shared images if available (actual generated images)
         foreach ($sharedImages as $imageNumber => $imageData) {
             $filename = $imageData['filename'] ?? '';
-            if ($filename && file_exists($baseDir . $filename)) {
-                $illustrations[] = $filename;
+            if ($filename) {
+                if (file_exists($baseDir . $filename)) {
+                    $illustrations[] = $filename;
+                }
             }
         }
         
         // Add old images if available (actual generated images)
         foreach ($oldImages as $imageNumber => $imageData) {
             $filename = $imageData['filename'] ?? '';
-            if ($filename && file_exists($baseDir . $filename)) {
-                $illustrations[] = $filename;
+            if ($filename) {
+                if (file_exists($baseDir . $filename)) {
+                    $illustrations[] = $filename;
+                }
             }
         }
         
@@ -316,21 +319,19 @@ class ExportGenreStoriesCommand extends Command
         return "{$baseName}";
     }
 
-    private function hasGeneratedImages(GenreStory $story): bool
+    private function hasGeneratedImages(GenreStory $story, SymfonyStyle $io): bool
     {
         $vocabulary = $story->getVocabulary() ?? [];
-        
         // Check for shared images (new system)
         $hasSharedImages = isset($vocabulary['shared_images']) && 
                           is_array($vocabulary['shared_images']) && 
                           !empty($vocabulary['shared_images']);
-        
         // Check for old-style images
         $hasOldImages = isset($vocabulary['images']) && 
                        is_array($vocabulary['images']) && 
                        !empty($vocabulary['images']);
-        
         // Only return true if there are actual generated images, not just prompts
-        return $hasSharedImages || $hasOldImages;
+        $result = $hasSharedImages || $hasOldImages;
+        return $result;
     }
 } 

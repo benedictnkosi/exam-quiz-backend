@@ -11,6 +11,7 @@ use JMS\Serializer\Annotation as Serializer;
 #[ORM\Index(name: 'learner_completed_chapter_learner_uid_idx', columns: ['learner_uid'])]
     #[ORM\Index(name: 'learner_completed_chapter_chapter_name_idx', columns: ['chapter_name'])]
 #[ORM\Index(name: 'learner_completed_chapter_book_title_idx', columns: ['book_title'])]
+#[ORM\Index(name: 'learner_completed_chapter_profile_id_idx', columns: ['profile_id'])]
 class LearnerCompletedChapter
 {
     #[ORM\Id]
@@ -22,6 +23,10 @@ class LearnerCompletedChapter
     #[ORM\Column(name: 'learner_uid', type: Types::STRING, length: 45, nullable: false)]
     #[Serializer\Groups(['learner_completed_chapter:read'])]
     private string $learnerUid;
+
+    #[ORM\Column(name: 'profile_id', type: Types::INTEGER, nullable: true)]
+    #[Serializer\Groups(['learner_completed_chapter:read'])]
+    private ?int $profileId = null;
 
     #[ORM\Column(name: 'chapter_name', type: Types::STRING, length: 255, nullable: false)]
     #[Serializer\Groups(['learner_completed_chapter:read'])]
@@ -61,6 +66,17 @@ class LearnerCompletedChapter
     public function setLearnerUid(string $learnerUid): self
     {
         $this->learnerUid = $learnerUid;
+        return $this;
+    }
+
+    public function getProfileId(): ?int
+    {
+        return $this->profileId;
+    }
+
+    public function setProfileId(?int $profileId): self
+    {
+        $this->profileId = $profileId;
         return $this;
     }
 

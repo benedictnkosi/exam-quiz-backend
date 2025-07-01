@@ -13,7 +13,7 @@ class LearnerCompletedChapterService
         private LearnerCompletedChapterRepository $learnerCompletedChapterRepository
     ) {}
 
-    public function addCompletedChapter(string $learnerUid, string $chapterName, string $bookTitle, ?int $duration = null, ?int $score = null): LearnerCompletedChapter
+    public function addCompletedChapter(string $learnerUid, string $chapterName, string $bookTitle, ?int $duration = null, ?int $score = null, ?int $profileId = null): LearnerCompletedChapter
     {
         // Check if this chapter is already completed by this learner
         $existingCompletion = $this->learnerCompletedChapterRepository->findByLearnerUidAndChapterName($learnerUid, $chapterName);
@@ -26,6 +26,9 @@ class LearnerCompletedChapterService
             if ($score !== null) {
                 $existingCompletion->setScore($score);
             }
+            if ($profileId !== null) {
+                $existingCompletion->setProfileId($profileId);
+            }
             $this->entityManager->flush();
             return $existingCompletion;
         }
@@ -36,6 +39,7 @@ class LearnerCompletedChapterService
         $completedChapter->setBookTitle($bookTitle);
         $completedChapter->setDuration($duration);
         $completedChapter->setScore($score);
+        $completedChapter->setProfileId($profileId);
 
         $this->entityManager->persist($completedChapter);
         $this->entityManager->flush();
