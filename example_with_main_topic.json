@@ -1,0 +1,26 @@
+{
+  "topic": "Statement of Comprehensive Income",
+  "main_topic": "Financial Statements",
+  "level": "Level 1: Basics",
+  "questions": [
+    {
+      "id": "sci_q1",
+      "type": "tap-to-select",
+      "prompt": "Is Rent Income an income or an expense?",
+      "options": ["Income", "Expense"],
+      "answer": "Income"
+    },
+    {
+      "id": "sci_q2",
+      "type": "categorise",
+      "prompt": "Drag each item to the correct category.",
+      "categories": ["Income", "Operating Expense"],
+      "items": {
+        "Rent Income": "Income",
+        "Packing Material": "Operating Expense",
+        "Service Fees": "Income",
+        "Audit Fees": "Operating Expense"
+      }
+    }
+  ]
+} 
