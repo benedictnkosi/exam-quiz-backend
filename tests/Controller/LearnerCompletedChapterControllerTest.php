@@ -16,6 +16,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
     {
         $payload = [
             'learnerUid' => 'test-learner-123',
+            'profileUid' => 'test-profile-456',
             'chapterName' => 'Chapter 1: Introduction',
             'bookTitle' => 'The Adventure Begins',
             'duration' => 1200,
@@ -36,6 +37,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
 
         $content = json_decode($response->getContent(), true);
         $this->assertEquals('test-learner-123', $content['learnerUid']);
+        $this->assertEquals('test-profile-456', $content['profileUid']);
         $this->assertEquals('Chapter 1: Introduction', $content['chapterName']);
         $this->assertEquals('The Adventure Begins', $content['bookTitle']);
         $this->assertEquals(1200, $content['duration']);
@@ -48,6 +50,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
         $completedChapter = $this->entityManager->getRepository(LearnerCompletedChapter::class)
             ->findOneBy(['learnerUid' => 'test-learner-123', 'chapterName' => 'Chapter 1: Introduction']);
         $this->assertNotNull($completedChapter);
+        $this->assertEquals('test-profile-456', $completedChapter->getProfileUid());
         $this->assertEquals('The Adventure Begins', $completedChapter->getBookTitle());
         $this->assertEquals(1200, $completedChapter->getDuration());
         $this->assertEquals(85, $completedChapter->getScore());
@@ -122,11 +125,36 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
         $this->assertEquals('Book title is required', $content['error']);
     }
 
+    public function testAddCompletedChapterMissingProfileUid(): void
+    {
+        $payload = [
+            'learnerUid' => 'test-learner-123',
+            'chapterName' => 'Chapter 1: Introduction',
+            'bookTitle' => 'The Adventure Begins'
+        ];
+
+        $this->client->request(
+            'POST',
+            '/api/learner-completed-chapters',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode($payload)
+        );
+
+        $response = $this->client->getResponse();
+        $this->assertEquals(400, $response->getStatusCode());
+
+        $content = json_decode($response->getContent(), true);
+        $this->assertEquals('Profile UID is required', $content['error']);
+    }
+
     public function testGetCompletedChaptersByLearner(): void
     {
         // Create test completed chapters first
         $completedChapter1 = new LearnerCompletedChapter();
         $completedChapter1->setLearnerUid('test-learner-123');
+        $completedChapter1->setProfileUid('test-profile-456');
         $completedChapter1->setChapterName('Chapter 1: Introduction');
         $completedChapter1->setBookTitle('The Adventure Begins');
         $completedChapter1->setDuration(1200);
@@ -135,6 +163,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
 
         $completedChapter2 = new LearnerCompletedChapter();
         $completedChapter2->setLearnerUid('test-learner-123');
+        $completedChapter2->setProfileUid('test-profile-456');
         $completedChapter2->setChapterName('Chapter 2: The Journey');
         $completedChapter2->setBookTitle('The Adventure Begins');
         $completedChapter2->setDuration(1500);
@@ -157,6 +186,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
         $firstChapter = $content['completedChapters'][0];
         $this->assertArrayHasKey('id', $firstChapter);
         $this->assertArrayHasKey('learnerUid', $firstChapter);
+        $this->assertArrayHasKey('profileUid', $firstChapter);
         $this->assertArrayHasKey('chapterName', $firstChapter);
         $this->assertArrayHasKey('bookTitle', $firstChapter);
         $this->assertArrayHasKey('completedAt', $firstChapter);
@@ -182,6 +212,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
         // Create test completed chapters first
         $completedChapter1 = new LearnerCompletedChapter();
         $completedChapter1->setLearnerUid('test-learner-123');
+        $completedChapter1->setProfileUid('test-profile-456');
         $completedChapter1->setChapterName('Chapter 1: Introduction');
         $completedChapter1->setBookTitle('The Adventure Begins');
         $completedChapter1->setDuration(1200);
@@ -190,6 +221,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
 
         $completedChapter2 = new LearnerCompletedChapter();
         $completedChapter2->setLearnerUid('test-learner-123');
+        $completedChapter2->setProfileUid('test-profile-456');
         $completedChapter2->setChapterName('Chapter 2: The Journey');
         $completedChapter2->setBookTitle('The Adventure Begins');
         $completedChapter2->setDuration(1500);
@@ -213,6 +245,7 @@ class LearnerCompletedChapterControllerTest extends ApiTestCase
         // Create a test completed chapter first
         $completedChapter = new LearnerCompletedChapter();
         $completedChapter->setLearnerUid('test-learner-123');
+        $completedChapter->setProfileUid('test-profile-456');
         $completedChapter->setChapterName('Chapter 1: Introduction');
         $completedChapter->setBookTitle('The Adventure Begins');
         $completedChapter->setDuration(1200);

@@ -25,6 +25,10 @@ class LearnerCompletedChapterController extends AbstractController
             return $this->json(['error' => 'Learner UID is required'], 400);
         }
 
+        if (!isset($data['profileUid']) || empty($data['profileUid'])) {
+            return $this->json(['error' => 'Profile UID is required'], 400);
+        }
+
         if (!isset($data['chapterName']) || empty($data['chapterName'])) {
             return $this->json(['error' => 'Chapter name is required'], 400);
         }
@@ -35,7 +39,7 @@ class LearnerCompletedChapterController extends AbstractController
 
         $duration = $data['duration'] ?? null;
         $score = $data['score'] ?? null;
-        $profileId = $data['profileId'] ?? null;
+        $profileUid = $data['profileUid'] ?? null;
 
         try {
             $completedChapter = $this->learnerCompletedChapterService->addCompletedChapter(
@@ -44,13 +48,13 @@ class LearnerCompletedChapterController extends AbstractController
                 $data['bookTitle'],
                 $duration,
                 $score,
-                $profileId
+                $profileUid
             );
 
             return $this->json([
                 'id' => $completedChapter->getId(),
                 'learnerUid' => $completedChapter->getLearnerUid(),
-                'profileId' => $completedChapter->getProfileId(),
+                'profileUid' => $completedChapter->getProfileUid(),
                 'chapterName' => $completedChapter->getChapterName(),
                 'bookTitle' => $completedChapter->getBookTitle(),
                 'completedAt' => $completedChapter->getCompletedAt()->format('Y-m-d H:i:s'),
@@ -74,7 +78,7 @@ class LearnerCompletedChapterController extends AbstractController
                 $response[] = [
                     'id' => $chapter->getId(),
                     'learnerUid' => $chapter->getLearnerUid(),
-                    'profileId' => $chapter->getProfileId(),
+                    'profileUid' => $chapter->getProfileUid(),
                     'chapterName' => $chapter->getChapterName(),
                     'bookTitle' => $chapter->getBookTitle(),
                     'completedAt' => $chapter->getCompletedAt()->format('Y-m-d H:i:s'),
@@ -104,7 +108,7 @@ class LearnerCompletedChapterController extends AbstractController
                 $response[] = [
                     'id' => $chapter->getId(),
                     'learnerUid' => $chapter->getLearnerUid(),
-                    'profileId' => $chapter->getProfileId(),
+                    'profileUid' => $chapter->getProfileUid(),
                     'chapterName' => $chapter->getChapterName(),
                     'bookTitle' => $chapter->getBookTitle(),
                     'completedAt' => $chapter->getCompletedAt()->format('Y-m-d H:i:s'),

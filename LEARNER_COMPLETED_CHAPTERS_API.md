@@ -18,7 +18,7 @@ Adds a new completed chapter record for a learner.
     "bookTitle": "string (required)",
     "duration": "integer (optional)",
     "score": "integer (optional)",
-    "profileId": "integer (optional)"
+    "profileUid": "string (optional)"
 }
 ```
 
@@ -27,7 +27,7 @@ Adds a new completed chapter record for a learner.
 {
     "id": 1,
     "learnerUid": "learner123",
-    "profileId": 456,
+    "profileUid": "profile456",
     "chapterName": "Chapter 1: Introduction",
     "bookTitle": "Mathematics Fundamentals",
     "completedAt": "2024-12-20 10:30:00",
@@ -50,7 +50,7 @@ Retrieves all completed chapters for a specific learner.
         {
             "id": 1,
             "learnerUid": "learner123",
-            "profileId": 456,
+            "profileUid": "profile456",
             "chapterName": "Chapter 1: Introduction",
             "bookTitle": "Mathematics Fundamentals",
             "completedAt": "2024-12-20 10:30:00",
@@ -76,7 +76,7 @@ Retrieves completed chapters for a specific learner and book.
         {
             "id": 1,
             "learnerUid": "learner123",
-            "profileId": 456,
+            "profileUid": "profile456",
             "chapterName": "Chapter 1: Introduction",
             "bookTitle": "Mathematics Fundamentals",
             "completedAt": "2024-12-20 10:30:00",
@@ -121,7 +121,7 @@ The `learner_completed_chapter` table includes the following fields:
 
 - `id` (INT, Primary Key, Auto Increment)
 - `learner_uid` (VARCHAR(45), Not Null)
-- `profile_id` (INT, Nullable) - **NEW FIELD**
+- `profile_uid` (VARCHAR(45), Nullable) - **NEW FIELD**
 - `chapter_name` (VARCHAR(255), Not Null)
 - `book_title` (VARCHAR(255), Not Null)
 - `completed_at` (DATETIME, Default: CURRENT_TIMESTAMP)
@@ -135,7 +135,7 @@ To apply the database changes, run:
 php bin/console doctrine:migrations:migrate
 ```
 
-This will add the `profile_id` column to the existing `learner_completed_chapter` table.
+This will add the `profile_uid` column to the existing `learner_completed_chapter` table.
 
 ## Features
 
