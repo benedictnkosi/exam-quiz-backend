@@ -136,7 +136,7 @@ class MathsService
                 ->setParameter('topic', $topic)
                 ->setParameter('grade', $grade)
                 ->setParameter('active', true)
-                ->setParameter('subjectName', $subjectName . '%')
+                ->setParameter('subjectName', '%' .$subjectName . '%')
                 ->orderBy('q.id', 'ASC');
 
             $query = $qb->getQuery();
