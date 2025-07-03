@@ -22,7 +22,7 @@ class LearnerDailyUsageService
     private $DAILY_LESSON_LIMIT = 10;
     private $DAILY_PODCAST_LIMIT = 1;
     private $DAILY_MATHS_PRACTICE_LIMIT = 5;
-    private $LIFETIME_MATHS_PRACTICE_LIMIT = 30;
+    private $LIFETIME_MATHS_PRACTICE_LIMIT = 15;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

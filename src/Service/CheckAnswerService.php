@@ -238,7 +238,7 @@ class CheckAnswerService
                     if (count($todayResults) >= 3) {
                         $currentStreak++;
                         $streakUpdated = true;
-                        $learner->setStreak($currentStreak)
+                        $learner->setStreak(streak: $currentStreak)
                             ->setStreakLastUpdated(new \DateTime());
 
                         // Send streak notification to followers

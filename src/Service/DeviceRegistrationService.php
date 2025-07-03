@@ -35,7 +35,7 @@ class DeviceRegistrationService
         $deviceRegistration->setLearnerUid($learnerUid);
 
         $this->entityManager->persist($deviceRegistration);
-        $this->entityManager->flush();
+        // $this->entityManager->flush();
 
         return $deviceRegistration;
     }
