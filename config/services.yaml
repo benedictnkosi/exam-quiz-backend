@@ -107,4 +107,4 @@ services:
         arguments:
             $entityManager: '@Doctrine\ORM\EntityManagerInterface'
             $httpClient: '@Symfony\Contracts\HttpClient\HttpClientInterface'
-            $revenueCatApiKey: "%env(REVENUECAT_API_KEY)%"
+            $logger: '@logger'

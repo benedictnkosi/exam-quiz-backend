@@ -12,21 +12,18 @@ class SubscriptionService
 {
     private EntityManagerInterface $entityManager;
     private HttpClientInterface $httpClient;
-    private string $revenueCatApiKey;
     private LoggerInterface $logger;
 
-    private const REVENUECAT_API_BASE_URL = 'https://api.revenuecat.com/v1';
+    private const REVENUECAT_API_BASE_URL = 'https://api.revenuecat.com/v2/';
     private const FREE_SUBSCRIPTION_IDENTIFIER = 'free';
 
     public function __construct(
         EntityManagerInterface $entityManager,
         HttpClientInterface $httpClient,
-        string $revenueCatApiKey,
         LoggerInterface $logger
     ) {
         $this->entityManager = $entityManager;
         $this->httpClient = $httpClient;
-        $this->revenueCatApiKey = $revenueCatApiKey;
         $this->logger = $logger;
     }
 
@@ -42,7 +39,7 @@ class SubscriptionService
         if ($subscription === 'free') {
             $learner->setSubscription($subscription);
         } else {
-            $learner->setSubscription("dimpo_gold");
+            $learner->setSubscription("Dimpo Pro");
         }
 
         $this->entityManager->persist($learner);
@@ -74,157 +71,49 @@ class SubscriptionService
         return $learner;
     }
 
-    public function updateLearnerSubscriptionByEmail(string $email, ?string $subscription): Learner
-    {
-        $learner = $this->entityManager->getRepository(Learner::class)->findOneBy(['email' => $email]);
 
-        if (!$learner) {
-            throw new \Exception("Learner not found with email: {$email}");
+    public function updateRevenueCatSubscription(string $appUserId, string $projectName): array
+    {
+        // Get project-specific API key and project ID from environment
+        $projectApiKey = $_ENV["REVENUECAT_V2_{$projectName}_API_KEY"] ?? null;
+        $projectId = $_ENV["REVENUECAT_V2_{$projectName}_PROJECT_ID"] ?? null;
+        
+        if (!$projectApiKey) {
+            throw new \Exception("RevenueCat API key not found for project: {$projectName}");
         }
-
-        $learner->setSubscription($subscription);
-        $this->entityManager->persist($learner);
-        $this->entityManager->flush();
-
-        return $learner;
-    }
-
-    public function updateRevenueCatSubscription(string $appUserId): array
-    {
-        $url = self::REVENUECAT_API_BASE_URL . '/subscribers/' . $appUserId;
+        
+        if (!$projectId) {
+            throw new \Exception("RevenueCat Project ID not found for project: {$projectName}");
+        }
+        
+        $this->logger->info("RevenueCat: Using project-specific credentials for project: {$projectName}");
+        
+        $url = self::REVENUECAT_API_BASE_URL . 'projects/' . $projectId . '/customers/' . $appUserId . '/subscriptions';
+        $this->logger->info("RevenueCat: URL: {$url}");
         $headers = [
-            'Authorization' => 'Bearer ' . $this->revenueCatApiKey,
+            'Authorization' => 'Bearer ' . $projectApiKey,
             'Accept' => 'application/json',
         ];
-
-        $this->logger->info("RevenueCat: Attempting to fetch subscription for appUser '{$appUserId}' from {$url}");
 
         try {
             $response = $this->httpClient->request('GET', $url, ['headers' => $headers]);
             $data = $response->toArray();
 
-            $resolvedLearnerIdentifier = null;
-            $now = new DateTime('now', new \DateTimeZone('UTC'));
-            $this->logger->info("RevenueCat: Current time (UTC for comparison): " . $now->format('Y-m-d H:i:sP'));
-            $activeFreeEntitlementEncountered = false;
-            $hasActivePaidSubscription = false;
-
-            // First check entitlements
-            if (isset($data['subscriber']['entitlements']) && is_array($data['subscriber']['entitlements'])) {
-                $this->logger->info("RevenueCat: Checking entitlements for appUser '{$appUserId}'");
-                $entitlements = $data['subscriber']['entitlements'];
-
-                foreach ($entitlements as $entitlementData) {
-                    if (!is_array($entitlementData) || !isset($entitlementData['product_identifier']) || !array_key_exists('expires_date', $entitlementData)) {
-                        continue;
-                    }
-
-                    $productIdentifier = (string) $entitlementData['product_identifier'];
-                    $expiresDateStr = $entitlementData['expires_date'];
-
-                    $isActive = false;
-
-                    if ($expiresDateStr === null) {
-                        $isActive = true; // Entitlement never expires
-                    } else {
-                        $this->logger->info("RevenueCat: Entitlement expires date: {$expiresDateStr}");
-                        try {
-                            $expiresDate = new DateTime($expiresDateStr);
-                            if ($expiresDate > $now) {
-                                $isActive = true; // Entitlement expires in the future
-                            }
-                        } catch (\Exception $e) {
-                            $this->logger->error("RevenueCat: Invalid date format for entitlement '{$productIdentifier}' for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
-                            continue;
-                        }
-                    }
-
-                    if ($isActive) {
-                        if ($productIdentifier === self::FREE_SUBSCRIPTION_IDENTIFIER) {
-                            $activeFreeEntitlementEncountered = true;
-                        } else {
-                            $hasActivePaidSubscription = true;
-                        }
-                    }
+            $hasEntitlement = false;
+            if (isset($data['items']) && is_array($data['items']) && count($data['items']) > 0) {
+                $firstItem = $data['items'][0];
+                if (isset($firstItem['entitlements']['items']) && is_array($firstItem['entitlements']['items']) && count($firstItem['entitlements']['items']) > 0) {
+                    $hasEntitlement = true;
                 }
             }
 
-            // If no active entitlements found, check subscriptions
-            if (!$hasActivePaidSubscription && isset($data['subscriber']['subscriptions']) && is_array($data['subscriber']['subscriptions'])) {
-                $this->logger->info("RevenueCat: No active entitlements found, checking subscriptions for appUser '{$appUserId}'");
-                $subscriptions = $data['subscriber']['subscriptions'];
+            $subscriptionType = $hasEntitlement ? 'pro' : 'free';
+            $this->updateLearnerSubscriptionByUid($appUserId, $subscriptionType);
 
-                if (count($subscriptions) == 0) {
-                    $this->logger->info("RevenueCat: No subscriptions found for appUser '{$appUserId}'");
-                }
-
-                foreach ($subscriptions as $subscriptionData) {
-                    $this->logger->info("RevenueCat: Subscription data: " . json_encode($subscriptionData));
-                    if (!is_array($subscriptionData) || !isset($subscriptionData['expires_date'])) {
-                        $this->logger->info("RevenueCat: Skipping subscription - missing required fields");
-                        continue;
-                    }
-
-                    $expiresDateStr = $subscriptionData['expires_date'];
-
-                    try {
-                        $expiresDate = new DateTime($expiresDateStr);
-                        if ($expiresDate > $now) {
-                            $hasActivePaidSubscription = true;
-                            $this->logger->info("RevenueCat: Found active paid subscription");
-                            break;
-                        } else {
-                            $this->logger->info("RevenueCat: Subscription has expired");
-                        }
-                    } catch (\Exception $e) {
-                        $this->logger->error("RevenueCat: Invalid date format for subscription for appUser '{$appUserId}'. Date: '{$expiresDateStr}'. Error: " . $e->getMessage());
-                        continue;
-                    }
-                }
-            }
-
-            // If we found a paid subscription, set to dimpo_gold
-            if ($hasActivePaidSubscription) {
-                try {
-                    $this->updateLearnerSubscriptionByUid($appUserId, 'dimpo_gold');
-
-                    $this->logger->info("RevenueCat: Successfully updated learner ( ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with dimpo_gold subscription.");
-                    return [
-                        'success' => true,
-                        'subscription' => 'dimpo_gold'
-                    ];
-                } catch (\Exception $learnerUpdateException) {
-                    $this->logger->error("RevenueCat: Failed to update learner (ID: {$resolvedLearnerIdentifier}) for appUser '{$appUserId}' with dimpo_gold subscription. Error: " . $learnerUpdateException->getMessage());
-                    return [
-                        'success' => false,
-                        'error' => 'Learner update failed',
-                        'details' => $learnerUpdateException->getMessage()
-                    ];
-                }
-            }
-
-            // If no paid subscription found, set to FREE_SUBSCRIPTION_IDENTIFIER
-            try {
-                $this->updateLearnerSubscriptionByUid($appUserId, self::FREE_SUBSCRIPTION_IDENTIFIER);
-
-                if ($activeFreeEntitlementEncountered) {
-                    $this->logger->info("RevenueCat: No paid subscription set. Set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}) based on an active free entitlement.");
-                } else {
-                    $this->logger->info("RevenueCat: No active paid or specific free entitlements found. Setting subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' by default for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}.");
-                }
-                return [
-                    'success' => true,
-                    'subscription' => self::FREE_SUBSCRIPTION_IDENTIFIER
-                ];
-            } catch (\Exception $learnerUpdateException) {
-                $this->logger->error("RevenueCat: Failed to set subscription to '" . self::FREE_SUBSCRIPTION_IDENTIFIER . "' for appUser '{$appUserId}' (ID: {$resolvedLearnerIdentifier}, . Error: " . $learnerUpdateException->getMessage());
-                return [
-                    'success' => false,
-                    'error' => 'Free subscription update failed',
-                    'details' => $learnerUpdateException->getMessage()
-                ];
-            }
-
+            return [
+                'success' => true,
+                'subscription' => $subscriptionType
+            ];
         } catch (\Symfony\Contracts\HttpClient\Exception\ExceptionInterface $e) {
             $this->logger->error("RevenueCat: HTTP Client Exception for appUser '{$appUserId}'. Error: " . $e->getMessage());
             return [

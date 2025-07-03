@@ -10,15 +10,18 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpKernel\Attribute\AsController;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[AsController]
 class SubscriptionController extends AbstractController
 {
-    #[Route('/api/subscription', name: 'subscription_update', methods: ['POST'])]
+    #[Route('/api/subscription/{projectName}', name: 'subscription_update', methods: ['POST'])]
     public function updateSubscription(
         Request $request,
         SubscriptionService $subscriptionService,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        string $projectName,
+        EntityManagerInterface $entityManager
     ): JsonResponse {
         try {
             $data = json_decode($request->getContent(), true);
@@ -32,10 +35,19 @@ class SubscriptionController extends AbstractController
                 ? $data['event']['aliases'][1]
                 : $firstAlias;
 
-            $learner = $subscriptionService->updateRevenueCatSubscription($appUserId);
+            $result = $subscriptionService->updateRevenueCatSubscription($appUserId, $projectName);
+            
+            if (!$result['success']) {
+                throw new \Exception($result['error'] ?? 'Failed to update subscription');
+            }
+            
+            // Find the learner to return
+            $learner = $entityManager->getRepository(\App\Entity\Learner::class)->findOneBy(['uid' => $appUserId]);
+            if (!$learner) {
+                throw new \Exception('Learner not found after subscription update');
+            }
 
-            $json = $serializer->serialize($learner, 'json', ['groups' => 'learner:read']);
-            return new JsonResponse($json, Response::HTTP_OK, [], true);
+            return $this->json($learner->getSubscription(), Response::HTTP_OK, [], ['groups' => 'learner:read']);
         } catch (\Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }

@@ -124,3 +124,6 @@ mac1@Mac1s-MacBook-Pro SouthAfricanLanguages % crontab -l
 0 23 * * * /Users/mac1/Documents/ExamQuiz/backups/backup_images.sh >> /Users/mac1/Documents/ExamQuiz/backups/images.log 2>&1
 * * * * * /Users/mac1/Documents/ExamQuiz/backups/backup_db.sh >> /Users/mac1/Documents/ExamQuiz/backups/database.log 2>&1
 0 15 * * * cd /Users/mac1/Documents/cursor/exam-quiz-admin && npx ts-node scripts/Grade12/populateDailyChat.ts >> logs/populateDailyChat.log 2>&1
+
+### create stories
+php bin/console app:generate-genre-stories --generate-images --generate-quiz
