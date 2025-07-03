@@ -25,6 +25,9 @@ doctrine:
                 prefix: 'App\Entity'
                 alias: App
 
+# If you need to explicitly add the LearnerMathsPracticeStat entity mapping, do so here. Otherwise, Doctrine should auto-discover it in src/Entity.
+# No changes needed unless you have custom mappings.
+
 when@test:
     doctrine:
         dbal:

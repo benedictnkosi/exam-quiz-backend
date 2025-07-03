@@ -69,9 +69,14 @@ class LearnerDailyUsageController extends AbstractController
     {
         $this->logger->info("Starting Method: " . __METHOD__);
 
-        $learnerUid = $request->query->get('uid');
-        $questionId = $request->query->get('question_id');
-        
+        // Accept both JSON and form data
+        $data = json_decode($request->getContent(), true) ?? [];
+        $learnerUid = $data['uid'] ?? $request->query->get('uid');
+        $questionId = $data['question_id'] ?? $request->query->get('question_id');
+        $isCorrect = $data['correct'] ?? $request->query->get('correct');
+        $correctSteps = $data['correct_steps'] ?? $request->query->get('correct_steps') ?? 0;
+        $incorrectSteps = $data['incorrect_steps'] ?? $request->query->get('incorrect_steps') ?? 0;
+
         if (empty($learnerUid)) {
             return new JsonResponse([
                 'status' => 'NOK',
@@ -86,6 +91,13 @@ class LearnerDailyUsageController extends AbstractController
             ], 400);
         }
 
+        if (!isset($isCorrect)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Correct (true/false) is required'
+            ], 400);
+        }
+
         try {
             $learner = $this->usageService->getLearnerByUid($learnerUid);
             if (!$learner) {
@@ -95,11 +107,18 @@ class LearnerDailyUsageController extends AbstractController
                 ], 404);
             }
 
-            $this->usageService->incrementMathsPracticeUsage($learner, (int) $questionId);
+            $streakEarned = $this->usageService->incrementMathsPracticeUsage(
+                $learner,
+                (int) $questionId,
+                filter_var($isCorrect, FILTER_VALIDATE_BOOLEAN),
+                (int) $correctSteps,
+                (int) $incorrectSteps
+            );
 
             return new JsonResponse([
                 'status' => 'OK',
-                'message' => 'Maths practice count incremented successfully'
+                'message' => 'Maths practice count incremented successfully',
+                'streak_earned' => $streakEarned
             ]);
         } catch (\Exception $e) {
             $this->logger->error('Error incrementing maths practice: ' . $e->getMessage());
@@ -133,6 +152,7 @@ class LearnerDailyUsageController extends AbstractController
         $this->logger->info("Starting Method: " . __METHOD__);
 
         $learnerUid = $request->query->get('uid');
+        $topic = $request->query->get('topic');
         if (empty($learnerUid)) {
             return new JsonResponse([
                 'status' => 'NOK',
@@ -140,7 +160,27 @@ class LearnerDailyUsageController extends AbstractController
             ], 400);
         }
 
-        $result = $this->usageService->getLearnerMathsPracticeQuestionIds($learnerUid);
+        $result = $this->usageService->getLearnerMathsPracticeQuestionIds($learnerUid, $topic);
+        return new JsonResponse($result);
+    }
+
+    #[Route('/api/learner/maths-practice/reset', name: 'reset_learner_maths_practice_progress', methods: ['POST'])]
+    public function resetMathsPracticeProgress(Request $request): JsonResponse
+    {
+        $this->logger->info("Starting Method: " . __METHOD__);
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        $learnerUid = $data['uid'] ?? $request->request->get('uid');
+        $topic = $data['topic'] ?? $request->request->get('topic');
+
+        if (empty($learnerUid) || empty($topic)) {
+            return new JsonResponse([
+                'status' => 'NOK',
+                'message' => 'Learner UID and topic are required'
+            ], 400);
+        }
+
+        $result = $this->usageService->resetMathsPracticeProgressForTopic($learnerUid, $topic);
         return new JsonResponse($result);
     }
 }

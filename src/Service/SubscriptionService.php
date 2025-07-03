@@ -90,6 +90,9 @@ class SubscriptionService
         
         $url = self::REVENUECAT_API_BASE_URL . 'projects/' . $projectId . '/customers/' . $appUserId . '/subscriptions';
         $this->logger->info("RevenueCat: URL: {$url}");
+        $this->logger->info("RevenueCat: Project ID: {$projectId}");
+        $this->logger->info("RevenueCat: App User ID: {$appUserId}");
+        $this->logger->info("RevenueCat: Project API Key: {$projectApiKey}");
         $headers = [
             'Authorization' => 'Bearer ' . $projectApiKey,
             'Accept' => 'application/json',

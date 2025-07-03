@@ -257,9 +257,9 @@ class LearnerDailyUsageService
         }
     }
 
-    public function incrementMathsPracticeUsage(Learner $learner, int $questionId): void
+    public function incrementMathsPracticeUsage(Learner $learner, int $questionId, bool $isCorrect, int $correctSteps = 0, int $incorrectSteps = 0): bool
     {
-        $this->logger->info(message: "Incrementing maths practice usage for learner {$learner->getId()} with question {$questionId}");
+        $this->logger->info(message: "Incrementing maths practice usage for learner {$learner->getId()} with question {$questionId}, isCorrect: " . ($isCorrect ? 'true' : 'false') . ", correctSteps: {$correctSteps}, incorrectSteps: {$incorrectSteps}");
         
         // Find the question
         $question = $this->entityManager->getRepository(\App\Entity\Question::class)->find($questionId);
@@ -267,20 +267,51 @@ class LearnerDailyUsageService
             throw new \Exception("Question with ID {$questionId} not found");
         }
         
-        // Create Result entry with outcome as "practice"
-        $result = new \App\Entity\Result();
-        $result->setLearner($learner);
-        $result->setQuestion($question);
-        $result->setOutcome('practice');
-        $result->setCreated(new \DateTime());
-        
-        $this->entityManager->persist($result);
+        // Find or create LearnerMathsPracticeStat
+        $statRepo = $this->entityManager->getRepository(\App\Entity\LearnerMathsPracticeStat::class);
+        $stat = $statRepo->findOneBy([
+            'learner' => $learner,
+            'question' => $question
+        ]);
+        if (!$stat) {
+            $stat = new \App\Entity\LearnerMathsPracticeStat();
+            $stat->setLearner($learner);
+            $stat->setQuestion($question);
+            $stat->setCreated(new \DateTime());
+            $this->entityManager->persist($stat);
+        }
+        if ($isCorrect) {
+            $stat->incrementCorrect();
+        } else {
+            $stat->incrementIncorrect();
+        }
+        if ($correctSteps > 0) {
+            $stat->incrementCorrectSteps($correctSteps);
+        }
+        if ($incorrectSteps > 0) {
+            $stat->incrementIncorrectSteps($incorrectSteps);
+        }
         
         // Increment daily usage counter
         $usage = $this->getOrCreateDailyUsage($learner);
         $usage->incrementMathsPractice();
-        
+
+        // Check if streak should be incremented
+        $mathsPracticeCount = $usage->getMathsPractice();
+        $today = new \DateTimeImmutable('today', new \DateTimeZone(self::TIMEZONE));
+        $lastStreakUpdate = $learner->getStreakLastUpdated();
+        $wasUpdatedToday = $lastStreakUpdate && $lastStreakUpdate >= $today;
+        $streakEarned = false;
+        if ($mathsPracticeCount >= 3 && !$wasUpdatedToday) {
+            $currentStreak = $learner->getStreak();
+            $learner->setStreak($currentStreak + 1);
+            $learner->setStreakLastUpdated(new \DateTime());
+            $this->logger->info("Streak incremented for learner {$learner->getId()} to " . ($currentStreak + 1));
+            $streakEarned = true;
+        }
+
         $this->entityManager->flush();
+        return $streakEarned;
     }
 
     private function getOrCreateDailyUsage(Learner $learner): LearnerDailyUsage
@@ -364,27 +395,22 @@ class LearnerDailyUsageService
                 ];
             }
 
-            // Count mathematics practice results
+            // Sum correct and incorrect from LearnerMathsPracticeStat
             $qb = $this->entityManager->createQueryBuilder();
-            $practiceCount = $qb->select('COUNT(r.id)')
-                ->from(\App\Entity\Result::class, 'r')
-                ->join('r.question', 'q')
-                ->join('q.subject', 's')
-                ->where('r.learner = :learner')
-                ->andWhere('r.outcome = :outcome')
-                ->andWhere('LOWER(s.name) LIKE :mathsSubject')
+            $result = $qb->select('SUM(s.correct) as total_correct, SUM(s.incorrect) as total_incorrect')
+                ->from(\App\Entity\LearnerMathsPracticeStat::class, 's')
+                ->where('s.learner = :learner')
                 ->setParameter('learner', $learner)
-                ->setParameter('outcome', 'practice')
-                ->setParameter('mathsSubject', '%mathematics%')
                 ->getQuery()
-                ->getSingleScalarResult();
+                ->getSingleResult();
 
             return [
                 'status' => 'OK',
                 'data' => [
                     'learner_uid' => $learnerUid,
                     'learner_name' => $learner->getName(),
-                    'maths_practice_count' => (int) $practiceCount
+                    'maths_practice_correct' => (int) ($result['total_correct'] ?? 0),
+                    'maths_practice_incorrect' => (int) ($result['total_incorrect'] ?? 0)
                 ]
             ];
 
@@ -401,11 +427,11 @@ class LearnerDailyUsageService
     }
 
     /**
-     * Get all practice question IDs for a learner (mathematics only)
+     * Get all practice question IDs for a learner (mathematics only), optionally filtered by topic
      */
-    public function getLearnerMathsPracticeQuestionIds(string $learnerUid): array
+    public function getLearnerMathsPracticeQuestionIds(string $learnerUid, ?string $topic = null): array
     {
-        $this->logger->info("Getting maths practice question IDs for learner {$learnerUid}");
+        $this->logger->info("Getting maths practice question IDs for learner {$learnerUid}" . ($topic ? ", topic: $topic" : ''));
 
         try {
             $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
@@ -417,20 +443,39 @@ class LearnerDailyUsageService
             }
 
             $qb = $this->entityManager->createQueryBuilder();
-            $questionIds = $qb->select('IDENTITY(r.question)')
-                ->from(\App\Entity\Result::class, 'r')
-                ->join('r.question', 'q')
-                ->join('q.subject', 's')
-                ->where('r.learner = :learner')
-                ->andWhere('r.outcome = :outcome')
-                ->andWhere('LOWER(s.name) LIKE :mathsSubject')
-                ->setParameter('learner', $learner)
-                ->setParameter('outcome', 'practice')
-                ->setParameter('mathsSubject', '%mathematics%')
-                ->getQuery()
-                ->getArrayResult();
+            $qb->select('s')
+                ->from(\App\Entity\LearnerMathsPracticeStat::class, 's')
+                ->where('s.learner = :learner')
+                ->setParameter('learner', $learner);
 
-            $ids = array_map(fn($row) => $row[1] ?? $row['IDENTITY(r.question)'] ?? $row, $questionIds);
+            if ($topic !== null && $topic !== '') {
+                $qb->join('s.question', 'q')
+                   ->andWhere('q.topic = :topic')
+                   ->setParameter('topic', $topic);
+            }
+
+            $qb->orderBy('s.question', 'ASC')
+               ->addOrderBy('s.created', 'DESC');
+
+            $stats = $qb->getQuery()->getResult();
+
+            // Keep only the latest stat per question_id
+            $latestStats = [];
+            foreach ($stats as $stat) {
+                $questionId = $stat->getQuestion()->getId();
+                if (!isset($latestStats[$questionId])) {
+                    $latestStats[$questionId] = $stat;
+                }
+            }
+
+            // Calculate global sums for steps
+            $totalCorrectSteps = 0;
+            $totalIncorrectSteps = 0;
+            $questions = array_map(function($stat) use (&$totalCorrectSteps, &$totalIncorrectSteps) {
+                $totalCorrectSteps += $stat->getCorrectSteps();
+                $totalIncorrectSteps += $stat->getIncorrectSteps();
+                return $stat->getQuestion()->getId();
+            }, array_values($latestStats));
 
             return [
                 'status' => 'OK',
@@ -438,7 +483,9 @@ class LearnerDailyUsageService
                     'learner_uid' => $learnerUid,
                     'learner_name' => $learner->getName(),
                     'lifetime_maths_practice_limit' => $this->LIFETIME_MATHS_PRACTICE_LIMIT,
-                    'maths_practice_question_ids' => $ids
+                    'total_correct_steps' => $totalCorrectSteps,
+                    'total_incorrect_steps' => $totalIncorrectSteps,
+                    'maths_practice_questions' => $questions
                 ]
             ];
         } catch (\Exception $e) {
@@ -449,6 +496,61 @@ class LearnerDailyUsageService
             return [
                 'status' => 'NOK',
                 'message' => 'Error retrieving maths practice question IDs'
+            ];
+        }
+    }
+
+    /**
+     * Reset maths practice progress for a learner and topic
+     */
+    public function resetMathsPracticeProgressForTopic(string $learnerUid, string $topic): array
+    {
+        $this->logger->info("Resetting maths practice progress for learner {$learnerUid}, topic: {$topic}");
+        try {
+            $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+            // Step 1: Find IDs to delete
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('s.id')
+                ->from('App\\Entity\\LearnerMathsPracticeStat', 's')
+                ->join('s.question', 'q')
+                ->where('s.learner = :learner')
+                ->andWhere('q.topic = :topic')
+                ->setParameter('learner', $learner)
+                ->setParameter('topic', $topic);
+            $ids = array_column($qb->getQuery()->getArrayResult(), 'id');
+
+            if (empty($ids)) {
+                return [
+                    'status' => 'OK',
+                    'deleted_count' => 0
+                ];
+            }
+
+            // Step 2: Delete by IDs
+            $delQb = $this->entityManager->createQueryBuilder();
+            $delQb->delete('App\\Entity\\LearnerMathsPracticeStat', 's')
+                ->where($delQb->expr()->in('s.id', ':ids'))
+                ->setParameter('ids', $ids);
+            $deleted = $delQb->getQuery()->execute();
+            return [
+                'status' => 'OK',
+                'deleted_count' => $deleted
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("Error resetting maths practice progress: " . $e->getMessage(), [
+                'learnerUid' => $learnerUid,
+                'topic' => $topic,
+                'exception' => $e
+            ]);
+            return [
+                'status' => 'NOK',
+                'message' => 'Error resetting maths practice progress'
             ];
         }
     }

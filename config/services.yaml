@@ -108,3 +108,7 @@ services:
             $entityManager: '@Doctrine\ORM\EntityManagerInterface'
             $httpClient: '@Symfony\Contracts\HttpClient\HttpClientInterface'
             $logger: '@logger'
+
+    App\Repository\LearnerMathsPracticeStatRepository:
+        autowire: true
+        autoconfigure: true
