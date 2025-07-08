@@ -59,4 +59,19 @@ class CardAudioController extends AbstractController
         $mimeType = mime_content_type($filePath);
         return $this->file($filePath, null, ResponseHeaderBag::DISPOSITION_ATTACHMENT, ['Content-Type' => $mimeType]);
     }
+
+    #[Route('/delete/{filename}', name: 'card_audio_delete', methods: ['DELETE'])]
+    public function delete(string $filename): JsonResponse
+    {
+        $filePath = $this->audioDirectory . '/' . $filename;
+        if (!file_exists($filePath)) {
+            return $this->json(['error' => 'Audio file not found'], Response::HTTP_NOT_FOUND);
+        }
+        try {
+            unlink($filePath);
+        } catch (\Exception $e) {
+            return $this->json(['error' => 'Failed to delete file: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+        return $this->json(['message' => 'Audio file deleted successfully']);
+    }
 } 
