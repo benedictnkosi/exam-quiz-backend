@@ -304,4 +304,83 @@ class GenreStoryRepository extends ServiceEntityRepository
 
         return $story ? $story['accumulativeSummary'] : null;
     }
+
+    /**
+     * Find all active stories with pagination and filters
+     */
+    public function findActiveStoriesWithFilters(?string $ageGroup = null, ?string $chapter = null, ?int $limit = null, ?int $offset = null): array
+    {
+        $qb = $this->createQueryBuilder('gs')
+            ->andWhere('gs.isActive = :active')
+            ->setParameter('active', true);
+
+        if ($ageGroup) {
+            $qb->andWhere('gs.ageGroup = :ageGroup')
+               ->setParameter('ageGroup', $ageGroup);
+        }
+
+        if ($chapter) {
+            $qb->andWhere('gs.chapterNumber = :chapter')
+               ->setParameter('chapter', $chapter);
+        }
+
+        $qb->orderBy('gs.createdAt', 'DESC');
+
+        if ($limit) {
+            $qb->setMaxResults($limit);
+        }
+
+        if ($offset) {
+            $qb->setFirstResult($offset);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Count active stories with filters
+     */
+    public function countActiveStoriesWithFilters(?string $ageGroup = null, ?string $chapter = null): int
+    {
+        $qb = $this->createQueryBuilder('gs')
+            ->select('COUNT(gs.id)')
+            ->andWhere('gs.isActive = :active')
+            ->setParameter('active', true);
+
+        if ($ageGroup) {
+            $qb->andWhere('gs.ageGroup = :ageGroup')
+               ->setParameter('ageGroup', $ageGroup);
+        }
+
+        if ($chapter) {
+            $qb->andWhere('gs.chapterNumber = :chapter')
+               ->setParameter('chapter', $chapter);
+        }
+
+        return $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Find stories by plot with pagination
+     */
+    public function findByPlotWithPagination(GenrePlot $plot, ?int $limit = null, ?int $offset = null): array
+    {
+        $qb = $this->createQueryBuilder('gs')
+            ->andWhere('gs.plot = :plot')
+            ->setParameter('plot', $plot)
+            ->andWhere('gs.isActive = :active')
+            ->setParameter('active', true)
+            ->orderBy('gs.ageGroup', 'ASC')
+            ->addOrderBy('gs.chapterNumber', 'ASC');
+
+        if ($limit) {
+            $qb->setMaxResults($limit);
+        }
+
+        if ($offset) {
+            $qb->setFirstResult($offset);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
 } 

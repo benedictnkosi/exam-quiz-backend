@@ -260,15 +260,13 @@ class ExportGenreStoriesCommand extends Command
     private function formatImagesForExport(array $imagePrompts, array $sharedImages, array $oldImages, string $bookId, int $chapterNumber, SymfonyStyle $io = null): ?array
     {
         $illustrations = [];
-        $baseDir = __DIR__ . '/../../public/assets/story-images/';
+        // $baseDir = __DIR__ . '/../../public/assets/story-images/';
         
         // Add shared images if available (actual generated images)
         foreach ($sharedImages as $imageNumber => $imageData) {
             $filename = $imageData['filename'] ?? '';
             if ($filename) {
-                if (file_exists($baseDir . $filename)) {
-                    $illustrations[] = $filename;
-                }
+                $illustrations[] = $filename;
             }
         }
         
@@ -276,26 +274,22 @@ class ExportGenreStoriesCommand extends Command
         foreach ($oldImages as $imageNumber => $imageData) {
             $filename = $imageData['filename'] ?? '';
             if ($filename) {
-                if (file_exists($baseDir . $filename)) {
-                    $illustrations[] = $filename;
-                }
+                $illustrations[] = $filename;
             }
         }
         
-        // If no actual images, use image prompts to generate placeholder filenames (but only if file exists)
+        // If no actual images, use image prompts to generate placeholder filenames
         if (empty($illustrations) && !empty($imagePrompts)) {
             foreach ($imagePrompts as $index => $prompt) {
                 $filename = "{$bookId}_chapter{$chapterNumber}_img" . ($index + 1) . ".jpg";
-                if (file_exists($baseDir . $filename)) {
-                    $illustrations[] = $filename;
-                }
+                $illustrations[] = $filename;
             }
         }
 
-        // Only include stories with at least 2 images on disk
-        if (count($illustrations) < 2) {
-            return null;
-        }
+        // Remove the minimum image count check
+        // if (count($illustrations) < 2) {
+        //     return null;
+        // }
 
         return [
             'chapter_cover' => $illustrations[0] ?? null,

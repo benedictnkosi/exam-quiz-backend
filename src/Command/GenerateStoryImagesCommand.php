@@ -37,12 +37,22 @@ class GenerateStoryImagesCommand extends Command
             ->addOption('replace', 'r', InputOption::VALUE_NONE, 'Replace existing images')
             ->addOption('save-to-disk', 'd', InputOption::VALUE_NONE, 'Save generated images to disk')
             ->addOption('image-size', 'i', InputOption::VALUE_OPTIONAL, 'Image size (512x512, 1024x1024, 1792x1024, 1024x1792)', '1024x1024')
-            ->setHelp('This command generates images for story chapters using AI image generation. Images are shared across all age groups for the same plot/chapter combination. Use --story-id to generate for a specific story, --plot-id for all stories in a plot, or --age-group for a specific age group. By default, existing images are skipped. Use --replace to regenerate existing images. Use --save-to-disk to save images to the filesystem.');
+            ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Number of stories to process in each batch (default: 10)', 10)
+            ->addOption('memory-limit', 'm', InputOption::VALUE_OPTIONAL, 'PHP memory limit to set (e.g., 512M, 1G)', '512M')
+            ->setHelp('This command generates images for story chapters using AI image generation. Images are shared across all age groups for the same plot/chapter combination. Use --story-id to generate for a specific story, --plot-id for all stories in a plot, or --age-group for a specific age group. By default, existing images are skipped. Use --replace to regenerate existing images. Use --save-to-disk to save images to the filesystem. Use --batch-size to control memory usage.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        
+        // Set memory limit
+        $memoryLimit = $input->getOption('memory-limit');
+        if ($memoryLimit) {
+            ini_set('memory_limit', $memoryLimit);
+            $io->text("Memory limit set to: <info>{$memoryLimit}</info>");
+        }
+        
         $specificStoryId = $input->getOption('story-id');
         $specificPlotId = $input->getOption('plot-id');
         $specificAgeGroup = $input->getOption('age-group');
@@ -50,6 +60,7 @@ class GenerateStoryImagesCommand extends Command
         $replaceExisting = $input->getOption('replace');
         $saveToDisk = $input->getOption('save-to-disk');
         $imageSize = $input->getOption('image-size');
+        $batchSize = (int) $input->getOption('batch-size');
 
         $io->title('Generating Story Images with AI (Shared Across Age Groups)');
 
@@ -66,48 +77,114 @@ class GenerateStoryImagesCommand extends Command
             return Command::FAILURE;
         }
 
-        // Get stories to process
-        if ($specificStoryId) {
-            $story = $this->genreStoryRepository->find($specificStoryId);
-            if (!$story) {
-                $io->error("Story with ID {$specificStoryId} not found.");
-                return Command::FAILURE;
-            }
-            $stories = [$story];
-            $io->text("Generating images for specific story: <info>Chapter {$story->getChapterNumber()} - {$story->getAgeGroup()}</info>");
-        } elseif ($specificPlotId) {
-            $plot = $this->entityManager->getRepository(\App\Entity\GenrePlot::class)->find($specificPlotId);
-            if (!$plot) {
-                $io->error("Plot with ID {$specificPlotId} not found.");
-                return Command::FAILURE;
-            }
-            $stories = $this->genreStoryRepository->findByPlot($plot);
-            $io->text("Generating images for all stories in plot: <info>{$plot->getTitle()}</info> (<info>" . count($stories) . " chapters</info>)");
-        } else {
-            $stories = $this->genreStoryRepository->findActiveStories();
-            $io->text("Generating images for all active stories: <info>" . count($stories) . " chapters</info>");
-        }
-
-        // Filter by age group if specified
-        if ($specificAgeGroup) {
-            $stories = array_filter($stories, function($story) use ($specificAgeGroup) {
-                return $story->getAgeGroup() === $specificAgeGroup;
-            });
-            $io->text("Filtered to age group: <info>{$specificAgeGroup}</info> (<info>" . count($stories) . " chapters</info>)");
-        }
-
-        // Filter by chapter if specified
-        if ($specificChapter) {
-            $stories = array_filter($stories, function($story) use ($specificChapter) {
-                return $story->getChapterNumber() == $specificChapter;
-            });
-            $io->text("Filtered to chapter: <info>{$specificChapter}</info> (<info>" . count($stories) . " chapters</info>)");
-        }
-
-        if (empty($stories)) {
+        // Get total count of stories to process
+        $totalStories = $this->getTotalStoriesCount($specificStoryId, $specificPlotId, $specificAgeGroup, $specificChapter);
+        
+        if ($totalStories === 0) {
             $io->warning("No stories found matching the criteria.");
             return Command::SUCCESS;
         }
+
+        $io->text("Found <info>{$totalStories} stories</info> to process");
+        $io->text("Processing in batches of <info>{$batchSize}</info>");
+
+        $totalImagesGenerated = 0;
+        $successCount = 0;
+        $errorCount = 0;
+        $skippedCount = 0;
+        $processedCount = 0;
+
+        // Process stories in batches
+        $offset = 0;
+        while ($processedCount < $totalStories) {
+            $io->section("Processing batch " . (($offset / $batchSize) + 1) . " (stories " . ($offset + 1) . "-" . min($offset + $batchSize, $totalStories) . ")");
+            
+            // Get batch of stories
+            $stories = $this->getStoriesBatch($specificStoryId, $specificPlotId, $specificAgeGroup, $specificChapter, $batchSize, $offset);
+            
+            if (empty($stories)) {
+                break;
+            }
+
+            // Process this batch
+            $batchResults = $this->processStoriesBatch($stories, $replaceExisting, $saveToDisk, $imageSize, $io);
+            
+            $totalImagesGenerated += $batchResults['imagesGenerated'];
+            $successCount += $batchResults['successCount'];
+            $errorCount += $batchResults['errorCount'];
+            $skippedCount += $batchResults['skippedCount'];
+            $processedCount += count($stories);
+
+            // Clear entity manager to free memory
+            $this->entityManager->clear();
+            
+            // Force garbage collection
+            gc_collect_cycles();
+            
+            $io->text("Batch completed. Memory usage: <info>" . $this->formatBytes(memory_get_usage(true)) . "</info>");
+            
+            $offset += $batchSize;
+        }
+
+        // Display final results
+        $io->section('Final Results');
+        $io->text("Total stories processed: <info>{$processedCount}</info>");
+        $io->text("Total images generated: <info>{$totalImagesGenerated}</info>");
+        $io->text("Successful operations: <info>{$successCount}</info>");
+        $io->text("Skipped (already exist): <info>{$skippedCount}</info>");
+        $io->text("Errors: <info>{$errorCount}</info>");
+
+        if ($errorCount > 0) {
+            $io->warning("Some operations failed. Check the logs above for details.");
+            return Command::FAILURE;
+        }
+
+        $io->success("Story image generation completed successfully!");
+        return Command::SUCCESS;
+    }
+
+    private function getTotalStoriesCount(?string $specificStoryId, ?string $specificPlotId, ?string $specificAgeGroup, ?string $specificChapter): int
+    {
+        if ($specificStoryId) {
+            return $this->genreStoryRepository->find($specificStoryId) ? 1 : 0;
+        }
+
+        if ($specificPlotId) {
+            $plot = $this->entityManager->getRepository(\App\Entity\GenrePlot::class)->find($specificPlotId);
+            if (!$plot) {
+                return 0;
+            }
+            return $this->genreStoryRepository->countByPlot($plot);
+        }
+
+        // For other cases, we'll need to count with filters
+        return $this->genreStoryRepository->countActiveStoriesWithFilters($specificAgeGroup, $specificChapter);
+    }
+
+    private function getStoriesBatch(?string $specificStoryId, ?string $specificPlotId, ?string $specificAgeGroup, ?string $specificChapter, int $batchSize, int $offset): array
+    {
+        if ($specificStoryId) {
+            $story = $this->genreStoryRepository->find($specificStoryId);
+            return $story ? [$story] : [];
+        }
+
+        if ($specificPlotId) {
+            $plot = $this->entityManager->getRepository(\App\Entity\GenrePlot::class)->find($specificPlotId);
+            if (!$plot) {
+                return [];
+            }
+            return $this->genreStoryRepository->findByPlotWithPagination($plot, $batchSize, $offset);
+        }
+
+        return $this->genreStoryRepository->findActiveStoriesWithFilters($specificAgeGroup, $specificChapter, $batchSize, $offset);
+    }
+
+    private function processStoriesBatch(array $stories, bool $replaceExisting, bool $saveToDisk, string $imageSize, SymfonyStyle $io): array
+    {
+        $imagesGenerated = 0;
+        $successCount = 0;
+        $errorCount = 0;
+        $skippedCount = 0;
 
         // Group stories by plot and chapter to avoid duplicate image generation
         $plotChapterGroups = [];
@@ -126,19 +203,12 @@ class GenerateStoryImagesCommand extends Command
             $plotChapterGroups[$key]['stories'][] = $story;
         }
 
-        $io->text("Grouped into <info>" . count($plotChapterGroups) . " unique plot/chapter combinations</info>");
-
-        $totalImagesGenerated = 0;
-        $successCount = 0;
-        $errorCount = 0;
-        $skippedCount = 0;
-
         foreach ($plotChapterGroups as $key => $group) {
             $plot = $group['plot'];
             $chapterNumber = $group['chapterNumber'];
             $representativeStory = $group['stories'][0]; // Use first story as representative
             
-            $io->section("Processing plot/chapter: {$plot->getTitle()} - Chapter {$chapterNumber}");
+            $io->text("Processing plot/chapter: {$plot->getTitle()} - Chapter {$chapterNumber}");
             $io->text("    Affects <info>" . count($group['stories']) . " age groups</info>: " . implode(', ', array_map(fn($s) => $s->getAgeGroup(), $group['stories'])));
             
             $vocabulary = $representativeStory->getVocabulary() ?? [];
@@ -181,7 +251,7 @@ class GenerateStoryImagesCommand extends Command
                             $this->saveImageToDisk($plot, $chapterNumber, $imageNumber, $imageData, $io);
                         }
                         
-                        $totalImagesGenerated++;
+                        $imagesGenerated++;
                         $io->text("      ✓ Generated image {$imageNumber}");
                     } else {
                         $errorCount++;
@@ -200,19 +270,22 @@ class GenerateStoryImagesCommand extends Command
             }
         }
 
-        $io->success([
-            "Story images generated successfully!",
-            "Successfully processed: {$successCount} plot/chapter combinations",
-            "Generated: {$totalImagesGenerated} new images",
-            "Skipped: {$skippedCount} existing images",
-            "Failed: {$errorCount} images",
-            "Replace mode: " . ($replaceExisting ? "Enabled" : "Disabled"),
-            "Image size: {$imageSize}",
-            "Images saved to: " . ($saveToDisk ? "Database and disk" : "Database only"),
-            "Images are now shared across all age groups for the same plot/chapter"
-        ]);
+        return [
+            'imagesGenerated' => $imagesGenerated,
+            'successCount' => $successCount,
+            'errorCount' => $errorCount,
+            'skippedCount' => $skippedCount
+        ];
+    }
 
-        return Command::SUCCESS;
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+        return round($bytes, 2) . ' ' . $units[$pow];
     }
 
     private function generateImageFromPrompt(string $prompt, GenreStory $story, int $imageNumber, string $imageSize, SymfonyStyle $io): ?array

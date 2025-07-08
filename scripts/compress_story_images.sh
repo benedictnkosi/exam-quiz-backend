@@ -4,7 +4,7 @@
 # Resizes to 512x512 pixels and compresses with 90% quality
 
 # Set the source directory
-SOURCE_DIR="public/assets/compressed-story-images"
+SOURCE_DIR="public/assets/story-images"
 OUTPUT_DIR="public/assets/compressed-story-images-2"
 
 # Check if ImageMagick is installed
