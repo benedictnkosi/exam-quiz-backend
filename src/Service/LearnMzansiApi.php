@@ -159,18 +159,6 @@ class LearnMzansiApi extends AbstractController
             }
 
             // Subject restriction: Only allow Mathematics subjects unless user has exception email
-            $userEmail = $user->getEmail();
-            $subjectName = $data['subject'];
-            $exceptionEmail = 'mthplmathabatha@gamil.com';
-            
-            // Check if subject contains "Mathematics" or if user has exception email
-            if (!str_contains($subjectName, 'Mathematics') && $userEmail !== $exceptionEmail) {
-                return array(
-                    'status' => 'NOK',
-                    'message' => 'Only Mathematics subjects are allowed for question creation. Please contact support if you need access to other subjects.'
-                );
-            }
-
             //return an error if the capturer has more than 10 rejected questions
             $rejectedQuestions = $this->em->getRepository(Question::class)->findBy(['capturer' => $user->getId(), 'status' => 'rejected']);
             if (count($rejectedQuestions) >= 5 && $questionId == 0) {
