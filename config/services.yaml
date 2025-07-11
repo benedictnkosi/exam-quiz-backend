@@ -8,6 +8,7 @@ parameters:
     openai_api_key: "%env(OPENAI_API_KEY)%"
     app.ai_endpoint: "%env(AI_ENDPOINT)%"
     app.ai_api_key: "%env(AI_API_KEY)%"
+    google_places_api_key: "%env(GOOGLE_PLACES_API_KEY)%"
 
 services:
     # default configuration for services in *this* file
@@ -73,6 +74,14 @@ services:
     App\Service\OpenAIService:
         arguments:
             $openaiApiKey: "%openai_api_key%"
+
+    App\Service\GooglePlacesService:
+        arguments:
+            $googlePlacesApiKey: "%google_places_api_key%"
+
+    App\Service\GoogleDirectionsService:
+        arguments:
+            $googleDirectionsApiKey: "%google_places_api_key%"
 
     App\Service\PaymentProofService:
         arguments:

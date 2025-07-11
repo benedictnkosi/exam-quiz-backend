@@ -511,4 +511,56 @@ Format your response as follows:
             return $errorResult;
         }
     }
+
+    /**
+     * @param string $message The current message
+     * @param array $history The previous messages in the conversation
+     * @return array|null
+     */
+    public function checkMessageForPhoneOrAddress(string $message, array $history = []): ?array
+    {
+        $historyText = '';
+        if (!empty($history)) {
+            $historyText = "Conversation history (previous messages):\n";
+            foreach ($history as $i => $msg) {
+                $historyText .= ($i + 1) . ". " . $msg . "\n";
+            }
+        }
+        $prompt = "Are any of these messages (including the current one) trying to share a phone number or a street address? Reply ONLY with a valid JSON object with two boolean fields: contains_phone_number and contains_street_address. Do not include any explanation or text outside the JSON.\n" .
+            $historyText .
+            "Current message: '''$message'''";
+
+        try {
+            $response = $this->client->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'user',
+                            'content' => $prompt
+                        ]
+                    ],
+                    'max_tokens' => 100,
+                    'temperature' => 0.0
+                ]
+            ]);
+            $data = json_decode($response->getContent(), true);
+            $openaiContent = $data['choices'][0]['message']['content'] ?? '';
+            $json = json_decode($openaiContent, true);
+            if (!is_array($json)) {
+                // Try to extract JSON from the response if extra text is present
+                if (preg_match('/\{.*\}/s', $openaiContent, $matches)) {
+                    $json = json_decode($matches[0], true);
+                }
+            }
+            return is_array($json) ? $json : null;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (checkMessageForPhoneOrAddress): ' . $e->getMessage());
+            return null;
+        }
+    }
 }
