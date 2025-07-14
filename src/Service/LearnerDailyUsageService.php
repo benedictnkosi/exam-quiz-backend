@@ -557,19 +557,7 @@ class LearnerDailyUsageService
     {
         $this->logger->info("Getting lifetime quiz remaining for learner {$learnerUid}");
         try {
-            ${
-                "status": "OK",
-                "data": {
-                    "quiz": 10,
-                    "lesson": 10,
-                    "podcast": 1,
-                    "maths_practice": 5,
-                    "date": "2025-07-14",
-                    "lifetime_quiz_limit": 70,
-                    "quizzes_taken": 0,
-                    "quizzes_remaining": 70
-                }
-            } = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            $learner = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
             if (!$learner) {
                 return [
                     'status' => 'NOK',
