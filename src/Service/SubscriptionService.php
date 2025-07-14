@@ -104,9 +104,11 @@ class SubscriptionService
 
             $hasEntitlement = false;
             if (isset($data['items']) && is_array($data['items']) && count($data['items']) > 0) {
-                $firstItem = $data['items'][0];
-                if (isset($firstItem['entitlements']['items']) && is_array($firstItem['entitlements']['items']) && count($firstItem['entitlements']['items']) > 0) {
-                    $hasEntitlement = true;
+                foreach ($data['items'] as $item) {
+                    if (isset($item['entitlements']['items']) && is_array($item['entitlements']['items']) && count($item['entitlements']['items']) > 0) {
+                        $hasEntitlement = true;
+                        break;
+                    }
                 }
             }
 
