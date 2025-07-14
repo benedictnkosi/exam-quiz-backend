@@ -346,9 +346,7 @@ class LearnerDailyUsageService
             $dailyLimit = $this->DAILY_PODCAST_LIMIT;
 
             if (
-                str_contains($subscription, 'silver') ||
-                str_contains($subscription, 'gold') ||
-                str_contains($subscription, 'bronze')
+                !str_contains($subscription, 'free')
             ) {
                 $dailyLimit = 999; // Unlimited for paid subscriptions
             }
