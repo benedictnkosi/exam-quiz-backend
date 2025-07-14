@@ -10,6 +10,7 @@ use App\Repository\LearnerPodcastRequestRepository;
 use App\Repository\LearnerRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Repository\ResultRepository;
 
 class LearnerDailyUsageService
 {
@@ -23,6 +24,8 @@ class LearnerDailyUsageService
     private $DAILY_PODCAST_LIMIT = 1;
     private $DAILY_MATHS_PRACTICE_LIMIT = 5;
     private $LIFETIME_MATHS_PRACTICE_LIMIT = 15;
+
+    private $LIFETIME_QUIZ_PRACTICE_LIMIT = 70;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -83,25 +86,7 @@ class LearnerDailyUsageService
             $remainingPodcast = 0;
             $remainingMathsPractice = 0;
 
-            if (str_contains($subscription, 'silver')) {
-                $this->logger->debug("Silver subscription detected - setting unlimited limits");
-                $remainingQuiz = 999;
-                $remainingLesson = 999;
-                $remainingPodcast = 999;
-                $remainingMathsPractice = 999;
-            } else if (str_contains($subscription, 'gold')) {
-                $this->logger->debug("Gold subscription detected - setting unlimited limits");
-                $remainingQuiz = 999;
-                $remainingLesson = 999;
-                $remainingPodcast = 999;
-                $remainingMathsPractice = 999;
-            } else if (str_contains($subscription, 'bronze')) {
-                $this->logger->debug("Bronze subscription detected - setting unlimited limits");
-                $remainingQuiz = 999;
-                $remainingLesson = 999;
-                $remainingPodcast = 999;
-                $remainingMathsPractice = 999;
-            } else if (str_contains($subscription, 'free')) {
+            if (str_contains($subscription, 'free')) {
                 $this->logger->debug("Free subscription detected - calculating remaining limits");
                 $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
                 $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
@@ -113,11 +98,11 @@ class LearnerDailyUsageService
                 $this->logger->debug("Free subscription limits - Podcast: {$this->DAILY_PODCAST_LIMIT} - {$dailyPodcastRequests} = {$remainingPodcast}");
                 $this->logger->debug("Free subscription limits - MathsPractice: {$this->DAILY_MATHS_PRACTICE_LIMIT} - {$usage->getMathsPractice()} = {$remainingMathsPractice}");
             } else {
-                $this->logger->warning("Unknown subscription type: {$subscription}, treating as free");
-                $remainingQuiz = $this->DAILY_QUIZ_LIMIT - $usage->getQuiz();
-                $remainingLesson = $this->DAILY_LESSON_LIMIT - $usage->getLesson();
-                $remainingPodcast = $this->DAILY_PODCAST_LIMIT - $dailyPodcastRequests;
-                $remainingMathsPractice = $this->DAILY_MATHS_PRACTICE_LIMIT - $usage->getMathsPractice();
+                $this->logger->debug("GOLD subscription detected - setting unlimited limits");
+                $remainingQuiz = 999;
+                $remainingLesson = 999;
+                $remainingPodcast = 999;
+                $remainingMathsPractice = 999;
             }
 
             $result = [
@@ -130,6 +115,16 @@ class LearnerDailyUsageService
                     'date' => $usage->getDate()->format('Y-m-d')
                 ]
             ];
+
+            // Add lifetime quiz remaining info
+            $lifetimeQuiz = $this->getLifetimeQuizRemaining($learnerUid);
+            if ($lifetimeQuiz['status'] === 'OK') {
+                $result['data']['lifetime_quiz_limit'] = $lifetimeQuiz['lifetime_quiz_limit'];
+                $result['data']['quizzes_taken'] = $lifetimeQuiz['quizzes_taken'];
+                $result['data']['quizzes_remaining'] = $lifetimeQuiz['quizzes_remaining'];
+            }else{
+                $result['data']['lifetime_quiz_limit'] = 0;
+            }
 
             $this->logger->debug("Returning result: " . json_encode($result));
             return $result;
@@ -551,6 +546,59 @@ class LearnerDailyUsageService
             return [
                 'status' => 'NOK',
                 'message' => 'Error resetting maths practice progress'
+            ];
+        }
+    }
+
+    /**
+     * Get the remaining lifetime quiz count for a learner
+     */
+    public function getLifetimeQuizRemaining(string $learnerUid): array
+    {
+        $this->logger->info("Getting lifetime quiz remaining for learner {$learnerUid}");
+        try {
+            ${
+                "status": "OK",
+                "data": {
+                    "quiz": 10,
+                    "lesson": 10,
+                    "podcast": 1,
+                    "maths_practice": 5,
+                    "date": "2025-07-14",
+                    "lifetime_quiz_limit": 70,
+                    "quizzes_taken": 0,
+                    "quizzes_remaining": 70
+                }
+            } = $this->learnerRepository->findOneBy(['uid' => $learnerUid]);
+            if (!$learner) {
+                return [
+                    'status' => 'NOK',
+                    'message' => 'Learner not found'
+                ];
+            }
+            $learnerId = $learner->getId();
+            $learnerName = $learner->getName();
+            $lifetimeLimit = $this->LIFETIME_QUIZ_PRACTICE_LIMIT;
+            /** @var \App\Repository\ResultRepository $resultRepo */
+            $resultRepo = $this->entityManager->getRepository(\App\Entity\Result::class);
+            $quizCount = $resultRepo->countByLearnerId($learnerId);
+            $remaining = max(0, $lifetimeLimit - $quizCount);
+            return [
+                'status' => 'OK',
+                'learner_uid' => $learnerUid,
+                'learner_name' => $learnerName,
+                'lifetime_quiz_limit' => $lifetimeLimit,
+                'quizzes_taken' => $quizCount,
+                'quizzes_remaining' => $remaining
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("Error getting lifetime quiz remaining: " . $e->getMessage(), [
+                'learnerUid' => $learnerUid,
+                'exception' => $e
+            ]);
+            return [
+                'status' => 'NOK',
+                'message' => 'Error retrieving lifetime quiz remaining'
             ];
         }
     }

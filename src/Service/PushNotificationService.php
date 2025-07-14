@@ -881,4 +881,44 @@ class PushNotificationService
             ];
         }
     }
+
+    /**
+     * Send a custom push notification to a list of user UIDs.
+     *
+     * @param string[] $uids
+     * @param string $message
+     * @param string $title
+     * @return array
+     */
+    public function sendCustomMessageToUids(array $uids, string $message, string $title = 'New Message'): array
+    {
+        if (empty($uids)) {
+            return [
+                'status' => 'NOK',
+                'message' => 'No UIDs provided'
+            ];
+        }
+        // Fetch all learners with the given UIDs
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('l')
+            ->from(Learner::class, 'l')
+            ->where($qb->expr()->in('l.uid', ':uids'))
+            ->andWhere('l.expoPushToken IS NOT NULL')
+            ->setParameter('uids', $uids);
+        $learners = $qb->getQuery()->getResult();
+        $pushTokens = [];
+        foreach ($learners as $learner) {
+            $token = $learner->getExpoPushToken();
+            if (!empty($token)) {
+                $pushTokens[] = $token;
+            }
+        }
+        if (empty($pushTokens)) {
+            return [
+                'status' => 'NOK',
+                'message' => 'No push tokens found for provided UIDs'
+            ];
+        }
+        return $this->sendNotificationsToTokens($pushTokens, $message, $title);
+    }
 }

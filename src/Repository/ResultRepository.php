@@ -12,4 +12,17 @@ class ResultRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Result::class);
     }
+
+    /**
+     * Count the number of results for a given learner ID
+     */
+    public function countByLearnerId(int $learnerId): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->where('r.learner = :learner')
+            ->setParameter('learner', $learnerId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }
