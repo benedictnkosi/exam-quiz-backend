@@ -172,4 +172,4 @@ The command generates data for these tables:
 - Addresses use realistic street names
 - Distances are calculated using the Haversine formula for accuracy
 - All commuters are set to 'active' status by default
-- The system prevents duplicate phone numbers and UIDs 
+- The system prevents duplicate phone numbers and UIDs
