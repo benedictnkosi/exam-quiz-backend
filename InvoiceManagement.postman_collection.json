@@ -1,0 +1,171 @@
+{
+  "info": {
+    "_postman_id": "b1e2c3d4-5678-1234-9abc-def012345678",
+    "name": "Invoice Management API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Customer",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/customers", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "customers"] }
+          }
+        },
+        {
+          "name": "Get Customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/customers/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "customers", "1"] }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"1234567890\",\n  \"address\": \"123 Main St\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/customers", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "customers"] }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"9876543210\",\n  \"address\": \"456 Main St\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/customers/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "customers", "1"] }
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/customers/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "customers", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/products", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "products"] }
+          }
+        },
+        {
+          "name": "Get Product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/products/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "products", "1"] }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Widget\",\n  \"description\": \"A useful widget\",\n  \"price\": 19.99\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/products", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "products"] }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Widget Pro\",\n  \"description\": \"An even more useful widget\",\n  \"price\": 29.99\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/products/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "products", "1"] }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/products/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "products", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoice",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/invoices", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "invoices"] }
+          }
+        },
+        {
+          "name": "Get Invoice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/invoices/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "invoices", "1"] }
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"INV-001\",\n  \"date\": \"2024-06-01T12:00:00\",\n  \"customer_id\": 1,\n  \"total\": 100.00,\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2, \"price\": 19.99 },\n    { \"product_id\": 2, \"quantity\": 1, \"price\": 59.99 }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/invoices", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "invoices"] }
+          }
+        },
+        {
+          "name": "Update Invoice",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"INV-001\",\n  \"date\": \"2024-06-01T12:00:00\",\n  \"customer_id\": 1,\n  \"total\": 120.00,\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 3, \"price\": 19.99 }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/invoice-management/invoices/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "invoices", "1"] }
+          }
+        },
+        {
+          "name": "Delete Invoice",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invoice-management/invoices/1", "host": ["{{base_url}}"], "path": ["api", "invoice-management", "invoices", "1"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" }
+  ]
+} 
