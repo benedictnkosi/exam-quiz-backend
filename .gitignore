@@ -42,3 +42,4 @@
 
 /public/assets/languages/*
 !/public/assets/languages/.gitkeep
+/public/uploads/

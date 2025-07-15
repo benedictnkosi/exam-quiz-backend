@@ -121,3 +121,7 @@ services:
     App\Repository\LearnerMathsPracticeStatRepository:
         autowire: true
         autoconfigure: true
+
+    App\Service\FileUploadService:
+        arguments:
+            $projectDir: "%kernel.project_dir%"

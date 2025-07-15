@@ -501,9 +501,138 @@ curl -X GET http://localhost:8000/api/businesses/company/1
 
 ---
 
+---
+
+## Document Upload API
+
+### Upload ID Copy
+**POST** `/api/documents/company/{companyId}/id-copy`
+
+Uploads an ID copy document for a specific company.
+
+#### Parameters
+- `companyId` (integer) - Company ID
+
+#### Request
+- **Content-Type:** `multipart/form-data`
+- **Body:** Form data with `document` field containing the file
+
+#### Supported File Types
+- PDF files
+- Image files (JPEG, JPG, PNG, GIF)
+- Maximum file size: 10MB
+
+#### Response
+```json
+{
+  "status": "OK",
+  "message": "ID copy uploaded successfully",
+  "data": {
+    "filename": "uploads/documents/1_id_copy_john_doe_123456.pdf",
+    "url": "/uploads/documents/1_id_copy_john_doe_123456.pdf"
+  }
+}
+```
+
+---
+
+### Upload Power of Attorney
+**POST** `/api/documents/company/{companyId}/power-of-attorney`
+
+Uploads a power of attorney document for a specific company.
+
+#### Parameters
+- `companyId` (integer) - Company ID
+
+#### Request
+- **Content-Type:** `multipart/form-data`
+- **Body:** Form data with `document` field containing the file
+
+#### Supported File Types
+- PDF files
+- Image files (JPEG, JPG, PNG, GIF)
+- Maximum file size: 10MB
+
+#### Response
+```json
+{
+  "status": "OK",
+  "message": "Power of attorney uploaded successfully",
+  "data": {
+    "filename": "uploads/documents/1_power_of_attorney_legal_doc_789012.pdf",
+    "url": "/uploads/documents/1_power_of_attorney_legal_doc_789012.pdf"
+  }
+}
+```
+
+---
+
+### Delete ID Copy
+**DELETE** `/api/documents/company/{companyId}/id-copy`
+
+Deletes the ID copy document for a specific company.
+
+#### Parameters
+- `companyId` (integer) - Company ID
+
+#### Response
+```json
+{
+  "status": "OK",
+  "message": "ID copy deleted successfully"
+}
+```
+
+---
+
+### Delete Power of Attorney
+**DELETE** `/api/documents/company/{companyId}/power-of-attorney`
+
+Deletes the power of attorney document for a specific company.
+
+#### Parameters
+- `companyId` (integer) - Company ID
+
+#### Response
+```json
+{
+  "status": "OK",
+  "message": "Power of attorney deleted successfully"
+}
+```
+
+---
+
+## Usage Examples
+
+### cURL Examples
+
+#### Upload ID Copy
+```bash
+curl -X POST http://localhost:8000/api/documents/company/1/id-copy \
+  -F "document=@/path/to/id_copy.pdf"
+```
+
+#### Upload Power of Attorney
+```bash
+curl -X POST http://localhost:8000/api/documents/company/1/power-of-attorney \
+  -F "document=@/path/to/power_of_attorney.pdf"
+```
+
+#### Delete ID Copy
+```bash
+curl -X DELETE http://localhost:8000/api/documents/company/1/id-copy
+```
+
+---
+
 ## Notes
 
-- All file paths for `id_copy` and `power_of_attorney` should be stored as strings
+- Document uploads are handled separately from company creation/updates
+- Files are stored in `/public/uploads/documents/` directory
+- Filenames are automatically generated with company ID, document type, and unique identifier
+- Only PDF and image files are allowed (max 10MB)
+- When a company is deleted, associated documents should be manually cleaned up
 - The `company_names` field stores an array of company names as JSON
 - When a company is deleted, all associated businesses are also deleted (cascade)
 - All phone numbers should include country code (e.g., +27 for South Africa)
