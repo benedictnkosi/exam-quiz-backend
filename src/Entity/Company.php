@@ -46,6 +46,9 @@ class Company
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $powerOfAttorney = null;
 
+    #[ORM\Column(length: 32, options: ['default' => 'active'])]
+    private ?string $status = 'active';
+
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: Business::class, cascade: ['persist', 'remove'])]
     private Collection $businesses;
 
@@ -166,6 +169,17 @@ class Company
     public function setPowerOfAttorney(?string $powerOfAttorney): self
     {
         $this->powerOfAttorney = $powerOfAttorney;
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): self
+    {
+        $this->status = $status;
         return $this;
     }
 

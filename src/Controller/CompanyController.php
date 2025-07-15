@@ -174,4 +174,33 @@ class CompanyController extends AbstractController
             'message' => 'Company deleted successfully'
         ]);
     }
+
+    #[Route('/{id}/status', methods: ['PATCH'])]
+    public function updateStatus(int $id, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['status']) || empty($data['status'])) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => "Field 'status' is required"
+            ], 400);
+        }
+        $company = $this->companyService->getCompanyById($id);
+        if (!$company) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Company not found'
+            ], 404);
+        }
+        $company->setStatus($data['status']);
+        $this->getDoctrine()->getManager()->flush();
+        return $this->json([
+            'status' => 'OK',
+            'message' => 'Company status updated successfully',
+            'data' => [
+                'id' => $company->getId(),
+                'status' => $company->getStatus()
+            ]
+        ]);
+    }
 } 

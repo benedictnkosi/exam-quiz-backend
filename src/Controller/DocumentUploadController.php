@@ -7,6 +7,8 @@ use App\Service\FileUploadService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/documents')]
@@ -205,5 +207,37 @@ class DocumentUploadController extends AbstractController
                 'message' => 'Failed to delete document'
             ], 500);
         }
+    }
+
+    #[Route('/company/{companyId}/id-copy', methods: ['GET'])]
+    public function getIdCopy(int $companyId): JsonResponse|BinaryFileResponse
+    {
+        $company = $this->companyService->getCompanyById($companyId);
+        if (!$company) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Company not found'
+            ], 404);
+        }
+        $filename = $company->getIdCopy();
+        if (!$filename) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'No ID copy document found'
+            ], 404);
+        }
+        $filePath = $this->getParameter('kernel.project_dir') . '/public/' . $filename;
+        if (!file_exists($filePath)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'File not found on server'
+            ], 404);
+        }
+        $response = new BinaryFileResponse($filePath);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($filePath)
+        );
+        return $response;
     }
 } 
