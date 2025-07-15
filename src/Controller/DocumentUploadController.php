@@ -67,7 +67,7 @@ class DocumentUploadController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'status' => 'NOK',
-                'message' => 'Failed to upload document'
+                'message' => 'Failed to upload document ' . $e->getMessage()
             ], 500);
         }
     }
@@ -120,7 +120,7 @@ class DocumentUploadController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'status' => 'NOK',
-                'message' => 'Failed to upload document'
+                'message' => 'Failed to upload document ' . $e->getMessage()
             ], 500);
         }
     }
