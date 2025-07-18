@@ -190,7 +190,7 @@ class ExportGenreStoriesCommand extends Command
         }
     }
 
-    private function formatStoryForExport(GenreStory $story, bool $includeQuiz, bool $includeImages, SymfonyStyle $io = null): array
+    private function formatStoryForExport(GenreStory $story, bool $includeQuiz, bool $includeImages, ?SymfonyStyle $io = null): array
     {
         
         $plot = $story->getPlot();
@@ -257,7 +257,7 @@ class ExportGenreStoriesCommand extends Command
         ];
     }
 
-    private function formatImagesForExport(array $imagePrompts, array $sharedImages, array $oldImages, string $bookId, int $chapterNumber, SymfonyStyle $io = null): ?array
+    private function formatImagesForExport(array $imagePrompts, array $sharedImages, array $oldImages, string $bookId, int $chapterNumber, ?SymfonyStyle $io = null): ?array
     {
         $illustrations = [];
         $baseDir = __DIR__ . '/../../public/assets/story-images/';

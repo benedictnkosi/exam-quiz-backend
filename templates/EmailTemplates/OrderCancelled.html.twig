@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Order Cancelled</title>
+  </head>
+  <body style="background-color: #f4f6f8; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f6f8; padding: 40px 0;">
+      <tr>
+        <td align="center">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 32px 32px 24px 32px;">
+            <tr>
+              <td align="center" style="padding-bottom: 16px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Cancelled Icon" width="64" height="64" style="display: block; margin-bottom: 12px;"/>
+                <h2 style="color: #c53030; margin: 0 0 8px 0; font-size: 26px; font-weight: 700;">Order Cancelled</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="color: #4a5568; font-size: 16px; padding-bottom: 18px;">
+                <p style="margin: 0 0 10px 0;">Hello {{ recipient_name|default('Admin') }},</p>
+                <p style="margin: 0 0 18px 0;">An order has been cancelled. Here are the details:</p>
+                <table width="100%" cellpadding="0" cellspacing="0" style="background: #f7fafc; border-radius: 6px; margin-bottom: 18px;">
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 15px; color: #2d3748;">
+                      <strong>Order Number:</strong> <span style="color: #c53030;">{{ order_number }}</span><br/>
+                      <strong>Order Value:</strong> <span style="color: #c53030;">{{ order_value }}</span>
+                    </td>
+                  </tr>
+                </table>
+                <div style="text-align: center; margin: 24px 0 0 0;">
+                  <a href="{{ order_url }}" style="background: linear-gradient(90deg, #c53030 0%, #f56565 100%); color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 2px 6px rgba(197,48,48,0.12);">View Order</a>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top: 24px; color: #a0aec0; font-size: 13px; text-align: center;">
+                <p style="margin: 0;">Thank you for using our platform.<br/>— The Team</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html> 

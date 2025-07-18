@@ -27,14 +27,7 @@ class BusinessController extends AbstractController
                 'message' => 'Field business_name is required'
             ], 400);
         }
-
-        if (!isset($data['company_id']) || empty($data['company_id'])) {
-            return $this->json([
-                'status' => 'NOK',
-                'message' => 'Field company_id is required'
-            ], 400);
-        }
-
+        // company_id is now optional, so no validation here
         try {
             $business = $this->businessService->createBusiness($data);
             
@@ -44,11 +37,12 @@ class BusinessController extends AbstractController
                 'data' => [
                     'id' => $business->getId(),
                     'business_name' => $business->getBusinessName(),
+                    'business_uid' => $business->getBusinessUid(),
                     'domain' => $business->getDomain(),
                     'email' => $business->getEmail(),
                     'contact_number' => $business->getContactNumber(),
-                    'whatsapp_number' => $business->getWhatsappNumber(),
-                    'company_id' => $business->getCompany()->getId()
+                    'address' => $business->getAddress(),
+                    'company_id' => $business->getCompany()?->getId()
                 ]
             ]);
         } catch (\Exception $e) {
@@ -79,8 +73,8 @@ class BusinessController extends AbstractController
                 'domain' => $business->getDomain(),
                 'email' => $business->getEmail(),
                 'contact_number' => $business->getContactNumber(),
-                'whatsapp_number' => $business->getWhatsappNumber(),
-                'company_id' => $business->getCompany()->getId()
+                'address' => $business->getAddress(),
+                'company_id' => $business->getCompany()?->getId()
             ]
         ]);
     }
@@ -98,8 +92,8 @@ class BusinessController extends AbstractController
                 'domain' => $business->getDomain(),
                 'email' => $business->getEmail(),
                 'contact_number' => $business->getContactNumber(),
-                'whatsapp_number' => $business->getWhatsappNumber(),
-                'company_id' => $business->getCompany()->getId()
+                'address' => $business->getAddress(),
+                'company_id' => $business->getCompany()?->getId()
             ];
         }
 
@@ -122,8 +116,8 @@ class BusinessController extends AbstractController
                 'domain' => $business->getDomain(),
                 'email' => $business->getEmail(),
                 'contact_number' => $business->getContactNumber(),
-                'whatsapp_number' => $business->getWhatsappNumber(),
-                'company_id' => $business->getCompany()->getId()
+                'address' => $business->getAddress(),
+                'company_id' => $business->getCompany()?->getId()
             ];
         }
 
@@ -133,13 +127,41 @@ class BusinessController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', methods: ['PUT'])]
-    public function update(int $id, Request $request): JsonResponse
+    #[Route('/uid/{businessUid}', methods: ['GET'])]
+    public function getByUid(string $businessUid): JsonResponse
+    {
+        $business = $this->businessService->getBusinessByUid($businessUid);
+
+        if (!$business) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Business not found'
+            ], 404);
+        }
+
+        return $this->json([
+            'status' => 'OK',
+            'data' => [
+                'id' => $business->getId(),
+                'business_name' => $business->getBusinessName(),
+                'business_uid' => $business->getBusinessUid(),
+                'domain' => $business->getDomain(),
+                'email' => $business->getEmail(),
+                'contact_number' => $business->getContactNumber(),
+                'address' => $business->getAddress(),
+                'company_id' => $business->getCompany()?->getId(),
+                'vat_number' => $business->getVatNumber()
+            ]
+        ]);
+    }
+
+    #[Route('/{uid}', methods: ['PUT'])]
+    public function update(string $uid, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
         
         try {
-            $business = $this->businessService->updateBusiness($id, $data);
+            $business = $this->businessService->updateBusiness($uid, $data);
             
             if (!$business) {
                 return $this->json([
@@ -154,11 +176,13 @@ class BusinessController extends AbstractController
                 'data' => [
                     'id' => $business->getId(),
                     'business_name' => $business->getBusinessName(),
+                    'business_uid' => $business->getBusinessUid(),
                     'domain' => $business->getDomain(),
                     'email' => $business->getEmail(),
                     'contact_number' => $business->getContactNumber(),
-                    'whatsapp_number' => $business->getWhatsappNumber(),
-                    'company_id' => $business->getCompany()->getId()
+                    'address' => $business->getAddress(),
+                    'vat_number' => $business->getVatNumber(),
+                    'company_id' => $business->getCompany()?->getId()
                 ]
             ]);
         } catch (\Exception $e) {

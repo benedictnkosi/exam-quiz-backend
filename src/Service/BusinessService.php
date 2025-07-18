@@ -20,10 +20,16 @@ class BusinessService
     {
         $business = new Business();
         $business->setBusinessName($data['business_name']);
+        $business->setBusinessUid($data['business_uid']);
         $business->setDomain($data['domain'] ?? null);
         $business->setEmail($data['email'] ?? null);
         $business->setContactNumber($data['contact_number'] ?? null);
-        $business->setWhatsappNumber($data['whatsapp_number'] ?? null);
+        $business->setAddress($data['address'] ?? null);
+
+        // Set VAT number if provided
+        if (isset($data['vat_number'])) {
+            $business->setVatNumber($data['vat_number']);
+        }
 
         // Set the company relationship
         if (isset($data['company_id'])) {
@@ -59,9 +65,9 @@ class BusinessService
         return $company->getBusinesses()->toArray();
     }
 
-    public function updateBusiness(int $id, array $data): ?Business
+    public function updateBusiness(string $uid, array $data): ?Business
     {
-        $business = $this->businessRepository->find($id);
+        $business = $this->businessRepository->findOneBy(['businessUid' => $uid]);
         
         if (!$business) {
             return null;
@@ -79,8 +85,11 @@ class BusinessService
         if (isset($data['contact_number'])) {
             $business->setContactNumber($data['contact_number']);
         }
-        if (isset($data['whatsapp_number'])) {
-            $business->setWhatsappNumber($data['whatsapp_number']);
+        if (isset($data['address'])) {
+            $business->setAddress($data['address']);
+        }
+        if (isset($data['vat_number'])) {
+            $business->setVatNumber($data['vat_number']);
         }
         if (isset($data['company_id'])) {
             $company = $this->companyRepository->find($data['company_id']);
@@ -106,5 +115,10 @@ class BusinessService
         $this->entityManager->flush();
 
         return true;
+    }
+
+    public function getBusinessByUid(string $businessUid): ?Business
+    {
+        return $this->businessRepository->findOneBy(['businessUid' => $businessUid]);
     }
 } 

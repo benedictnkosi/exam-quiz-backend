@@ -25,11 +25,17 @@ class Business
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $contactNumber = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $address = null;
+
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $whatsappNumber = null;
+    private ?string $vatNumber = null;
+
+    #[ORM\Column(type: 'string', length: 36, unique: true)]
+    private string $businessUid;
 
     #[ORM\ManyToOne(inversedBy: 'businesses')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Company $company = null;
 
     public function getId(): ?int
@@ -81,14 +87,36 @@ class Business
         return $this;
     }
 
-    public function getWhatsappNumber(): ?string
+    public function getAddress(): ?string
     {
-        return $this->whatsappNumber;
+        return $this->address;
     }
 
-    public function setWhatsappNumber(?string $whatsappNumber): self
+    public function setAddress(?string $address): self
     {
-        $this->whatsappNumber = $whatsappNumber;
+        $this->address = $address;
+        return $this;
+    }
+
+    public function getVatNumber(): ?string
+    {
+        return $this->vatNumber;
+    }
+
+    public function setVatNumber(?string $vatNumber): self
+    {
+        $this->vatNumber = $vatNumber;
+        return $this;
+    }
+
+    public function getBusinessUid(): string
+    {
+        return $this->businessUid;
+    }
+
+    public function setBusinessUid(string $businessUid): self
+    {
+        $this->businessUid = $businessUid;
         return $this;
     }
 

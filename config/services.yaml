@@ -118,6 +118,12 @@ services:
             $httpClient: '@Symfony\Contracts\HttpClient\HttpClientInterface'
             $logger: '@logger'
 
+    App\Service\EmailService:
+        arguments:
+            $twig: '@twig'
+            $logger: '@logger'
+            $smtpPassword: '%env(MAILER_PASSWORD)%'
+
     App\Repository\LearnerMathsPracticeStatRepository:
         autowire: true
         autoconfigure: true
