@@ -142,4 +142,101 @@ class EmailController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/api/send-order-processing-email', name: 'send_order_processing_email', methods: ['POST'])]
+    public function sendOrderProcessingEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $to = $data['to'] ?? null;
+        $recipientName = $data['recipient_name'] ?? null;
+        $orderNumber = $data['order_number'] ?? null;
+        $orderValue = $data['order_value'] ?? null;
+        $orderUrl = $data['order_url'] ?? null;
+
+        if (!$to || !$recipientName || !$orderNumber || !$orderValue || !$orderUrl) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Missing required fields: to, recipient_name, order_number, order_value, order_url.'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $success = $this->emailService->sendOrderProcessingEmail($to, $recipientName, $orderNumber, $orderValue, $orderUrl);
+
+        if ($success) {
+            return $this->json([
+                'success' => true,
+                'message' => 'Order processing email sent successfully.'
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'message' => 'Failed to send order processing email.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/api/send-order-shipped-email', name: 'send_order_shipped_email', methods: ['POST'])]
+    public function sendOrderShippedEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $to = $data['to'] ?? null;
+        $recipientName = $data['recipient_name'] ?? null;
+        $orderNumber = $data['order_number'] ?? null;
+        $orderValue = $data['order_value'] ?? null;
+        $orderUrl = $data['order_url'] ?? null;
+        $trackingUrl = $data['tracking_url'] ?? null;
+
+        if (!$to || !$recipientName || !$orderNumber || !$orderValue || !$orderUrl) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Missing required fields: to, recipient_name, order_number, order_value, order_url.'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $success = $this->emailService->sendOrderShippedEmail($to, $recipientName, $orderNumber, $orderValue, $orderUrl, $trackingUrl);
+
+        if ($success) {
+            return $this->json([
+                'success' => true,
+                'message' => 'Order shipped email sent successfully.'
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'message' => 'Failed to send order shipped email.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/api/send-order-complete-email', name: 'send_order_complete_email', methods: ['POST'])]
+    public function sendOrderCompleteEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $to = $data['to'] ?? null;
+        $recipientName = $data['recipient_name'] ?? null;
+        $orderNumber = $data['order_number'] ?? null;
+        $orderValue = $data['order_value'] ?? null;
+        $orderUrl = $data['order_url'] ?? null;
+
+        if (!$to || !$recipientName || !$orderNumber || !$orderValue || !$orderUrl) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Missing required fields: to, recipient_name, order_number, order_value, order_url.'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $success = $this->emailService->sendOrderCompleteEmail($to, $recipientName, $orderNumber, $orderValue, $orderUrl);
+
+        if ($success) {
+            return $this->json([
+                'success' => true,
+                'message' => 'Order complete email sent successfully.'
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'message' => 'Failed to send order complete email.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 } 

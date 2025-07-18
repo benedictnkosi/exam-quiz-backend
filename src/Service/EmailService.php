@@ -124,4 +124,75 @@ class EmailService
         ]);
         return $this->sendEmail($to, $subject, $body, $from);
     }
+
+    /**
+     * Send an order processing email using the OrderProcessing.html.twig template
+     *
+     * @param string $to
+     * @param string $recipientName
+     * @param string $orderNumber
+     * @param string $orderValue
+     * @param string $orderUrl
+     * @param string|null $from
+     * @return bool
+     */
+    public function sendOrderProcessingEmail(string $to, string $recipientName, string $orderNumber, string $orderValue, string $orderUrl, ?string $from = null): bool
+    {
+        $subject = 'Your Order is Being Processed';
+        $body = $this->twig->render('EmailTemplates/OrderProcessing.html.twig', [
+            'recipient_name' => $recipientName,
+            'order_number' => $orderNumber,
+            'order_value' => $orderValue,
+            'order_url' => $orderUrl,
+        ]);
+        return $this->sendEmail($to, $subject, $body, $from);
+    }
+
+    /**
+     * Send an order shipped email using the OrderShipped.html.twig template
+     *
+     * @param string $to
+     * @param string $recipientName
+     * @param string $orderNumber
+     * @param string $orderValue
+     * @param string $orderUrl
+     * @param string|null $trackingUrl
+     * @param string|null $from
+     * @return bool
+     */
+    public function sendOrderShippedEmail(string $to, string $recipientName, string $orderNumber, string $orderValue, string $orderUrl, ?string $trackingUrl = null, ?string $from = null): bool
+    {
+        $subject = 'Your Order Has Shipped!';
+        $body = $this->twig->render('EmailTemplates/OrderShipped.html.twig', [
+            'recipient_name' => $recipientName,
+            'order_number' => $orderNumber,
+            'order_value' => $orderValue,
+            'order_url' => $orderUrl,
+            'tracking_url' => $trackingUrl,
+        ]);
+        return $this->sendEmail($to, $subject, $body, $from);
+    }
+
+    /**
+     * Send an order complete email using the OrderComplete.html.twig template
+     *
+     * @param string $to
+     * @param string $recipientName
+     * @param string $orderNumber
+     * @param string $orderValue
+     * @param string $orderUrl
+     * @param string|null $from
+     * @return bool
+     */
+    public function sendOrderCompleteEmail(string $to, string $recipientName, string $orderNumber, string $orderValue, string $orderUrl, ?string $from = null): bool
+    {
+        $subject = 'Your Order is Complete!';
+        $body = $this->twig->render('EmailTemplates/OrderComplete.html.twig', [
+            'recipient_name' => $recipientName,
+            'order_number' => $orderNumber,
+            'order_value' => $orderValue,
+            'order_url' => $orderUrl,
+        ]);
+        return $this->sendEmail($to, $subject, $body, $from);
+    }
 } 
