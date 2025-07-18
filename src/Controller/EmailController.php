@@ -250,6 +250,7 @@ class EmailController extends AbstractController
         $date = $data['date'] ?? null;
         $time = $data['time'] ?? null;
         $fullName = $data['full_name'] ?? null;
+        $customerEmail = $data['customer_email'] ?? null;
         $phoneNumber = $data['phone_number'] ?? null;
         $notes = $data['notes'] ?? null;
 
@@ -261,7 +262,7 @@ class EmailController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $success = $this->emailService->sendAppointmentBookingEmail($to, $branch, $service, $date, $time, $fullName, $phoneNumber, $notes);
+        $success = $this->emailService->sendAppointmentBookingEmail($to, $branch, $service, $date, $time, $fullName, $customerEmail, $phoneNumber, $notes);
 
         if ($success) {
             return $this->json([

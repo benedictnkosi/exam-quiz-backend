@@ -28,6 +28,9 @@
                   <tr><td style="padding: 8px 16px;"><strong>Time:</strong> {{ time }}</td></tr>
                   {% endif %}
                   <tr><td style="padding: 8px 16px;"><strong>Full Name:</strong> {{ full_name }}</td></tr>
+                  {% if customer_email is defined and customer_email %}
+                  <tr><td style="padding: 8px 16px;"><strong>Email Address:</strong> {{ customer_email }}</td></tr>
+                  {% endif %}
                   <tr><td style="padding: 8px 16px;"><strong>Phone Number:</strong> {{ phone_number }}</td></tr>
                   {% if notes is defined and notes %}
                   <tr><td style="padding: 8px 16px;"><strong>Additional Notes:</strong> {{ notes }}</td></tr>

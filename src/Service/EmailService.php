@@ -205,12 +205,13 @@ class EmailService
      * @param string $date
      * @param string|null $time
      * @param string $fullName
+     * @param string|null $customerEmail
      * @param string $phoneNumber
      * @param string|null $notes
      * @param string|null $from
      * @return bool
      */
-    public function sendAppointmentBookingEmail(?string $to, ?string $branch, string $service, string $date, ?string $time, string $fullName, string $phoneNumber, ?string $notes = null, ?string $from = null): bool
+    public function sendAppointmentBookingEmail(?string $to, ?string $branch, string $service, string $date, ?string $time, string $fullName, ?string $customerEmail, string $phoneNumber, ?string $notes = null, ?string $from = null): bool
     {
         $subject = 'New Appointment Booking';
         $body = $this->twig->render('EmailTemplates/AppointmentBooking.html.twig', [
@@ -219,6 +220,7 @@ class EmailService
             'date' => $date,
             'time' => $time,
             'full_name' => $fullName,
+            'customer_email' => $customerEmail,
             'phone_number' => $phoneNumber,
             'notes' => $notes,
         ]);
