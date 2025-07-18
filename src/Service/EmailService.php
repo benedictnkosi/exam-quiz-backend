@@ -195,4 +195,33 @@ class EmailService
         ]);
         return $this->sendEmail($to, $subject, $body, $from);
     }
+
+    /**
+     * Send an appointment booking email using the AppointmentBooking.html.twig template
+     *
+     * @param string|null $to
+     * @param string|null $branch
+     * @param string $service
+     * @param string $date
+     * @param string|null $time
+     * @param string $fullName
+     * @param string $phoneNumber
+     * @param string|null $notes
+     * @param string|null $from
+     * @return bool
+     */
+    public function sendAppointmentBookingEmail(?string $to, ?string $branch, string $service, string $date, ?string $time, string $fullName, string $phoneNumber, ?string $notes = null, ?string $from = null): bool
+    {
+        $subject = 'New Appointment Booking';
+        $body = $this->twig->render('EmailTemplates/AppointmentBooking.html.twig', [
+            'branch' => $branch,
+            'service' => $service,
+            'date' => $date,
+            'time' => $time,
+            'full_name' => $fullName,
+            'phone_number' => $phoneNumber,
+            'notes' => $notes,
+        ]);
+        return $this->sendEmail($to ?? 'admin@example.com', $subject, $body, $from);
+    }
 } 

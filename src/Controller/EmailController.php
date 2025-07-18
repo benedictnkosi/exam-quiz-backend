@@ -239,4 +239,40 @@ class EmailController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/api/send-appointment-booking-email', name: 'send_appointment_booking_email', methods: ['POST'])]
+    public function sendAppointmentBookingEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $to = $data['to'] ?? null;
+        $branch = $data['branch'] ?? null;
+        $service = $data['service'] ?? null;
+        $date = $data['date'] ?? null;
+        $time = $data['time'] ?? null;
+        $fullName = $data['full_name'] ?? null;
+        $phoneNumber = $data['phone_number'] ?? null;
+        $notes = $data['notes'] ?? null;
+
+        // Only service, date, full_name, and phone_number are required
+        if (!$service || !$date || !$fullName || !$phoneNumber) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Missing required fields: service, date, full_name, phone_number.'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $success = $this->emailService->sendAppointmentBookingEmail($to, $branch, $service, $date, $time, $fullName, $phoneNumber, $notes);
+
+        if ($success) {
+            return $this->json([
+                'success' => true,
+                'message' => 'Appointment booking email sent successfully.'
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'message' => 'Failed to send appointment booking email.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 } 
