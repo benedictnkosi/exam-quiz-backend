@@ -278,4 +278,38 @@ class EmailController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/api/send-contact-us-email', name: 'send_contact_us_email', methods: ['POST'])]
+    public function sendContactUsEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $to = $data['to'] ?? null;
+        $firstName = $data['first_name'] ?? null;
+        $lastName = $data['last_name'] ?? null;
+        $email = $data['email'] ?? null;
+        $phone = $data['phone'] ?? null;
+        $message = $data['message'] ?? null;
+        $serviceInterested = $data['service_interested'] ?? null;
+
+        if (!$to || !$firstName || !$lastName || !$email || !$phone || !$message) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Missing required fields: to, first_name, last_name, email, phone, message.'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $success = $this->emailService->sendContactUsEmail($to, $firstName, $lastName, $email, $phone, $message, $serviceInterested);
+
+        if ($success) {
+            return $this->json([
+                'success' => true,
+                'message' => 'Contact us email sent successfully.'
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'message' => 'Failed to send contact us email.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 } 

@@ -230,4 +230,31 @@ class EmailService
         ]);
         return $this->sendEmail($to ?? 'admin@example.com', $subject, $body, $from);
     }
+
+    /**
+     * Send a contact us email using the ContactUs.html.twig template
+     *
+     * @param string $to
+     * @param string $firstName
+     * @param string $lastName
+     * @param string $email
+     * @param string $phone
+     * @param string $message
+     * @param string|null $serviceInterested
+     * @param string|null $from
+     * @return bool
+     */
+    public function sendContactUsEmail(string $to, string $firstName, string $lastName, string $email, string $phone, string $message, ?string $serviceInterested = null, ?string $from = null): bool
+    {
+        $subject = 'New Contact Form Submission';
+        $body = $this->twig->render('EmailTemplates/ContactUs.html.twig', [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'phone' => $phone,
+            'service_interested' => $serviceInterested,
+            'message' => $message,
+        ]);
+        return $this->sendEmail($to, $subject, $body, $from);
+    }
 } 
