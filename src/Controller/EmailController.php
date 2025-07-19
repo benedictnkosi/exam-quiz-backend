@@ -56,6 +56,7 @@ class EmailController extends AbstractController
         $orderNumber = $data['order_number'] ?? null;
         $orderValue = $data['order_value'] ?? null;
         $orderUrl = $data['order_url'] ?? null;
+        $products = $data['products'] ?? null;
 
         if (!$to || !$orderNumber || !$orderValue || !$orderUrl) {
             return $this->json([
@@ -64,7 +65,7 @@ class EmailController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $success = $this->emailService->sendNewOrderEmail($to, $orderNumber, $orderValue, $orderUrl);
+        $success = $this->emailService->sendNewOrderEmail($to, $orderNumber, $orderValue, $orderUrl, $products);
 
         if ($success) {
             return $this->json([
@@ -120,6 +121,7 @@ class EmailController extends AbstractController
         $orderNumber = $data['order_number'] ?? null;
         $orderValue = $data['order_value'] ?? null;
         $orderUrl = $data['order_url'] ?? null;
+        $products = $data['products'] ?? null;
 
         if (!$to || !$customerName || !$orderNumber || !$orderValue || !$orderUrl) {
             return $this->json([
@@ -128,7 +130,7 @@ class EmailController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $success = $this->emailService->sendOrderCreatedEmail($to, $customerName, $orderNumber, $orderValue, $orderUrl);
+        $success = $this->emailService->sendOrderCreatedEmail($to, $customerName, $orderNumber, $orderValue, $orderUrl, $products);
 
         if ($success) {
             return $this->json([

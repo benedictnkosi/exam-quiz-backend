@@ -65,16 +65,18 @@ class EmailService
      * @param string $orderNumber
      * @param string $orderValue
      * @param string $orderUrl
+     * @param array|null $products
      * @param string|null $from
      * @return bool
      */
-    public function sendNewOrderEmail(string $to, string $orderNumber, string $orderValue, string $orderUrl, ?string $from = null): bool
+    public function sendNewOrderEmail(string $to, string $orderNumber, string $orderValue, string $orderUrl, ?array $products = null, ?string $from = null): bool
     {
         $subject = 'New Order Received';
         $body = $this->twig->render('EmailTemplates/NewOrderReceived.html.twig', [
             'order_number' => $orderNumber,
             'order_value' => $orderValue,
             'order_url' => $orderUrl,
+            'products' => $products,
         ]);
         return $this->sendEmail($to, $subject, $body, $from);
     }
@@ -110,10 +112,11 @@ class EmailService
      * @param string $orderNumber
      * @param string $orderValue
      * @param string $orderUrl
+     * @param array|null $products
      * @param string|null $from
      * @return bool
      */
-    public function sendOrderCreatedEmail(string $to, string $customerName, string $orderNumber, string $orderValue, string $orderUrl, ?string $from = null): bool
+    public function sendOrderCreatedEmail(string $to, string $customerName, string $orderNumber, string $orderValue, string $orderUrl, ?array $products = null, ?string $from = null): bool
     {
         $subject = 'Your Order Has Been Created';
         $body = $this->twig->render('EmailTemplates/OrderCreated.html.twig', [
@@ -121,6 +124,7 @@ class EmailService
             'order_number' => $orderNumber,
             'order_value' => $orderValue,
             'order_url' => $orderUrl,
+            'products' => $products,
         ]);
         return $this->sendEmail($to, $subject, $body, $from);
     }
