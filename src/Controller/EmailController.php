@@ -293,10 +293,10 @@ class EmailController extends AbstractController
         $grade = $data['grade'] ?? null;
         $childName = $data['child_name'] ?? null;
 
-        if (!$to || !$firstName || !$lastName || !$email || !$phone || !$message) {
+        if (!$to || !$firstName || !$email || !$phone || !$message) {
             return $this->json([
                 'success' => false,
-                'message' => 'Missing required fields: to, first_name, last_name, email, phone, message.'
+                'message' => 'Missing required fields: to, first_name, email, phone, message.'
             ], Response::HTTP_BAD_REQUEST);
         }
 

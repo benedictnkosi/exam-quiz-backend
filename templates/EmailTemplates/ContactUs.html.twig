@@ -20,7 +20,9 @@
                 <p style="margin: 0 0 18px 0;">A new contact form has been submitted with the following details:</p>
                 <table width="100%" cellpadding="0" cellspacing="0" style="background: #f7fafc; border-radius: 6px; margin-bottom: 18px;">
                   <tr><td style="padding: 8px 16px;"><strong>First Name:</strong> {{ first_name }}</td></tr>
+                  {% if last_name is defined and last_name %}
                   <tr><td style="padding: 8px 16px;"><strong>Last Name:</strong> {{ last_name }}</td></tr>
+                  {% endif %}
                   <tr><td style="padding: 8px 16px;"><strong>Email:</strong> {{ email }}</td></tr>
                   <tr><td style="padding: 8px 16px;"><strong>Phone:</strong> {{ phone }}</td></tr>
                   {% if service_interested is defined and service_interested %}

@@ -236,7 +236,7 @@ class EmailService
      *
      * @param string $to
      * @param string $firstName
-     * @param string $lastName
+     * @param string|null $lastName
      * @param string $email
      * @param string $phone
      * @param string $message
@@ -246,7 +246,7 @@ class EmailService
      * @param string|null $from
      * @return bool
      */
-    public function sendContactUsEmail(string $to, string $firstName, string $lastName, string $email, string $phone, string $message, ?string $serviceInterested = null, ?string $grade = null, ?string $childName = null, ?string $from = null): bool
+    public function sendContactUsEmail(string $to, string $firstName, ?string $lastName, string $email, string $phone, string $message, ?string $serviceInterested = null, ?string $grade = null, ?string $childName = null, ?string $from = null): bool
     {
         $subject = 'New Contact Form Submission';
         $body = $this->twig->render('EmailTemplates/ContactUs.html.twig', [
