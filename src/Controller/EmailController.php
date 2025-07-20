@@ -290,6 +290,8 @@ class EmailController extends AbstractController
         $phone = $data['phone'] ?? null;
         $message = $data['message'] ?? null;
         $serviceInterested = $data['service_interested'] ?? null;
+        $grade = $data['grade'] ?? null;
+        $childName = $data['child_name'] ?? null;
 
         if (!$to || !$firstName || !$lastName || !$email || !$phone || !$message) {
             return $this->json([
@@ -298,7 +300,7 @@ class EmailController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $success = $this->emailService->sendContactUsEmail($to, $firstName, $lastName, $email, $phone, $message, $serviceInterested);
+        $success = $this->emailService->sendContactUsEmail($to, $firstName, $lastName, $email, $phone, $message, $serviceInterested, $grade, $childName);
 
         if ($success) {
             return $this->json([

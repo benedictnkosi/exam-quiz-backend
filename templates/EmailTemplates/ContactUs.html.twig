@@ -26,6 +26,12 @@
                   {% if service_interested is defined and service_interested %}
                   <tr><td style="padding: 8px 16px;"><strong>Service Interested:</strong> {{ service_interested }}</td></tr>
                   {% endif %}
+                  {% if grade is defined and grade %}
+                  <tr><td style="padding: 8px 16px;"><strong>Grade:</strong> {{ grade }}</td></tr>
+                  {% endif %}
+                  {% if child_name is defined and child_name %}
+                  <tr><td style="padding: 8px 16px;"><strong>Child Name:</strong> {{ child_name }}</td></tr>
+                  {% endif %}
                 </table>
                 <h3 style="color: #2d3748; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">Message:</h3>
                 <div style="background: #f7fafc; border-radius: 6px; padding: 16px; margin-bottom: 18px; border-left: 4px solid #3182ce;">
