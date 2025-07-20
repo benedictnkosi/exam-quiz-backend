@@ -168,4 +168,57 @@ class ImageUploadController extends AbstractController
             ], 500);
         }
     }
+
+    #[Route('/api/shop-image/{filename}', name: 'delete_shop_image', methods: ['DELETE'])]
+    public function deleteShopImage(string $filename): JsonResponse
+    {
+        try {
+            $this->logger->info('Attempting to delete shop image: ' . $filename);
+
+            // Validate filename format (timestamp_randomstring.extension)
+            if (!preg_match('/^\d+_[a-f0-9]{32}\.[a-zA-Z0-9]+$/', $filename)) {
+                $this->logger->warning('Invalid filename format for deletion: ' . $filename);
+                return $this->json(['error' => 'Invalid filename format'], 400);
+            }
+
+            // Build the file path
+            $filePath = $this->getParameter('kernel.project_dir') . '/public/assets/images/shop/' . $filename;
+
+            // Check if file exists
+            if (!file_exists($filePath)) {
+                $this->logger->warning('Shop image not found for deletion: ' . $filePath);
+                return $this->json(['error' => 'Image not found'], 404);
+            }
+
+            // Check if file is actually a file (not a directory)
+            if (!is_file($filePath)) {
+                $this->logger->warning('Path is not a file: ' . $filePath);
+                return $this->json(['error' => 'Invalid file path'], 400);
+            }
+
+            // Attempt to delete the file
+            if (unlink($filePath)) {
+                $this->logger->info('Shop image deleted successfully: ' . $filename);
+                return $this->json([
+                    'status' => 'OK',
+                    'message' => 'Image deleted successfully',
+                    'fileName' => $filename
+                ]);
+            } else {
+                $this->logger->error('Failed to delete file: ' . $filePath);
+                return $this->json([
+                    'status' => 'NOK',
+                    'message' => 'Failed to delete image'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('Error deleting shop image: ' . $e->getMessage());
+            $this->logger->error('Stack trace: ' . $e->getTraceAsString());
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Error deleting image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
