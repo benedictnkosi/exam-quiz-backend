@@ -6,19 +6,24 @@ use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Psr\Log\LoggerInterface;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\RestaurantMenu;
 
 class OpenAIService
 {
     private HttpClientInterface $client;
     private string $apiKey;
     private string $apiUrl = 'https://api.openai.com/v1/chat/completions';
+    private EntityManagerInterface $entityManager;
 
     public function __construct(
         string $openaiApiKey,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        EntityManagerInterface $entityManager
     ) {
         $this->client = HttpClient::create();
         $this->apiKey = $openaiApiKey;
+        $this->entityManager = $entityManager;
     }
 
     public function getClient(): HttpClientInterface
@@ -561,6 +566,341 @@ Format your response as follows:
         } catch (\Exception $e) {
             $this->logger->error('OpenAI API Error (checkMessageForPhoneOrAddress): ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Generate a low carb menu from a restaurant menu using AI
+     *
+     * @param string $restaurantName
+     * @param string $menuText The menu as a string (all items)
+     * @return array Grouped by starters, mains, dessert, drinks. Each item: name, description, estimated calories/kj
+     */
+    public function generateLowCarbMenu(string $restaurantName, string $menuText): array
+    {
+        $prompt = "You are a nutrition and food expert. Given the menu for a restaurant, identify ONLY the low carb options. Group them as Starters, Mains, Dessert, and Drinks. For each, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n\nReturn ONLY a valid JSON object in this format:\n{\n  'starters': [ { 'name': '', 'description': '', 'calories_kj': '' }, ... ],\n  'mains': [ ... ],\n  'dessert': [ ... ],\n  'drinks': [ ... ]\n}\n\nIf a group has no low carb options, return an empty array for that group. Do not include any other text or explanation. Here is the menu for $restaurantName:\n\n$menuText";
+
+        try {
+            $response = $this->client->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'You are a nutrition and food expert. Only return valid JSON.'
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt
+                        ]
+                    ]
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $content = $data['choices'][0]['message']['content'] ?? '';
+            // Try to extract JSON from the response
+            $json = json_decode($content, true);
+            if (!is_array($json)) {
+                if (preg_match('/\{.*\}/s', $content, $matches)) {
+                    $json = json_decode($matches[0], true);
+                }
+            }
+            return is_array($json) ? $json : [];
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateLowCarbMenu): ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Generate a menu for a given restaurant and food type by searching the internet
+     *
+     * @param string $restaurantName
+     * @param string $foodType (e.g., 'low carb', 'vegetarian')
+     * @param RestaurantMenu|null $menuEntity (optional) If provided, update status and error fields
+     * @return array Grouped by starters, mains, dessert, drinks. Each item: name, description, estimated calories/kj
+     */
+    public function generateMenuByTypeAndRestaurant(string $restaurantName, string $foodType, $menuEntity = null): array
+    {
+        // Check cache first
+        $repo = $this->entityManager->getRepository(RestaurantMenu::class);
+        $existing = $repo->findOneBy([
+            'restaurantName' => $restaurantName,
+            'foodType' => $foodType
+        ]);
+        if ($existing && $menuEntity === null) {
+            $createdAt = $existing->getCreatedAt();
+            $now = new \DateTime();
+            $interval = $now->diff($createdAt);
+            $menuResult = $existing->getMenuResult();
+            // Only return cached if not empty and less than 3 months old
+            if (!empty($menuResult) && $interval->m < 3 && $interval->y === 0) {
+                $this->logger->info('Returning cached menu for ' . $restaurantName . ' / ' . $foodType);
+                return $menuResult;
+            }
+            $this->logger->info('Refreshing cached menu for ' . $restaurantName . ' / ' . $foodType . ' (older than 3 months or empty)', [
+                'menuResult_empty' => empty($menuResult),
+                'interval_months' => $interval->m,
+                'interval_years' => $interval->y
+            ]);
+        }
+        $aiInput = '';
+        $isVegetarian = (strtolower(trim($foodType)) === 'vegetarian');
+        $isLowCarb = (stripos($foodType, 'low-carb') !== false);
+        $isVegan = (stripos(str_replace([' ', '-'], '', strtolower($foodType)), 'vegan') !== false);
+        if ($isLowCarb) {
+            $aiInput = "You are a nutrition and food expert. Search the internet for the menu of $restaurantName. Identify ONLY the low carb options (strictly EXCLUDE any meal containing bread, toast, chips, potatoes, rice, wraps, pizza base, pasta, or any other high-carb ingredients). Only include meals that are truly low carb (less than 15g net carbs per serving if possible). Group them as Starters, Mains, Dessert, and Drinks. For each, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n- price (if available)\n\nReturn ONLY a valid JSON object in this format:\n{\n  \"starters\": [ { \"name\": \"\", \"description\": \"\", \"calories_kj\": 0, \"price\": \"\" }, ... ],\n  \"mains\": [ ... ],\n  \"dessert\": [ ... ],\n  \"drinks\": [ ... ]\n}\n\nIf a group has no low carb options, return an empty array for that group. Do not include any other text or explanation. If you cannot find any low carb options, return all groups as empty arrays. If you are unsure about a meal, err on the side of excluding it.";
+        } elseif ($isVegan) {
+            $aiInput = "You are a nutrition and food expert. Search the internet for the menu of $restaurantName. Identify ONLY the vegan options (strictly EXCLUDE any meal containing meat, fish, eggs, dairy, honey, or any animal-derived ingredients). Only include meals that are 100% plant-based. Group them as Starters, Mains, Dessert, and Drinks. For each, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n- price (if available)\n\nReturn ONLY a valid JSON object in this format:\n{\n  \"starters\": [ { \"name\": \"\", \"description\": \"\", \"calories_kj\": 0, \"price\": \"\" }, ... ],\n  \"mains\": [ ... ],\n  \"dessert\": [ ... ],\n  \"drinks\": [ ... ]\n}\n\nIf a group has no vegan options, return an empty array for that group. Do not include any other text or explanation. If you cannot find any vegan options, return all groups as empty arrays. If you are unsure about a meal, err on the side of excluding it.";
+        } elseif ($isVegetarian) {
+            $aiInput = "You are a nutrition and food expert. Search the internet for the menu of $restaurantName. Identify ONLY the $foodType options. Group them as Starters and Mains. For each, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n- price (if available)\n\nReturn ONLY a valid JSON object in this format:\n{\n  \"starters\": [ { \"name\": \"\", \"description\": \"\", \"calories_kj\": 0, \"price\": \"\" }, ... ],\n  \"mains\": [ ... ]\n}\n\nIf a group has no options, return an empty array for that group. Do not include any other text or explanation. If you cannot find the menu, return all groups as empty arrays.";
+        } else {
+            $aiInput = "You are a nutrition and food expert. Search the internet for the menu of $restaurantName. Identify ONLY the $foodType options. Group them as Starters, Mains, Dessert, and Drinks. For each, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n- price (if available)\n\nReturn ONLY a valid JSON object in this format:\n{\n  \"starters\": [ { \"name\": \"\", \"description\": \"\", \"calories_kj\": 0, \"price\": \"\" }, ... ],\n  \"mains\": [ ... ],\n  \"dessert\": [ ... ],\n  \"drinks\": [ ... ]\n}\n\nIf a group has no options, return an empty array for that group. Do not include any other text or explanation. If you cannot find the menu, return all groups as empty arrays.";
+        }
+
+        $logContext = [
+            'restaurant_name' => $restaurantName,
+            'food_type' => $foodType,
+            'ai_input' => $aiInput
+        ];
+        $this->logger->info('AI menu search request', $logContext);
+
+        try {
+            $response = $this->client->request('POST', 'https://api.openai.com/v1/responses', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4.1',
+                    'tools' => [[ 'type' => 'web_search_preview' ]],
+                    'input' => $aiInput
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $this->logger->info('AI menu search raw response', [
+                'restaurant_name' => $restaurantName,
+                'food_type' => $foodType,
+                'raw_response' => $data
+            ]);
+            // Extract the JSON menu from the output message
+            $result = [];
+            $found = false;
+            if (isset($data['output']) && is_array($data['output'])) {
+                foreach ($data['output'] as $outputItem) {
+                    if ($found) break;
+                    if (
+                        isset($outputItem['type']) && $outputItem['type'] === 'message' &&
+                        isset($outputItem['content']) && is_array($outputItem['content'])
+                    ) {
+                        foreach ($outputItem['content'] as $contentItem) {
+                            if ($found) break;
+                            if (
+                                isset($contentItem['type']) && $contentItem['type'] === 'output_text' &&
+                                isset($contentItem['text'])
+                            ) {
+                                $text = $contentItem['text'];
+                                // Remove code block markers if present
+                                if (preg_match('/^```json\\n([\s\S]*)```$/', trim($text), $matches)) {
+                                    $text = $matches[1];
+                                }
+                                $json = json_decode($text, true);
+                                if (is_array($json)) {
+                                    $result = $json;
+                                    $found = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $this->logger->info('AI menu search parsed result', [
+                'restaurant_name' => $restaurantName,
+                'food_type' => $foodType,
+                'parsed_result' => $result
+            ]);
+            if (empty($result)) {
+                $this->logger->warning('AI menu search result is empty or invalid', [
+                    'restaurant_name' => $restaurantName,
+                    'food_type' => $foodType,
+                    'raw_response' => $data
+                ]);
+            }
+            // Save to DB
+            // Extract prices per group if present
+            $menuPrices = null;
+            if (is_array($result)) {
+                $menuPrices = [];
+                foreach (['starters', 'mains', 'dessert', 'drinks'] as $group) {
+                    if (isset($result[$group]) && is_array($result[$group])) {
+                        $menuPrices[$group] = array_map(function($meal) {
+                            return $meal['price'] ?? null;
+                        }, $result[$group]);
+                    }
+                }
+            }
+            if ($existing && $menuEntity === null) {
+                $existing->setMenuResult($result);
+                $existing->setMenuPrices($menuPrices);
+                $existing->setUpdatedAt(new \DateTime());
+                $existing->setCreatedAt(new \DateTime());
+                $this->entityManager->flush();
+            } elseif ($menuEntity) {
+                $menuEntity->setMenuResult($result);
+                $menuEntity->setMenuPrices($menuPrices);
+                $menuEntity->setStatus('ready');
+                $menuEntity->setErrorMessage(null);
+                $menuEntity->setUpdatedAt(new \DateTime());
+                $this->entityManager->persist($menuEntity);
+                $this->entityManager->flush();
+            } else {
+                $menu = new RestaurantMenu();
+                $menu->setRestaurantName($restaurantName);
+                $menu->setFoodType($foodType);
+                $menu->setMenuResult($result);
+                $menu->setMenuPrices($menuPrices);
+                $menu->setCreatedAt(new \DateTime());
+                $menu->setUpdatedAt(new \DateTime());
+                $this->entityManager->persist($menu);
+                $this->entityManager->flush();
+            }
+            return $result;
+        } catch (\Exception $e) {
+            if ($menuEntity) {
+                $menuEntity->setStatus('error');
+                $menuEntity->setErrorMessage($e->getMessage());
+                $menuEntity->setUpdatedAt(new \DateTime());
+                $this->entityManager->persist($menuEntity);
+                $this->entityManager->flush();
+            }
+            $this->logger->error('OpenAI API Error (generateMenuByTypeAndRestaurant): ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Generate menus by food type for a list of restaurants using AI
+     *
+     * @param string $foodType
+     * @param array $restaurantNames
+     * @return array Associative array: restaurant name => grouped menu
+     */
+    public function generateMenusByTypeForRestaurants(string $foodType, array $restaurantNames): array
+    {
+        $restaurantList = implode(", ", $restaurantNames);
+        $prompt = "You are a nutrition and food expert. For each of the following restaurants, search the internet for their menu and identify ONLY the $foodType options. For each restaurant, return ONLY the top 3 Mains (main courses), sorted by popularity or menu prominence if possible. For each item, return:\n- name of the meal\n- a short description\n- an estimated calories (kcal) or kilojoules (kJ) value (estimate if not provided)\n\nReturn ONLY a valid JSON object in this format:\n{ 'RESTAURANT_NAME': { 'mains': [...] }, ... }\n\nIf there are no mains, return an empty array for that restaurant. If you cannot find the menu for a restaurant, return 'mains' as an empty array for that restaurant. Here are the restaurants:\n$restaurantList";
+
+        $this->logger->info('AI menus by type for restaurants request', [
+            'food_type' => $foodType,
+            'restaurants' => $restaurantNames,
+            'prompt' => $prompt
+        ]);
+
+        try {
+            $response = $this->client->request('POST', 'https://api.openai.com/v1/responses', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4.1',
+                    'tools' => [[ 'type' => 'web_search_preview' ]],
+                    'input' => $prompt
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $content = $data['choices'][0]['message']['content'] ?? '';
+            $this->logger->info('AI menus by type for restaurants response', [
+                'food_type' => $foodType,
+                'restaurants' => $restaurantNames,
+                'raw_response' => $content
+            ]);
+            // Try to extract JSON from the response
+            $json = json_decode($content, true);
+            if (!is_array($json)) {
+                if (preg_match('/\{.*\}/s', $content, $matches)) {
+                    $json = json_decode($matches[0], true);
+                }
+            }
+            // Only return the top 5 'mains' for each restaurant
+            if (is_array($json)) {
+                $mainsOnly = [];
+                foreach ($json as $restaurant => $groups) {
+                    $mains = $groups['mains'] ?? [];
+                    $mainsOnly[$restaurant] = [
+                        'mains' => array_slice($mains, 0, 5)
+                    ];
+                }
+                return $mainsOnly;
+            }
+            return [];
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateMenusByTypeForRestaurants): ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Generate a list of restaurants and their menus by food type near a location using AI web search
+     *
+     * @param float $lat
+     * @param float $lng
+     * @param float $radius (in km)
+     * @param string $foodType
+     * @return array
+     */
+    public function generateNearbyMenusByType(float $lat, float $lng, float $radius, string $foodType): array
+    {
+        $prompt = "You are a nutrition and food expert. Search the internet for restaurants within {$radius}km of latitude {$lat}, longitude {$lng}. For each restaurant, return:\n- name\n- address (if available)\n- logo_url (if available)\n- the top 3 Mains (main courses) for {$foodType} eaters, sorted by popularity or menu prominence if possible. For each main, return name, a short description, and estimated calories (kcal) or kilojoules (kJ) if available.\n\nReturn ONLY a valid JSON array in this format:\n[ { 'name': '', 'address': '', 'logo_url': '', 'mains': [ { 'name': '', 'description': '', 'calories_kj': '' }, ... ] }, ... ]\n\nIf you cannot find any restaurants or menus, return an empty array. Do not include any other text or explanation.";
+
+        $this->logger->info('AI nearby menus by type request', [
+            'lat' => $lat,
+            'lng' => $lng,
+            'radius' => $radius,
+            'food_type' => $foodType,
+            'prompt' => $prompt
+        ]);
+
+        try {
+            $response = $this->client->request('POST', 'https://api.openai.com/v1/responses', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4.1',
+                    'tools' => [[ 'type' => 'web_search_preview' ]],
+                    'input' => $prompt
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $content = $data['choices'][0]['message']['content'] ?? '';
+            $this->logger->info('AI nearby menus by type response', [
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius' => $radius,
+                'food_type' => $foodType,
+                'raw_response' => $content
+            ]);
+            // Try to extract JSON from the response
+            $json = json_decode($content, true);
+            if (!is_array($json)) {
+                if (preg_match('/\[.*\]/s', $content, $matches)) {
+                    $json = json_decode($matches[0], true);
+                }
+            }
+            return is_array($json) ? $json : [];
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateNearbyMenusByType): ' . $e->getMessage());
+            return [];
         }
     }
 }

@@ -1,0 +1,803 @@
+{
+	"info": {
+		"_postman_id": "shady-meter-api-collection",
+		"name": "Shady Meter API",
+		"description": "Complete API collection for the Shady Meter application - a corruption tracking and news aggregation system",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "shady-meter-api"
+	},
+	"item": [
+		{
+			"name": "News API",
+			"item": [
+				{
+					"name": "Fetch Trending Corruption News",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country\": \"Nigeria\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/news",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"news"
+							]
+						},
+						"description": "Fetches the top 3 most significant corruption-related news stories for a specific country. Uses OpenAI with web search to get current news and caches results for the day."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"country\": \"Nigeria\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/news",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"news"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"news\": [\n    {\n      \"title\": \"Major corruption scandal uncovered in Nigeria\",\n      \"summary\": \"A significant corruption case has been revealed involving high-ranking officials.\",\n      \"impact\": \"high\",\n      \"source\": \"Local News\"\n    },\n    {\n      \"title\": \"Anti-corruption measures implemented in Nigeria\",\n      \"summary\": \"New laws have been passed to combat corruption in government.\",\n      \"impact\": \"medium\",\n      \"source\": \"Government Press\"\n    },\n    {\n      \"title\": \"Corruption investigation ongoing in Nigeria\",\n      \"summary\": \"Authorities continue to investigate multiple corruption allegations.\",\n      \"impact\": \"low\",\n      \"source\": \"Investigative Report\"\n    }\n  ],\n  \"country\": \"Nigeria\",\n  \"cached\": false,\n  \"createdAt\": \"2024-01-15T10:30:00.000Z\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get News (All)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/news",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"news"
+							]
+						},
+						"description": "Retrieves all news from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get News by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/news?country=South%20Africa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"news"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "South Africa"
+								}
+							]
+						},
+						"description": "Retrieves news for a specific country"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's News Only",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/news?todayOnly=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"news"
+							],
+							"query": [
+								{
+									"key": "todayOnly",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Retrieves only today's news"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's News by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/news?country=Kenya&todayOnly=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"news"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "Kenya"
+								},
+								{
+									"key": "todayOnly",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Retrieves today's news for a specific country"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for managing corruption-related news"
+		},
+		{
+			"name": "Politicians API",
+			"item": [
+				{
+					"name": "Generate Politicians List",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country\": \"South Africa\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/politicians",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians"
+							]
+						},
+						"description": "Generates a list of 20 politicians to watch in a specific country based on corruption allegations using OpenAI."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"country\": \"South Africa\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/politicians",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": 1,\n    \"fullName\": \"John Doe\",\n    \"country\": \"South Africa\",\n    \"party\": \"Democratic Party\",\n    \"position\": \"Minister of Finance\",\n    \"score\": 85,\n    \"status\": \"active\",\n    \"note\": \"Multiple corruption allegations\",\n    \"created\": true\n  }\n]"
+						}
+					]
+				},
+				{
+					"name": "Get Politicians by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians?country=South%20Africa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "South Africa"
+								}
+							]
+						},
+						"description": "Retrieves politicians from the database, excluding trending politicians."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Trending Politicians",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country\": \"Kenya\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/politicians/trending",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"trending"
+							]
+						},
+						"description": "Generates a list of 10 most trending politicians for corruption scandals in the current year using OpenAI with web search."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"country\": \"Kenya\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/politicians/trending",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians",
+										"trending"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": 2,\n    \"fullName\": \"Jane Smith\",\n    \"country\": \"Kenya\",\n    \"party\": \"Republican Party\",\n    \"position\": \"Prime Minister\",\n    \"score\": 95,\n    \"status\": \"active\",\n    \"note\": \"Currently under investigation\",\n    \"trending\": true,\n    \"created\": true\n  }\n]"
+						}
+					]
+				},
+				{
+					"name": "Get Trending Politicians (All)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/trending",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"trending"
+							]
+						},
+						"description": "Retrieves all trending politicians from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Trending Politicians by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/trending?country=Kenya",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"trending"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "Kenya"
+								}
+							]
+						},
+						"description": "Retrieves trending politicians for a specific country"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's Trending Politicians",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/trending?todayOnly=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"trending"
+							],
+							"query": [
+								{
+									"key": "todayOnly",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Retrieves only today's trending politicians"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's Trending Politicians by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/trending?country=Kenya&todayOnly=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"trending"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "Kenya"
+								},
+								{
+									"key": "todayOnly",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Retrieves today's trending politicians for a specific country"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Politician by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/101",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"101"
+							]
+						},
+						"description": "Retrieves a specific politician from the database by their ID."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/politicians/101",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians",
+										"101"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 101,\n  \"fullName\": \"Jacob Zuma\",\n  \"country\": \"South Africa\",\n  \"party\": \"African National Congress\",\n  \"position\": \"Former President\",\n  \"score\": 100,\n  \"status\": \"Retired\",\n  \"note\": \"Faced numerous corruption charges, including those related to the arms deal and state capture.\",\n  \"trending\": false,\n  \"createdAt\": \"2025-07-25T22:08:25+00:00\",\n  \"updatedAt\": null\n}"
+						},
+						{
+							"name": "Not Found Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/politicians/999",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians",
+										"999"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"error\": \"Politician not found\",\n  \"details\": \"No politician found with ID: 999\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Endpoints for managing politicians and trending politicians"
+		},
+		{
+			"name": "Scandals API",
+			"item": [
+				{
+					"name": "Generate Politician Scandals",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"politician\": \"Jacob Zuma\",\n  \"country\": \"South Africa\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/politicians/scandals",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"scandals"
+							]
+						},
+						"description": "Generates a list of corruption-related scandals for a specific politician using OpenAI with web search."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"politician\": \"Jacob Zuma\",\n  \"country\": \"South Africa\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/politicians/scandals",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians",
+										"scandals"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 1,\n  \"politician\": \"Jacob Zuma\",\n  \"country\": \"South Africa\",\n  \"scandals\": [\n    {\n      \"title\": \"Bribery Scandal\",\n      \"year\": 2023,\n      \"description\": \"Alleged bribery involving government contracts\",\n      \"status\": \"under_investigation\",\n      \"impactScore\": 8\n    }\n  ],\n  \"totalCorruptionScore\": 75\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Politician Scandals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/politicians/scandals?politician=Jacob%20Zuma",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"scandals"
+							],
+							"query": [
+								{
+									"key": "politician",
+									"value": "Jacob Zuma"
+								}
+							]
+						},
+						"description": "Retrieves scandals for a specific politician from the database."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Scandal Article",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"politician\": \"Jacob Zuma\",\n  \"country\": \"South Africa\",\n  \"scandal\": {\n    \"title\": \"Nkandla Scandal\",\n    \"year\": 2014,\n    \"description\": \"Public funds used for private home improvements\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/politicians/scandals/article",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"politicians",
+								"scandals",
+								"article"
+							]
+						},
+						"description": "Generates a detailed journalistic article (300-500 words) about a specific scandal using OpenAI."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"politician\": \"Jacob Zuma\",\n  \"country\": \"South Africa\",\n  \"scandal\": {\n    \"title\": \"Nkandla Scandal\",\n    \"year\": 2014,\n    \"description\": \"Public funds used for private home improvements\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/politicians/scandals/article",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"politicians",
+										"scandals",
+										"article"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"article\": \"A detailed 300-500 word journalistic article about the scandal involving Jacob Zuma in South Africa...\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Endpoints for managing politician scandals and generating articles"
+		},
+		{
+			"name": "Countries API",
+			"item": [
+				{
+					"name": "Get All Country Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/countries",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"countries"
+							]
+						},
+						"description": "Retrieves corruption statistics for all countries, including scandal counts, active cases, and politician counts."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/countries",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"countries"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"countries\": [\n    {\n      \"country\": \"South Africa\",\n      \"scandals\": 25,\n      \"activeCases\": 8,\n      \"politicians\": 15\n    },\n    {\n      \"country\": \"Nigeria\",\n      \"scandals\": 18,\n      \"activeCases\": 5,\n      \"politicians\": 12\n    }\n  ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Country Statistics by Country",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/countries?country=South%20Africa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"countries"
+							],
+							"query": [
+								{
+									"key": "country",
+									"value": "South Africa"
+								}
+							]
+						},
+						"description": "Retrieves corruption statistics for a specific country."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for retrieving country-level corruption statistics"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+} 

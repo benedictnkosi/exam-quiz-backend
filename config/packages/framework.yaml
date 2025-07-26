@@ -17,6 +17,12 @@ framework:
     php_errors:
         log: true
 
+    # Increase execution time for long-running API calls
+    http_client:
+        default_options:
+            timeout: 60
+            max_redirects: 3
+
 when@test:
     framework:
         test: true

@@ -136,3 +136,8 @@ services:
     App\Service\FileUploadService:
         arguments:
             $projectDir: "%kernel.project_dir%"
+
+    App\Service\ShadyMeterService:
+        arguments:
+            $openaiApiKey: "%openai_api_key%"
+            $logger: "@logger"

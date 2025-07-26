@@ -127,3 +127,5 @@ mac1@Mac1s-MacBook-Pro SouthAfricanLanguages % crontab -l
 
 ### create stories
 php bin/console app:generate-genre-stories --generate-images --generate-quiz
+
+php bin/console  app:count-mands-in-sql
