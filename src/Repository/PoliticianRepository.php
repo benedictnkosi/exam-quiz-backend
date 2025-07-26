@@ -121,4 +121,15 @@ class PoliticianRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findByFullNameAndCountry(string $fullName, string $country): ?Politician
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.fullName = :fullName')
+            ->andWhere('p.country = :country')
+            ->setParameter('fullName', $fullName)
+            ->setParameter('country', $country)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 } 

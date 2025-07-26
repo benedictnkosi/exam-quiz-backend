@@ -62,6 +62,24 @@ class PoliticianScandalRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findByPoliticianAndCountryOlderThan(string $politician, string $country, int $days): ?PoliticianScandal
+    {
+        $dateThreshold = new \DateTime();
+        $dateThreshold->modify("-{$days} days");
+
+        return $this->createQueryBuilder('ps')
+            ->andWhere('ps.politician = :politician')
+            ->andWhere('ps.country = :country')
+            ->andWhere('ps.createdAt < :dateThreshold')
+            ->setParameter('politician', $politician)
+            ->setParameter('country', $country)
+            ->setParameter('dateThreshold', $dateThreshold)
+            ->orderBy('ps.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function getCountryStatistics(): array
     {
         $qb = $this->createQueryBuilder('ps')

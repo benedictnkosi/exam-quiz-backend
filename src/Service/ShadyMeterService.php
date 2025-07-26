@@ -111,6 +111,28 @@ class ShadyMeterService
         
         $savedPoliticians = [];
         foreach ($politicians as $politicianData) {
+            // Check if politician with same full name and country already exists
+            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($politicianData['fullName'], $country);
+            
+            if ($existingPolitician) {
+                // Skip if politician already exists
+                $this->logger->info("ShadyMeter: Skipping duplicate politician - {$politicianData['fullName']} from {$country} already exists");
+                $savedPoliticians[] = [
+                    'id' => $existingPolitician->getId(),
+                    'fullName' => $existingPolitician->getFullName(),
+                    'country' => $existingPolitician->getCountry(),
+                    'party' => $existingPolitician->getParty(),
+                    'position' => $existingPolitician->getPosition(),
+                    'score' => $existingPolitician->getScore(),
+                    'status' => $existingPolitician->getStatus(),
+                    'note' => $existingPolitician->getNote(),
+                    'created' => false,
+                    'cached' => true,
+                    'skipped' => true
+                ];
+                continue;
+            }
+            
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
             $politician->setCountry($country);
@@ -122,6 +144,7 @@ class ShadyMeterService
             $politician->setTrending(false);
 
             $this->politicianRepository->save($politician, true);
+            $this->logger->info("ShadyMeter: Created new politician - {$politician->getFullName()} from {$country}");
             
             $savedPoliticians[] = [
                 'id' => $politician->getId(),
@@ -175,6 +198,29 @@ class ShadyMeterService
         
         $savedTrending = [];
         foreach ($politicians as $politicianData) {
+            // Check if politician with same full name and country already exists
+            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($politicianData['fullName'], $country);
+            
+            if ($existingPolitician) {
+                // Skip if politician already exists
+                $this->logger->info("ShadyMeter: Skipping duplicate trending politician - {$politicianData['fullName']} from {$country} already exists");
+                $savedTrending[] = [
+                    'id' => $existingPolitician->getId(),
+                    'fullName' => $existingPolitician->getFullName(),
+                    'country' => $existingPolitician->getCountry(),
+                    'party' => $existingPolitician->getParty(),
+                    'position' => $existingPolitician->getPosition(),
+                    'score' => $existingPolitician->getScore(),
+                    'status' => $existingPolitician->getStatus(),
+                    'note' => $existingPolitician->getNote(),
+                    'trending' => $existingPolitician->isTrending(),
+                    'created' => false,
+                    'cached' => true,
+                    'skipped' => true
+                ];
+                continue;
+            }
+            
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
             $politician->setCountry($country);
@@ -186,6 +232,7 @@ class ShadyMeterService
             $politician->setTrending(true);
 
             $this->politicianRepository->save($politician, true);
+            $this->logger->info("ShadyMeter: Created new trending politician - {$politician->getFullName()} from {$country}");
             
             $savedTrending[] = [
                 'id' => $politician->getId(),
@@ -226,10 +273,27 @@ class ShadyMeterService
 
     public function generatePoliticianScandals(string $politician, string $country): array
     {
-        $scandals = $this->generateScandalsWithOpenAI($politician, $country);
-        
         // Check for existing document with same politician and country
         $existingScandal = $this->scandalRepository->findByPoliticianAndCountry($politician, $country);
+        
+        // Check if existing scandal is older than 30 days (1 month)
+        $scandalOlderThanMonth = $this->scandalRepository->findByPoliticianAndCountryOlderThan($politician, $country, 30);
+        
+        if ($existingScandal && !$scandalOlderThanMonth) {
+            // Return existing scandal if it's less than a month old
+            return [
+                'id' => $existingScandal->getId(),
+                'politician' => $existingScandal->getPolitician(),
+                'country' => $existingScandal->getCountry(),
+                'scandals' => $existingScandal->getScandals(),
+                'totalCorruptionScore' => $existingScandal->getTotalCorruptionScore(),
+                'cached' => true,
+                'createdAt' => $existingScandal->getCreatedAt()->format('c')
+            ];
+        }
+        
+        // Generate new scandals using AI (either no existing scandal or existing one is older than a month)
+        $scandals = $this->generateScandalsWithOpenAI($politician, $country);
         
         if ($existingScandal) {
             // Update the existing document
@@ -244,7 +308,8 @@ class ShadyMeterService
                 'country' => $existingScandal->getCountry(),
                 'scandals' => $existingScandal->getScandals(),
                 'totalCorruptionScore' => $existingScandal->getTotalCorruptionScore(),
-                'updated' => true
+                'updated' => true,
+                'cached' => false
             ];
         } else {
             // Create new document
@@ -262,7 +327,8 @@ class ShadyMeterService
                 'country' => $scandalEntity->getCountry(),
                 'scandals' => $scandalEntity->getScandals(),
                 'totalCorruptionScore' => $scandalEntity->getTotalCorruptionScore(),
-                'created' => true
+                'created' => true,
+                'cached' => false
             ];
         }
     }

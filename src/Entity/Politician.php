@@ -11,6 +11,7 @@ use JMS\Serializer\Annotation as Serializer;
 #[ORM\Index(name: 'politician_country_idx', columns: ['country'])]
 #[ORM\Index(name: 'politician_trending_idx', columns: ['trending'])]
 #[ORM\Index(name: 'politician_created_at_idx', columns: ['created_at'])]
+#[ORM\UniqueConstraint(name: 'politician_full_name_country_unique', columns: ['full_name', 'country'])]
 #[Serializer\ExclusionPolicy('ALL')]
 class Politician
 {
