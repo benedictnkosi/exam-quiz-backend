@@ -563,7 +563,7 @@ class ShadyMeterService
         }
 
         $currentYear = date('Y');
-        $input = "List the 10 most trending politicians in {$currentYear} in {$country} for corruption scandals in the past {$currentYear}. For each, return a JSON object with: fullName, country, party, position, score (1-100, higher means more trending), status (active, retired, or deceased), note (one-sentence reason), and a 'trending' field set to true. Return as a JSON array.";
+        $input = "List the 10 most trending politicians in {$country} for corruption scandals in {$currentYear}. For each, return a JSON object with: fullName, country, party, position, score (1-100, higher means more trending), status (active, retired, or deceased), note (one-sentence reason), and a 'trending' field set to true. Return as a JSON array.";
 
         // Debug: Log the API key status (masked for security)
         $maskedKey = substr($this->openaiApiKey, 0, 8) . '...' . substr($this->openaiApiKey, -4);
