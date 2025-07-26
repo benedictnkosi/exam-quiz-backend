@@ -380,6 +380,7 @@ class TwitterNewsService
             'global' => 'global corruption-related news story from around the world',
             'africa' => 'African corruption-related news story',
             'usa', 'us', 'america' => 'US corruption-related news story',
+            'north america', 'northamerica' => 'North American corruption-related news story',
             'europe' => 'European corruption-related news story',
             'asia' => 'Asian corruption-related news story',
             'latin america', 'latinamerica' => 'Latin American corruption-related news story',
