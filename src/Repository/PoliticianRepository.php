@@ -104,4 +104,21 @@ class PoliticianRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findByCountryAndLast30Days(string $country): array
+    {
+        $thirtyDaysAgo = new \DateTime();
+        $thirtyDaysAgo->modify('-30 days');
+
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.country = :country')
+            ->andWhere('p.trending = :trending')
+            ->andWhere('p.createdAt >= :thirtyDaysAgo')
+            ->setParameter('country', $country)
+            ->setParameter('trending', false)
+            ->setParameter('thirtyDaysAgo', $thirtyDaysAgo)
+            ->orderBy('p.score', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 } 

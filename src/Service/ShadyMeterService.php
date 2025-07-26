@@ -80,6 +80,31 @@ class ShadyMeterService
 
     public function generatePoliticians(string $country): array
     {
+        // Check if we already have politicians for this country in the last 30 days
+        $existingPoliticians = $this->politicianRepository->findByCountryAndLast30Days($country);
+        
+        if (!empty($existingPoliticians)) {
+            // Return existing politicians instead of generating new ones
+            $savedPoliticians = [];
+            foreach ($existingPoliticians as $politician) {
+                $savedPoliticians[] = [
+                    'id' => $politician->getId(),
+                    'fullName' => $politician->getFullName(),
+                    'country' => $politician->getCountry(),
+                    'party' => $politician->getParty(),
+                    'position' => $politician->getPosition(),
+                    'score' => $politician->getScore(),
+                    'status' => $politician->getStatus(),
+                    'note' => $politician->getNote(),
+                    'created' => false,
+                    'cached' => true
+                ];
+            }
+            
+            return $savedPoliticians;
+        }
+
+        // Generate new politicians using AI if none exist in the last 30 days
         $politicians = $this->generatePoliticiansWithOpenAI($country);
         
         $savedPoliticians = [];
@@ -105,7 +130,8 @@ class ShadyMeterService
                 'score' => $politician->getScore(),
                 'status' => $politician->getStatus(),
                 'note' => $politician->getNote(),
-                'created' => true
+                'created' => true,
+                'cached' => false
             ];
         }
 
@@ -119,9 +145,33 @@ class ShadyMeterService
 
     public function generateTrendingPoliticians(string $country): array
     {
+        // Check if we already have trending politicians for this country created today
+        $existingTrending = $this->politicianRepository->findTrendingByCountryAndToday($country);
+        
+        if (!empty($existingTrending)) {
+            $savedTrending = [];
+            foreach ($existingTrending as $politician) {
+                $savedTrending[] = [
+                    'id' => $politician->getId(),
+                    'fullName' => $politician->getFullName(),
+                    'country' => $politician->getCountry(),
+                    'party' => $politician->getParty(),
+                    'position' => $politician->getPosition(),
+                    'score' => $politician->getScore(),
+                    'status' => $politician->getStatus(),
+                    'note' => $politician->getNote(),
+                    'trending' => $politician->isTrending(),
+                    'created' => false,
+                    'cached' => true
+                ];
+            }
+            return $savedTrending;
+        }
+
+        // Generate new trending politicians using AI if none exist for today
         $politicians = $this->generateTrendingPoliticiansWithOpenAI($country);
         
-        $savedPoliticians = [];
+        $savedTrending = [];
         foreach ($politicians as $politicianData) {
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
@@ -135,7 +185,7 @@ class ShadyMeterService
 
             $this->politicianRepository->save($politician, true);
             
-            $savedPoliticians[] = [
+            $savedTrending[] = [
                 'id' => $politician->getId(),
                 'fullName' => $politician->getFullName(),
                 'country' => $politician->getCountry(),
@@ -144,12 +194,13 @@ class ShadyMeterService
                 'score' => $politician->getScore(),
                 'status' => $politician->getStatus(),
                 'note' => $politician->getNote(),
-                'trending' => true,
-                'created' => true
+                'trending' => $politician->isTrending(),
+                'created' => true,
+                'cached' => false
             ];
         }
 
-        return $savedPoliticians;
+        return $savedTrending;
     }
 
     public function getTrendingPoliticians(Request $request): array
