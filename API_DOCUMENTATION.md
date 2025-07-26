@@ -37,8 +37,10 @@ curl -X POST http://localhost:3000/api/news \
 **Response:**
 ```json
 {
+  "id": 123,
   "news": [
     {
+      "key": "story_1",
       "title": "Headline of the news story",
       "summary": "2-3 sentence summary of the story",
       "impact": "high|medium|low",
@@ -53,6 +55,35 @@ curl -X POST http://localhost:3000/api/news \
 
 **Error Responses:**
 - `400` - Missing or invalid country
+- `500` - OpenAI API key not set
+- `502` - OpenAI API error or parsing error
+
+#### POST - Generate Full Story for Country News
+
+Generates a detailed, comprehensive news article for a specific story within country news. Uses OpenAI with web search to expand the story and caches the result in the news JSON.
+
+**URL Parameters:**
+- `newsId` (required): ID of the news document
+- `storyKey` (required): Key of the specific story (e.g., "story_1", "story_2", "story_3")
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:3000/api/news/123/story/story_1 \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+```json
+{
+  "newsId": 123,
+  "storyKey": "story_1",
+  "fullStory": "Detailed 500-800 word comprehensive news article about the corruption story...",
+  "cached": false
+}
+```
+
+**Error Responses:**
+- `400` - News not found or story not found
 - `500` - OpenAI API key not set
 - `502` - OpenAI API error or parsing error
 
@@ -83,7 +114,120 @@ curl "http://localhost:3000/api/news?country=Nigeria&todayOnly=true"
 
 ---
 
-## 2. Politicians API
+## 2. Global Trending News API
+
+### Endpoint: `/api/global-trending-news`
+
+#### POST - Generate Global Trending News
+
+Generates the top 3 most significant global corruption-related news stories. Uses OpenAI with web search to get current global news and caches results for 24 hours. If global trending news was created within the last 24 hours, it returns the cached version instead of calling the API. Uses the existing news table with country set to "global".
+
+**Request Body:**
+```json
+{}
+```
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:3000/api/global-trending-news \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+```json
+{
+  "id": 123,
+  "news": [
+    {
+      "key": "story_1",
+      "title": "Global corruption scandal headline",
+      "summary": "2-3 sentence summary of the global story",
+      "impact": "high|medium|low",
+      "source": "News source if known"
+    }
+  ],
+  "country": "global",
+  "cached": false,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Error Responses:**
+- `500` - OpenAI API key not set
+- `502` - OpenAI API error or parsing error
+
+#### GET - Retrieve Global Trending News
+
+Retrieves global trending news from the database with optional filtering.
+
+**Query Parameters:**
+- `todayOnly` (optional): Filter for today's news only (true/false)
+- `last24Hours` (optional): Filter for news created in the last 24 hours (true/false)
+
+**Request Examples:**
+```bash
+# Get today's global news
+curl "http://localhost:3000/api/global-trending-news?todayOnly=true"
+
+# Get global news from last 24 hours
+curl "http://localhost:3000/api/global-trending-news?last24Hours=true"
+
+# Get all global news
+curl "http://localhost:3000/api/global-trending-news"
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "document_id",
+    "country": "global",
+    "news": [
+      {
+        "key": "story_1",
+        "title": "Global corruption scandal headline",
+        "summary": "2-3 sentence summary of the global story",
+        "impact": "high",
+        "source": "Reuters"
+      }
+    ],
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
+]
+```
+
+#### POST - Generate Full Story
+
+Generates a detailed, comprehensive news article for a specific story within global trending news. Uses OpenAI with web search to expand the story and caches the result in the news JSON.
+
+**URL Parameters:**
+- `newsId` (required): ID of the news document
+- `storyKey` (required): Key of the specific story (e.g., "story_1", "story_2", "story_3")
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:3000/api/global-trending-news/123/story/story_1 \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+```json
+{
+  "newsId": 123,
+  "storyKey": "story_1",
+  "fullStory": "Detailed 500-800 word comprehensive news article about the corruption story...",
+  "cached": false
+}
+```
+
+**Error Responses:**
+- `400` - News not found or story not found
+- `500` - OpenAI API key not set
+- `502` - OpenAI API error or parsing error
+
+---
+
+## 3. Politicians API
 
 ### Endpoint: `/api/politicians`
 

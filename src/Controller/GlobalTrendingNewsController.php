@@ -10,8 +10,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use JMS\Serializer\SerializerInterface;
 use JMS\Serializer\SerializationContext;
 
-#[Route('/api/news')]
-class NewsController extends AbstractController
+#[Route('/api/global-trending-news')]
+class GlobalTrendingNewsController extends AbstractController
 {
     public function __construct(
         private readonly ShadyMeterService $shadyMeterService,
@@ -20,44 +20,35 @@ class NewsController extends AbstractController
     }
 
     /**
-     * POST - Fetch Trending Corruption News
+     * POST - Generate Global Trending News
      * 
-     * Fetches the top 3 most significant corruption-related news stories for a specific country.
-     * Uses OpenAI with web search to get current news and caches results for the day.
+     * Generates the top 3 most significant global corruption-related news stories for the current week.
+     * Uses OpenAI with web search to get current global news and caches results for the week.
      */
-    #[Route('', name: 'fetch_news', methods: ['POST'])]
-    public function fetchNews(Request $request): JsonResponse
+    #[Route('', name: 'generate_global_trending_news', methods: ['POST'])]
+    public function generateGlobalTrendingNews(): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        
-        if (!isset($data['country']) || empty($data['country'])) {
-            return $this->json([
-                'error' => 'Missing or invalid country',
-                'details' => 'Country parameter is required'
-            ], 400);
-        }
-
         try {
-            $result = $this->shadyMeterService->generateNews($data['country']);
+            $result = $this->shadyMeterService->generateGlobalTrendingNews();
             return $this->json($result);
         } catch (\Exception $e) {
             return $this->json([
-                'error' => 'Failed to generate news',
+                'error' => 'Failed to generate global trending news',
                 'details' => $e->getMessage()
             ], 502);
         }
     }
 
     /**
-     * GET - Retrieve News
+     * GET - Retrieve Global Trending News
      * 
-     * Retrieves news from the database with optional filtering.
+     * Retrieves global trending news from the database with optional filtering.
      */
-    #[Route('', name: 'get_news', methods: ['GET'])]
-    public function getNews(Request $request): JsonResponse
+    #[Route('', name: 'get_global_trending_news', methods: ['GET'])]
+    public function getGlobalTrendingNews(Request $request): JsonResponse
     {
         try {
-            $news = $this->shadyMeterService->getNews($request);
+            $news = $this->shadyMeterService->getGlobalTrendingNews($request);
             
             // Create serialization context with proper groups
             $context = SerializationContext::create()->setGroups(['news:read']);
@@ -67,23 +58,23 @@ class NewsController extends AbstractController
             return $this->json($data);
         } catch (\Exception $e) {
             return $this->json([
-                'error' => 'Failed to retrieve news',
+                'error' => 'Failed to retrieve global trending news',
                 'details' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * POST - Generate Full Story for Country News
+     * POST - Generate Full Story
      * 
-     * Generates a detailed, comprehensive news article for a specific story within country news.
+     * Generates a detailed, comprehensive news article for a specific story within global trending news.
      * Uses OpenAI with web search to expand the story and caches the result in the news JSON.
      */
-    #[Route('/{newsId}/story/{storyKey}', name: 'generate_full_story_country', methods: ['POST'])]
+    #[Route('/{newsId}/story/{storyKey}', name: 'generate_full_story', methods: ['POST'])]
     public function generateFullStory(int $newsId, string $storyKey): JsonResponse
     {
         try {
-            $result = $this->shadyMeterService->generateFullStoryForCountry($newsId, $storyKey);
+            $result = $this->shadyMeterService->generateFullStory($newsId, $storyKey);
             return $this->json($result);
         } catch (\Exception $e) {
             return $this->json([

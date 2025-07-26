@@ -87,4 +87,20 @@ class NewsRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findByCountryAndLast24Hours(string $country): ?News
+    {
+        $twentyFourHoursAgo = new \DateTime();
+        $twentyFourHoursAgo->modify('-24 hours');
+
+        return $this->createQueryBuilder('n')
+            ->andWhere('n.country = :country')
+            ->andWhere('n.createdAt >= :twentyFourHoursAgo')
+            ->setParameter('country', $country)
+            ->setParameter('twentyFourHoursAgo', $twentyFourHoursAgo)
+            ->orderBy('n.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 } 
