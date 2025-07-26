@@ -79,33 +79,7 @@ class TwitterService
         return json_decode($response, true);
     }
 
-    function postTweetV2($message) {
-        $bearerToken = 'AAAAAAAAAAAAAAAAAAAAAEED3QEAAAAA2Y0R%2BqgJZkdT2v%2BgltAI5ewtVgU%3Dxe16J9JVog4GxQkImQREZKg5dfPaiyJiyNCdJzVJRS2ouNcgEp';
-        $url = 'https://api.twitter.com/2/tweets';
     
-        $headers = [
-            "Authorization: Bearer {$bearerToken}",
-            "Content-Type: application/json"
-        ];
-    
-        $postData = json_encode([
-            'text' => $message
-        ]);
-    
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-    
-        return [
-            'status' => $httpCode,
-            'response' => json_decode($result, true)
-        ];
-    }
 
     private function buildBaseString(string $baseURI, string $method, array $params): string
     {
