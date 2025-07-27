@@ -174,6 +174,7 @@ class ShadyMeterService
         $existingTrending = $this->politicianRepository->findTrendingByCountryAndToday($country);
         
         if (!empty($existingTrending)) {
+            $this->logger->info("ShadyMeter: Found existing trending politicians for {$country}");
             $savedTrending = [];
             foreach ($existingTrending as $politician) {
                 $savedTrending[] = [
@@ -193,33 +194,23 @@ class ShadyMeterService
             return $savedTrending;
         }
 
+        $this->logger->info("ShadyMeter: No existing trending politicians found for {$country} today. Deleting all existing trending politicians for this country to make room for new ones.");
+        
+        // Delete all existing trending politicians for this country to make room for new ones
+        $allTrendingForCountry = $this->politicianRepository->findTrendingByCountry($country);
+        foreach ($allTrendingForCountry as $politician) {
+            $this->politicianRepository->remove($politician, true); // Remove and flush immediately
+        }
+        
+        $this->logger->info("ShadyMeter: Deleted " . count($allTrendingForCountry) . " existing trending politicians for {$country}");
+
         // Generate new trending politicians using AI if none exist for today
         $politicians = $this->generateTrendingPoliticiansWithOpenAI($country);
         
         $savedTrending = [];
         foreach ($politicians as $politicianData) {
             // Check if politician with same full name and country already exists
-            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($politicianData['fullName'], $country);
-            
-            if ($existingPolitician) {
-                // Skip if politician already exists
-                $this->logger->info("ShadyMeter: Skipping duplicate trending politician - {$politicianData['fullName']} from {$country} already exists");
-                $savedTrending[] = [
-                    'id' => $existingPolitician->getId(),
-                    'fullName' => $existingPolitician->getFullName(),
-                    'country' => $existingPolitician->getCountry(),
-                    'party' => $existingPolitician->getParty(),
-                    'position' => $existingPolitician->getPosition(),
-                    'score' => $existingPolitician->getScore(),
-                    'status' => $existingPolitician->getStatus(),
-                    'note' => $existingPolitician->getNote(),
-                    'trending' => $existingPolitician->isTrending(),
-                    'created' => false,
-                    'cached' => true,
-                    'skipped' => true
-                ];
-                continue;
-            }
+        
             
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
@@ -345,10 +336,7 @@ class ShadyMeterService
             throw new \Exception('Missing required fields: title and year are required');
         }
 
-        // Generate the article using OpenAI
-        $article = $this->generateArticleWithOpenAI($politician, $country, $scandal);
-        
-        // Find the scandal document and update it with the article
+        // Find the scandal document first
         $scandalEntity = $this->scandalRepository->findByPoliticianAndCountry($politician, $country);
         if (!$scandalEntity) {
             throw new \Exception('No scandal document found for this politician');
@@ -357,11 +345,19 @@ class ShadyMeterService
         // Get the scandals array and find the specific scandal
         $scandals = $scandalEntity->getScandals();
         $scandalFound = false;
+        $existingArticle = null;
         
-        foreach ($scandals as &$s) {
+        foreach ($scandals as $s) {
             if ($s['title'] === $scandal['title'] && (string)$s['year'] === (string)$scandal['year']) {
-                $s['article'] = $article;
                 $scandalFound = true;
+                // Check if article already exists
+                if (isset($s['article']) && !empty($s['article'])) {
+                    $existingArticle = [
+                        'article' => $s['article'],
+                        'timeline' => $s['timeline'] ?? [],
+                        'involved_persons' => $s['involved_persons'] ?? []
+                    ];
+                }
                 break;
             }
         }
@@ -370,14 +366,30 @@ class ShadyMeterService
             throw new \Exception('Scandal not found in document');
         }
 
+        // If article already exists, return it without calling AI
+        if ($existingArticle) {
+            return $existingArticle;
+        }
+
+        // Generate the article using OpenAI only if it doesn't exist
+        $articleData = $this->generateArticleWithOpenAI($politician, $country, $scandal);
+        
+        // Update the scandal with the new article data
+        foreach ($scandals as &$s) {
+            if ($s['title'] === $scandal['title'] && (string)$s['year'] === (string)$scandal['year']) {
+                $s['article'] = $articleData['article'];
+                $s['timeline'] = $articleData['timeline'];
+                $s['involved_persons'] = $articleData['involved_persons'];
+                break;
+            }
+        }
+
         // Update the entity and save to database
         $scandalEntity->setScandals($scandals);
         $scandalEntity->setUpdatedAt(new \DateTime());
         $this->scandalRepository->save($scandalEntity, true);
         
-        return [
-            'article' => $article
-        ];
+        return $articleData;
     }
 
     public function getCountryStatistics(Request $request): array
@@ -599,9 +611,101 @@ class ShadyMeterService
             'status' => $politician->getStatus(),
             'note' => $politician->getNote(),
             'trending' => $politician->isTrending(),
+            'careerTimeline' => $politician->getCareerTimeline(),
+            'careerTimelineUpdatedAt' => $politician->getCareerTimelineUpdatedAt(),
             'createdAt' => $politician->getCreatedAt(),
             'updatedAt' => $politician->getUpdatedAt()
         ];
+    }
+
+    /**
+     * Generate career timeline for a politician using AI
+     */
+    public function generateCareerTimeline(int $politicianId): array
+    {
+        $politician = $this->politicianRepository->find($politicianId);
+        
+        if (!$politician) {
+            throw new \Exception('Politician not found with ID: ' . $politicianId);
+        }
+
+        // Check if career timeline exists and was updated within the last month
+        if ($politician->getCareerTimeline() !== null && $politician->getCareerTimelineUpdatedAt() !== null) {
+            $oneMonthAgo = new \DateTime();
+            $oneMonthAgo->modify('-1 month');
+            
+            if ($politician->getCareerTimelineUpdatedAt() > $oneMonthAgo) {
+                return [
+                    'id' => $politician->getId(),
+                    'fullName' => $politician->getFullName(),
+                    'careerTimeline' => $politician->getCareerTimeline(),
+                    'careerTimelineUpdatedAt' => $politician->getCareerTimelineUpdatedAt(),
+                    'cached' => true,
+                    'message' => 'Career timeline is up to date (updated within last month)'
+                ];
+            }
+        }
+
+        try {
+            // Generate career timeline using AI
+            $careerTimeline = $this->generateCareerTimelineWithOpenAI($politician->getFullName(), $politician->getCountry());
+            
+            // Save to database
+            $politician->setCareerTimeline($careerTimeline);
+            $politician->setCareerTimelineUpdatedAt(new \DateTime());
+            $politician->setUpdatedAt(new \DateTime());
+            $this->politicianRepository->save($politician, true);
+
+            $this->logger->info("ShadyMeter: Generated career timeline for politician - {$politician->getFullName()}");
+
+            return [
+                'id' => $politician->getId(),
+                'fullName' => $politician->getFullName(),
+                'careerTimeline' => $careerTimeline,
+                'careerTimelineUpdatedAt' => $politician->getCareerTimelineUpdatedAt(),
+                'cached' => false,
+                'message' => 'Career timeline generated successfully'
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("ShadyMeter: Error generating career timeline for politician {$politician->getFullName()}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Get career timeline for a politician
+     */
+    public function getCareerTimeline(int $politicianId): ?array
+    {
+        $politician = $this->politicianRepository->find($politicianId);
+        
+        if (!$politician) {
+            return null;
+        }
+
+        return [
+            'id' => $politician->getId(),
+            'fullName' => $politician->getFullName(),
+            'careerTimeline' => $politician->getCareerTimeline(),
+            'careerTimelineUpdatedAt' => $politician->getCareerTimelineUpdatedAt(),
+            'hasTimeline' => $politician->getCareerTimeline() !== null,
+            'isUpToDate' => $this->isCareerTimelineUpToDate($politician)
+        ];
+    }
+
+    /**
+     * Check if career timeline is up to date (updated within last month)
+     */
+    private function isCareerTimelineUpToDate(Politician $politician): bool
+    {
+        if ($politician->getCareerTimeline() === null || $politician->getCareerTimelineUpdatedAt() === null) {
+            return false;
+        }
+
+        $oneMonthAgo = new \DateTime();
+        $oneMonthAgo->modify('-1 month');
+        
+        return $politician->getCareerTimelineUpdatedAt() > $oneMonthAgo;
     }
 
     private function generateNewsWithOpenAI(string $country): array
@@ -980,7 +1084,7 @@ class ShadyMeterService
             throw new \Exception('OpenAI API key not set');
         }
 
-        $input = "🎪 Welcome to the 'Greatest Hits' collection of {$politician} from {$country}! Let's dig up all the juicy corruption-related scandals that made this political superstar famous (or should we say infamous? 😂). For each scandal, include: a specific, real-world title (make it catchy and slightly sarcastic - no boring 'Scandal 1' titles!), the year, a 1-sentence description with concrete details and a dash of wit (no generic descriptions - we want the tea! ☕), status (proven, under_investigation, cleared, or unresolved), and an impact score from 1–10 (their 'shadiness level'! 🌚). Do not invent scandals; only use real, documented events. If no scandals are found, return an empty array for scandals and a totalCorruptionScore of 0 (maybe they're just really good at hiding things! 🤷‍♂️). Return the result as a JSON object with keys: politician, country, scandals (array), and totalCorruptionScore.";
+        $input = "🎪 Welcome to the 'Greatest Hits' collection of {$politician} from {$country}! Let's dig up all the juicy corruption-related scandals that made this political superstar famous (or should we say infamous? 😂). For each scandal, include: a specific, real-world title (make it catchy and slightly sarcastic - no boring 'Scandal 1' titles!), the year, a 1-sentence description with concrete details and a dash of wit (no generic descriptions - we want the tea! ☕), status (proven, under_investigation, cleared, or unresolved), an impact score from 1–10 (their 'shadiness level'! 🌚), a province/region field, and a sector field. For the province/region: if the scandal is specific to a particular province/state/region within the country, include that specific location. If the scandal is national-level or affects the entire country, use 'National'. For the sector: categorize the scandal by the sector it occurred in (e.g., energy, education, health, defense, infrastructure, agriculture, finance, transportation, telecommunications, etc.). If the scandal spans multiple sectors, choose the primary one. Do not invent scandals; only use real, documented events. If no scandals are found, return an empty array for scandals and a totalCorruptionScore of 0 (maybe they're just really good at hiding things! 🤷‍♂️). Return the result as a JSON object with keys: politician, country, scandals (array), and totalCorruptionScore.";
 
         $data = [
             'model' => 'gpt-4.1',
@@ -1079,7 +1183,9 @@ class ShadyMeterService
                     'year' => $scandal['year'] ?? 0,
                     'description' => $scandal['description'] ?? '',
                     'status' => $scandal['status'] ?? 'unresolved',
-                    'impactScore' => $impactScore
+                    'impactScore' => $impactScore,
+                    'province' => $scandal['province'] ?? $scandal['region'] ?? 'National',
+                    'sector' => $scandal['sector'] ?? 'general'
                 ];
             }, $result['scandals']),
             'totalCorruptionScore' => $result['totalCorruptionScore']
@@ -1088,7 +1194,7 @@ class ShadyMeterService
         return $processedResult;
     }
 
-    private function generateArticleWithOpenAI(string $politician, string $country, array $scandal): string
+    protected function generateArticleWithOpenAI(string $politician, string $country, array $scandal): array
     {
         if (empty($this->openaiApiKey)) {
             throw new \Exception('OpenAI API key not set');
@@ -1097,9 +1203,11 @@ class ShadyMeterService
         $scandalTitle = $scandal['title'] ?? 'Unknown Scandal';
         $scandalYear = $scandal['year'] ?? 'Unknown Year';
         $scandalDescription = $scandal['description'] ?? '';
+        $scandalProvince = $scandal['province'] ?? 'National';
+        $scandalSector = $scandal['sector'] ?? 'general';
 
-        // Generate article prompt matching the route.ts pattern
-        $input = "🎭 Comedy journalist extraordinaire, it's time to write a hilariously detailed article (300-500 words) about this political scandal involving {$politician} from {$country}! This is the kind of story that writes itself - and boy, does it have plot twists! 😂\n\nTitle: {$scandalTitle}\nYear: {$scandalYear}\nDescription: {$scandalDescription}\n\nInclude background, timeline, impact, and aftermath - but make it entertaining! Use a witty, satirical tone that makes readers laugh while learning about serious issues. Think 'The Onion' meets '60 Minutes'! Return only the article text.";
+        // Generate article prompt with timeline and full names requirements
+        $input = "🎭 Comedy journalist extraordinaire, it's time to write a hilariously detailed article (300-500 words) about this political scandal involving {$politician} from {$country}! This is the kind of story that writes itself - and boy, does it have plot twists! 😂\n\nTitle: {$scandalTitle}\nYear: {$scandalYear}\nLocation: {$scandalProvince}\nSector: {$scandalSector}\nDescription: {$scandalDescription}\n\nIMPORTANT REQUIREMENTS:\n1. Write a detailed journalistic article (200-250 words) with a witty, satirical tone\n2. Include a chronological timeline of key events in this scandal\n3. Always use FULL NAMES (first and last names) for ALL politicians and persons involved\n4. Include background, impact, and aftermath\n5. Make it entertaining while being informative\n\nReturn your response in this exact JSON format:\n{\n  \"article\": \"[Your detailed article text here]\",\n  \"timeline\": [\n    {\n      \"date\": \"[Date in YYYY-MM-DD format or year if specific date unknown]\",\n      \"event\": \"[Description of what happened on this date]\"\n    }\n  ],\n  \"involved_persons\": [\n    {\n      \"full_name\": \"[First and Last Name]\",\n      \"role\": \"[Their role in the scandal]\",\n      \"position\": \"[Their political position or job title at the time]\"\n    }\n  ]\n}";
 
         $data = [
             'model' => 'gpt-4.1',
@@ -1168,12 +1276,40 @@ class ShadyMeterService
             throw new \Exception('No text content found in response output: ' . json_encode($responseData['output']));
         }
 
-        $article = trim($content);
-        if (empty($article)) {
+        $content = trim($content);
+        if (empty($content)) {
             throw new \Exception('No article generated');
         }
 
-        return $article;
+        // Clean the response to extract JSON from markdown code blocks if present
+        $cleanedContent = $this->cleanOpenAIResponse($content);
+        
+        // Try to parse the response as JSON
+        $parsedResponse = json_decode($cleanedContent, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            // If JSON parsing fails, treat it as plain text and create a basic structure
+            $this->logger->warning('Failed to parse OpenAI response as JSON, treating as plain text: ' . json_last_error_msg());
+            return [
+                'article' => $content,
+                'timeline' => [],
+                'involved_persons' => []
+            ];
+        }
+
+        // Validate the required fields
+        if (!isset($parsedResponse['article']) || empty($parsedResponse['article'])) {
+            throw new \Exception('Generated response missing required article field');
+        }
+
+        // Ensure timeline and involved_persons are arrays
+        $timeline = isset($parsedResponse['timeline']) && is_array($parsedResponse['timeline']) ? $parsedResponse['timeline'] : [];
+        $involvedPersons = isset($parsedResponse['involved_persons']) && is_array($parsedResponse['involved_persons']) ? $parsedResponse['involved_persons'] : [];
+
+        return [
+            'article' => $parsedResponse['article'],
+            'timeline' => $timeline,
+            'involved_persons' => $involvedPersons
+        ];
     }
 
     private function generateGlobalTrendingNewsWithOpenAI(): array
@@ -1409,5 +1545,174 @@ class ShadyMeterService
         }
         
         return trim($raw);
+    }
+
+    /**
+     * Generate career timeline using OpenAI
+     */
+    private function generateCareerTimelineWithOpenAI(string $politicianName, string $country): array
+    {
+        if (empty($this->openaiApiKey)) {
+            throw new \Exception('OpenAI API key not set');
+        }
+
+        $prompt = "Create a comprehensive career timeline for {$politicianName}, a politician from {$country}. 
+
+        Research and provide a detailed chronological timeline of their political career, including:
+        - Political positions held (with dates)
+        - Key achievements and milestones
+        - Party affiliations and changes
+        - Elections won or lost
+        - Major policy initiatives
+        - Controversies or scandals (if any)
+        - Educational background and early career
+        - Current status
+
+        Return the data as a JSON array with the following structure:
+        [
+            {
+                \"year\": \"2023\",
+                \"title\": \"Position or Event Title\",
+                \"description\": \"Detailed description of what happened\"
+            }
+        ]
+
+        Focus on factual, verifiable information. Include at least 10-15 significant events spanning their entire career. Order chronologically from earliest to latest. If exact dates are not known, use approximate years.";
+
+        $rawResponse = $this->makeOpenAIRequest($prompt);
+        return $this->parseOpenAIResponse($rawResponse);
+    }
+
+    /**
+     * Get politician connections based on scandal involvement
+     * 
+     * Analyzes all scandals and finds connections between politicians
+     * who were involved in the same scandals.
+     * 
+     * @param int|null $politicianId Optional politician ID to filter connections
+     */
+    public function getPoliticianConnections(?int $politicianId = null): array
+    {
+        // Get all scandals (not filtered by country)
+        $scandals = $this->scandalRepository->findAll();
+        
+        if (empty($scandals)) {
+            return [
+                'politician_id_filter' => $politicianId,
+                'politician_name_filter' => null,
+                'connections' => [],
+                'total_connections' => 0,
+                'message' => 'No scandals found in the database'
+            ];
+        }
+
+        // If politician ID is provided, find the politician to get their name
+        $politicianName = null;
+        if ($politicianId) {
+            $politician = $this->politicianRepository->find($politicianId);
+            if (!$politician) {
+                return [
+                    'politician_id_filter' => $politicianId,
+                    'politician_name_filter' => null,
+                    'connections' => [],
+                    'total_connections' => 0,
+                    'message' => 'Politician not found with ID: ' . $politicianId
+                ];
+            }
+            $politicianName = $politician->getFullName();
+        }
+
+        $connections = [];
+        $connectionMap = [];
+
+        // Process each scandal to extract connections
+        foreach ($scandals as $scandalEntity) {
+            $scandalsArray = $scandalEntity->getScandals();
+            $mainPolitician = $scandalEntity->getPolitician();
+            
+            // If politician filter is provided, skip scandals not involving this politician
+            if ($politicianName && $mainPolitician !== $politicianName) {
+                // Check if the filtered politician is involved in this scandal
+                $politicianInvolved = false;
+                foreach ($scandalsArray as $scandal) {
+                    if (isset($scandal['involved_persons']) && is_array($scandal['involved_persons'])) {
+                        foreach ($scandal['involved_persons'] as $involvedPerson) {
+                            if (($involvedPerson['full_name'] ?? '') === $politicianName) {
+                                $politicianInvolved = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                if (!$politicianInvolved) {
+                    continue;
+                }
+            }
+            
+            foreach ($scandalsArray as $scandal) {
+                // Check if this scandal has involved persons
+                if (isset($scandal['involved_persons']) && is_array($scandal['involved_persons'])) {
+                    $involvedPersons = $scandal['involved_persons'];
+                    
+                    // Create connections between the main politician and all involved persons
+                    foreach ($involvedPersons as $involvedPerson) {
+                        $involvedName = $involvedPerson['full_name'] ?? '';
+                        
+                        if (!empty($involvedName) && $involvedName !== $mainPolitician) {
+                            // Create a unique connection key (alphabetically sorted to avoid duplicates)
+                            $names = [$mainPolitician, $involvedName];
+                            sort($names);
+                            $connectionKey = $names[0] . '|' . $names[1];
+                            
+                            if (!isset($connectionMap[$connectionKey])) {
+                                $connectionMap[$connectionKey] = [
+                                    'politician1' => $names[0],
+                                    'politician2' => $names[1],
+                                    'scandals' => [],
+                                    'connection_strength' => 0
+                                ];
+                            }
+                            
+                            // Add this scandal to the connection
+                            $scandalInfo = [
+                                'title' => $scandal['title'] ?? 'Unknown Scandal',
+                                'year' => $scandal['year'] ?? 'Unknown Year',
+                                'description' => $scandal['description'] ?? '',
+                                'main_politician' => $mainPolitician,
+                                'involved_person' => $involvedName,
+                                'role' => $involvedPerson['role'] ?? 'Unknown Role',
+                                'position' => $involvedPerson['position'] ?? 'Unknown Position',
+                                'scandal_id' => $scandalEntity->getId(),
+                                'country' => $scandalEntity->getCountry()
+                            ];
+                            
+                            $connectionMap[$connectionKey]['scandals'][] = $scandalInfo;
+                            $connectionMap[$connectionKey]['connection_strength']++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert connection map to array and sort by connection strength
+        foreach ($connectionMap as $connection) {
+            $connections[] = $connection;
+        }
+        
+        // Sort by connection strength (number of shared scandals) in descending order
+        usort($connections, function($a, $b) {
+            return $b['connection_strength'] - $a['connection_strength'];
+        });
+
+        return [
+            'politician_id_filter' => $politicianId,
+            'politician_name_filter' => $politicianName,
+            'connections' => $connections,
+            'total_connections' => count($connections),
+            'total_scandals_analyzed' => count($scandals),
+            'message' => count($connections) > 0 
+                ? ($politicianName ? "Connections found involving {$politicianName}" : 'Connections found based on scandal involvement')
+                : 'No connections found'
+        ];
     }
 } 

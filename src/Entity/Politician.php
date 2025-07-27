@@ -74,6 +74,17 @@ class Politician
     #[Serializer\Type('DateTime<"c">')]
     private ?\DateTime $updatedAt = null;
 
+    #[ORM\Column(name: 'career_timeline', type: Types::JSON, nullable: true)]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['politician:read'])]
+    private ?array $careerTimeline = null;
+
+    #[ORM\Column(name: 'career_timeline_updated_at', type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Serializer\Expose]
+    #[Serializer\Groups(['politician:read'])]
+    #[Serializer\Type('DateTime<"c">')]
+    private ?\DateTime $careerTimelineUpdatedAt = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
@@ -191,6 +202,28 @@ class Politician
     public function setUpdatedAt(?\DateTime $updatedAt): self
     {
         $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    public function getCareerTimeline(): ?array
+    {
+        return $this->careerTimeline;
+    }
+
+    public function setCareerTimeline(?array $careerTimeline): self
+    {
+        $this->careerTimeline = $careerTimeline;
+        return $this;
+    }
+
+    public function getCareerTimelineUpdatedAt(): ?\DateTime
+    {
+        return $this->careerTimelineUpdatedAt;
+    }
+
+    public function setCareerTimelineUpdatedAt(?\DateTime $careerTimelineUpdatedAt): self
+    {
+        $this->careerTimelineUpdatedAt = $careerTimelineUpdatedAt;
         return $this;
     }
 } 

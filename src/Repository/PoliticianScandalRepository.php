@@ -80,6 +80,16 @@ class PoliticianScandalRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findByCountry(string $country): array
+    {
+        return $this->createQueryBuilder('ps')
+            ->andWhere('ps.country = :country')
+            ->setParameter('country', $country)
+            ->orderBy('ps.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function getCountryStatistics(): array
     {
         $qb = $this->createQueryBuilder('ps')

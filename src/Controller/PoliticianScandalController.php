@@ -92,6 +92,8 @@ class PoliticianScandalController extends AbstractController
      * POST - Generate Scandal Article
      * 
      * Generates a detailed journalistic article (300-500 words) about a specific scandal using OpenAI.
+     * Returns article text, timeline of key events, and full names of involved persons.
+     * If an article already exists, returns the cached version without calling AI.
      */
     #[Route('/article', name: 'generate_scandal_article', methods: ['POST'])]
     public function generateScandalArticle(Request $request): JsonResponse
@@ -135,6 +137,28 @@ class PoliticianScandalController extends AbstractController
                 $data['country'],
                 $data['scandal']
             );
+            
+            // Check if this was a cached response by looking for existing article
+            $scandals = $this->shadyMeterService->getPoliticianScandals($data['politician']);
+            $isCached = false;
+            
+            foreach ($scandals as $scandalDoc) {
+                // Use entity getter methods instead of array access
+                if ($scandalDoc->getCountry() === $data['country']) {
+                    $scandalsArray = $scandalDoc->getScandals();
+                    foreach ($scandalsArray as $scandal) {
+                        if ($scandal['title'] === $data['scandal']['title'] && 
+                            (string)$scandal['year'] === (string)$data['scandal']['year']) {
+                            $isCached = isset($scandal['article']) && !empty($scandal['article']);
+                            break 2;
+                        }
+                    }
+                }
+            }
+            
+            // Add cache status to response
+            $result['cached'] = $isCached;
+            
             return $this->json($result);
         } catch (\Exception $e) {
             return $this->json([

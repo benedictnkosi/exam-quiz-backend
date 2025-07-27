@@ -383,6 +383,53 @@ curl "http://localhost:3000/api/politicians/trending?country=Kenya&todayOnly=tru
 
 ---
 
+#### GET - Retrieve Politician Connections
+
+Retrieves connections between politicians based on their involvement in the same scandals.
+
+**Query Parameters:**
+- `country` (required): The country to analyze for politician connections
+
+**Request Example:**
+```bash
+curl "http://localhost:3000/api/politicians/connections?country=South%20Africa"
+```
+
+**Response:**
+```json
+{
+  "country": "South Africa",
+  "connections": [
+    {
+      "politician1": "Jacob Zuma",
+      "politician2": "Cyril Ramaphosa",
+      "scandals": [
+        {
+          "title": "State Capture Scandal",
+          "year": "2018",
+          "description": "Corruption allegations involving state-owned enterprises",
+          "main_politician": "Jacob Zuma",
+          "involved_person": "Cyril Ramaphosa",
+          "role": "Successor and investigator",
+          "position": "Deputy President",
+          "scandal_id": 1
+        }
+      ],
+      "connection_strength": 1
+    }
+  ],
+  "total_connections": 1,
+  "total_scandals_analyzed": 5,
+  "message": "Connections found based on scandal involvement"
+}
+```
+
+**Error Responses:**
+- `400` - Missing or invalid country parameter
+- `500` - Server error
+
+---
+
 ## 4. Scandals API
 
 ### Endpoint: `/api/politicians/scandals`

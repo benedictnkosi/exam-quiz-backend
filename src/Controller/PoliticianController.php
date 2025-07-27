@@ -163,4 +163,75 @@ class PoliticianController extends AbstractController
             ], 500);
         }
     }
+
+    /**
+     * POST - Generate Career Timeline
+     * 
+     * Generates a comprehensive career timeline for a politician using AI.
+     */
+    #[Route('/{id}/career-timeline', name: 'generate_career_timeline', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function generateCareerTimeline(int $id): JsonResponse
+    {
+        try {
+            $result = $this->shadyMeterService->generateCareerTimeline($id);
+            return $this->json($result);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to generate career timeline',
+                'details' => $e->getMessage()
+            ], 502);
+        }
+    }
+
+    /**
+     * GET - Retrieve Career Timeline
+     * 
+     * Retrieves the career timeline for a politician from the database.
+     */
+    #[Route('/{id}/career-timeline', name: 'get_career_timeline', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function getCareerTimeline(int $id): JsonResponse
+    {
+        try {
+            $result = $this->shadyMeterService->getCareerTimeline($id);
+            
+            if (!$result) {
+                return $this->json([
+                    'error' => 'Politician not found',
+                    'details' => 'No politician found with ID: ' . $id
+                ], 404);
+            }
+            
+            return $this->json($result);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to retrieve career timeline',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * GET - Retrieve Politician Connections
+     * 
+     * Finds all politician scandals and extracts connections between politicians
+     * based on their involvement in the same scandals.
+     */
+    #[Route('/connections', name: 'get_politician_connections', methods: ['GET'])]
+    public function getPoliticianConnections(Request $request): JsonResponse
+    {
+        $politicianId = $request->query->get('politician_id');
+        
+        // Politician ID filter is optional - if not provided, analyze all connections
+        // If provided, only show connections involving that specific politician
+
+        try {
+            $connections = $this->shadyMeterService->getPoliticianConnections($politicianId ? (int) $politicianId : null);
+            return $this->json($connections);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to retrieve politician connections',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

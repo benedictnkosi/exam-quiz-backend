@@ -111,8 +111,26 @@ CREATE TABLE politician_scandals (
 #### POST `/api/politicians/scandals`
 - **Purpose**: Generate scandals for a specific politician
 - **Request Body**: `{"politician": "string", "country": "string"}`
-- **Response**: Scandal object with total corruption score
+- **Response**: Scandal object with total corruption score and province information
 - **Controller**: `PoliticianScandalController::generatePoliticianScandals()`
+
+**Scandal Structure:**
+```json
+{
+  "scandals": [
+    {
+      "title": "string",
+      "year": "number", 
+      "description": "string",
+      "status": "proven|under_investigation|cleared|unresolved",
+      "impactScore": "number (1-10)",
+      "province": "string (specific province/region or 'National')",
+      "sector": "string (e.g., energy, education, health, defense, infrastructure, agriculture, finance, transportation, telecommunications, etc.)"
+    }
+  ],
+  "totalCorruptionScore": "number"
+}
+```
 
 #### GET `/api/politicians/scandals`
 - **Purpose**: Retrieve scandals for a politician
@@ -129,7 +147,9 @@ CREATE TABLE politician_scandals (
     "scandal": {
       "title": "string",
       "year": "number",
-      "description": "string"
+      "description": "string",
+      "province": "string (optional, defaults to 'National')",
+      "sector": "string (optional, defaults to 'general')"
     }
   }
   ```
