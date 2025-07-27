@@ -234,4 +234,33 @@ class PoliticianController extends AbstractController
             ], 500);
         }
     }
+
+    /**
+     * GET - Retrieve Country Politician Connections
+     * 
+     * Finds all politician connections within a specific country based on their
+     * involvement in the same scandals.
+     */
+    #[Route('/country-connections', name: 'get_country_politician_connections', methods: ['GET'])]
+    public function getCountryPoliticianConnections(Request $request): JsonResponse
+    {
+        $country = $request->query->get('country');
+        
+        if (!$country || empty($country)) {
+            return $this->json([
+                'error' => 'Missing or invalid country',
+                'details' => 'Country query parameter is required'
+            ], 400);
+        }
+
+        try {
+            $connections = $this->shadyMeterService->getCountryPoliticianConnections($country);
+            return $this->json($connections);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to retrieve country politician connections',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

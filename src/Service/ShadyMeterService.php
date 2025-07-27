@@ -1715,4 +1715,92 @@ class ShadyMeterService
                 : 'No connections found'
         ];
     }
+
+    public function getCountryPoliticianConnections(string $country): array
+    {
+        // Get all scandals for the specific country
+        $scandals = $this->scandalRepository->findByCountry($country);
+        
+        if (empty($scandals)) {
+            return [
+                'country' => $country,
+                'connections' => [],
+                'total_connections' => 0,
+                'message' => "No scandals found for country: {$country}"
+            ];
+        }
+
+        $connections = [];
+        $connectionMap = [];
+
+        // Process each scandal to extract connections
+        foreach ($scandals as $scandalEntity) {
+            $scandalsArray = $scandalEntity->getScandals();
+            $mainPolitician = $scandalEntity->getPolitician();
+            
+            foreach ($scandalsArray as $scandal) {
+                // Check if this scandal has involved persons
+                if (isset($scandal['involved_persons']) && is_array($scandal['involved_persons'])) {
+                    $involvedPersons = $scandal['involved_persons'];
+                    
+                    // Create connections between the main politician and all involved persons
+                    foreach ($involvedPersons as $involvedPerson) {
+                        $involvedName = $involvedPerson['full_name'] ?? '';
+                        
+                        if (!empty($involvedName) && $involvedName !== $mainPolitician) {
+                            // Create a unique connection key (alphabetically sorted to avoid duplicates)
+                            $names = [$mainPolitician, $involvedName];
+                            sort($names);
+                            $connectionKey = $names[0] . '|' . $names[1];
+                            
+                            if (!isset($connectionMap[$connectionKey])) {
+                                $connectionMap[$connectionKey] = [
+                                    'politician1' => $names[0],
+                                    'politician2' => $names[1],
+                                    'scandals' => [],
+                                    'connection_strength' => 0
+                                ];
+                            }
+                            
+                            // Add this scandal to the connection
+                            $scandalInfo = [
+                                'title' => $scandal['title'] ?? 'Unknown Scandal',
+                                'year' => $scandal['year'] ?? 'Unknown Year',
+                                'description' => $scandal['description'] ?? '',
+                                'main_politician' => $mainPolitician,
+                                'involved_person' => $involvedName,
+                                'role' => $involvedPerson['role'] ?? 'Unknown Role',
+                                'position' => $involvedPerson['position'] ?? 'Unknown Position',
+                                'scandal_id' => $scandalEntity->getId(),
+                                'country' => $scandalEntity->getCountry()
+                            ];
+                            
+                            $connectionMap[$connectionKey]['scandals'][] = $scandalInfo;
+                            $connectionMap[$connectionKey]['connection_strength']++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert connection map to array and sort by connection strength
+        foreach ($connectionMap as $connection) {
+            $connections[] = $connection;
+        }
+        
+        // Sort by connection strength (number of shared scandals) in descending order
+        usort($connections, function($a, $b) {
+            return $b['connection_strength'] - $a['connection_strength'];
+        });
+
+        return [
+            'country' => $country,
+            'connections' => $connections,
+            'total_connections' => count($connections),
+            'total_scandals_analyzed' => count($scandals),
+            'message' => count($connections) > 0 
+                ? "Connections found for politicians in {$country}"
+                : "No connections found for politicians in {$country}"
+        ];
+    }
 } 
