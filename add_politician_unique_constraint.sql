@@ -11,4 +11,8 @@ AND p1.country = p2.country;
 -- Add unique constraint
 ALTER TABLE politicians 
 ADD CONSTRAINT politician_full_name_country_unique 
-UNIQUE (full_name, country); 
+UNIQUE (full_name, country);
+
+-- Alternative: If you want to add the constraint without removing duplicates first
+-- (this will fail if duplicates exist)
+-- ALTER TABLE politicians ADD CONSTRAINT politician_full_name_country_unique UNIQUE (full_name, country); 

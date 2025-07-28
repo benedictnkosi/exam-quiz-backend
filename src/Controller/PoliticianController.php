@@ -195,7 +195,7 @@ class PoliticianController extends AbstractController
         }
         
         // Validate required fields
-        $requiredFields = ['fullName', 'position', 'party'];
+        $requiredFields = ['fullName', 'position', 'party', 'country'];
         foreach ($requiredFields as $field) {
             if (!isset($data[$field]) || empty($data[$field])) {
                 return $this->json([

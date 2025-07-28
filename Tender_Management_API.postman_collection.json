@@ -1,0 +1,941 @@
+{
+	"info": {
+		"_postman_id": "tender-management-api",
+		"name": "Tender Management API",
+		"description": "Complete API collection for managing tenders, tender bid winners, and company directors",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Tenders",
+			"item": [
+				{
+					"name": "Get All Tenders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders?page=1&limit=10&category=Construction&province=Gauteng&organOfState=Department of Public Works",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								},
+								{
+									"key": "category",
+									"value": "Construction",
+									"description": "Filter by category"
+								},
+								{
+									"key": "province",
+									"value": "Gauteng",
+									"description": "Filter by province"
+								},
+								{
+									"key": "organOfState",
+									"value": "Department of Public Works",
+									"description": "Filter by organ of state"
+								}
+							]
+						},
+						"description": "Get all tenders with optional filtering and pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tender by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"1"
+							]
+						},
+						"description": "Get a specific tender by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Tender",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category\": \"Construction\",\n    \"tenderDescription\": \"Building construction project for new office complex\",\n    \"advertisedAt\": \"2024-01-15 10:00:00\",\n    \"awardedAt\": null,\n    \"tenderNumber\": \"TEN-2024-001\",\n    \"organOfState\": \"Department of Public Works\",\n    \"province\": \"Gauteng\",\n    \"closingDate\": \"2024-12-31 23:59:59\",\n    \"placeWhereGoodsWorksOrServicesAreRequired\": \"Pretoria, Gauteng\",\n    \"contactPerson\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"telephoneNumber\": \"+27 12 345 6789\",\n    \"successfulBidders\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tenders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders"
+							]
+						},
+						"description": "Create a new tender"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Tender",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category\": \"IT Services\",\n    \"tenderDescription\": \"Updated description\",\n    \"closingDate\": \"2024-12-31 23:59:59\",\n    \"contactPerson\": \"Jane Smith\",\n    \"email\": \"jane.smith@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tenders/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"1"
+							]
+						},
+						"description": "Update an existing tender"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tender",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"1"
+							]
+						},
+						"description": "Delete a tender"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tenders by Category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/category/Construction",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"category",
+								"Construction"
+							]
+						},
+						"description": "Get all tenders in a specific category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tenders by Province",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/province/Gauteng",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"province",
+								"Gauteng"
+							]
+						},
+						"description": "Get all tenders in a specific province"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Tenders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"active"
+							]
+						},
+						"description": "Get tenders that haven't closed yet"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Awarded Tenders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/awarded",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"awarded"
+							]
+						},
+						"description": "Get tenders that have been awarded"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Successful Bidder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"bidder\": \"ABC Construction Company\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tenders/1/add-bidder",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"1",
+								"add-bidder"
+							]
+						},
+						"description": "Add a successful bidder to a tender"
+					},
+					"response": []
+				}
+			],
+			"description": "API endpoints for managing tenders"
+		},
+		{
+			"name": "Tender Bid Winners",
+			"item": [
+				{
+					"name": "Get All Tender Bid Winners",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners?page=1&limit=10&tenderId=1&companyId=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								},
+								{
+									"key": "tenderId",
+									"value": "1",
+									"description": "Filter by tender ID"
+								},
+								{
+									"key": "companyId",
+									"value": "1",
+									"description": "Filter by company ID"
+								}
+							]
+						},
+						"description": "Get all tender bid winners with optional filtering and pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tender Bid Winner by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"1"
+							]
+						},
+						"description": "Get a specific tender bid winner by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Tender Bid Winner",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"tenderId\": 1,\n    \"companyId\": 1,\n    \"companyName\": \"ABC Construction Ltd\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners"
+							]
+						},
+						"description": "Create a new tender bid winner"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Tender Bid Winner",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"companyName\": \"Updated Company Name\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"1"
+							]
+						},
+						"description": "Update an existing tender bid winner"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tender Bid Winner",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"1"
+							]
+						},
+						"description": "Delete a tender bid winner"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bid Winners by Tender",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/tender/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"tender",
+								"1"
+							]
+						},
+						"description": "Get all bid winners for a specific tender"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bid Winners by Company",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/company/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"company",
+								"1"
+							]
+						},
+						"description": "Get all bid winners for a specific company"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Winning Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/winning-companies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"winning-companies"
+							]
+						},
+						"description": "Get all companies that have won tenders"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Bid Winners",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tender-bid-winners/recent?limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tender-bid-winners",
+								"recent"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of recent winners"
+								}
+							]
+						},
+						"description": "Get recent tender bid winners"
+					},
+					"response": []
+				}
+			],
+			"description": "API endpoints for managing tender bid winners"
+		},
+		{
+			"name": "Company Directors",
+			"item": [
+				{
+					"name": "Get All Company Directors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors?page=1&limit=10&companyId=1&directorName=John",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								},
+								{
+									"key": "companyId",
+									"value": "1",
+									"description": "Filter by company ID"
+								},
+								{
+									"key": "directorName",
+									"value": "John",
+									"description": "Filter by director name"
+								}
+							]
+						},
+						"description": "Get all company directors with optional filtering and pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Company Director by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"1"
+							]
+						},
+						"description": "Get a specific company director by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Company Director",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"directorName\": \"John Doe\",\n    \"directorIdNumber\": \"8001015009087\",\n    \"companyId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/company-directors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors"
+							]
+						},
+						"description": "Create a new company director"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Company Director",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"directorName\": \"John Smith\",\n    \"directorIdNumber\": \"8001015009087\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"1"
+							]
+						},
+						"description": "Update an existing company director"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Company Director",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"1"
+							]
+						},
+						"description": "Delete a company director"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Directors by Company",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/company/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"company",
+								"1"
+							]
+						},
+						"description": "Get all directors for a specific company"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Directors by Name",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/search/name/John",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"search",
+								"name",
+								"John"
+							]
+						},
+						"description": "Search directors by name"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Director by ID Number",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/search/id-number/8001015009087",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"search",
+								"id-number",
+								"8001015009087"
+							]
+						},
+						"description": "Get director by ID number"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Unique Director Names",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/unique-names",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"unique-names"
+							]
+						},
+						"description": "Get all unique director names"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Directors of Multiple Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/multiple-companies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"multiple-companies"
+							]
+						},
+						"description": "Get directors who are directors of multiple companies"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Directors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/company-directors/recent?limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"company-directors",
+								"recent"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of recent directors"
+								}
+							]
+						},
+						"description": "Get recent company directors"
+					},
+					"response": []
+				}
+			],
+			"description": "API endpoints for managing company directors"
+		},
+		{
+			"name": "Companies",
+			"item": [
+				{
+					"name": "Get All Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								}
+							]
+						},
+						"description": "Get all companies with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Company by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"1"
+							]
+						},
+						"description": "Get a specific company by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Company",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"companyNames\": [\"ABC Construction Ltd\", \"ABC Construction\"],\n    \"fullName\": \"John\",\n    \"surname\": \"Doe\",\n    \"idNumber\": \"8001015009087\",\n    \"residentialAddress\": \"123 Main Street, Pretoria\",\n    \"companyAddress\": \"456 Business Park, Johannesburg\",\n    \"emailAddress\": \"john.doe@abcconstruction.com\",\n    \"phoneNumber\": \"+27 11 123 4567\",\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/companies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies"
+							]
+						},
+						"description": "Create a new company"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Company",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"Jane\",\n    \"surname\": \"Smith\",\n    \"emailAddress\": \"jane.smith@abcconstruction.com\",\n    \"phoneNumber\": \"+27 11 987 6543\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/companies/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"1"
+							]
+						},
+						"description": "Update an existing company"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Company",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"1"
+							]
+						},
+						"description": "Delete a company"
+					},
+					"response": []
+				}
+			],
+			"description": "API endpoints for managing companies"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+} 

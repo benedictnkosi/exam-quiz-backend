@@ -351,7 +351,27 @@ Return as a JSON array. Only include real, documented individuals with verifiabl
         $savedTrending = [];
         foreach ($politicians as $politicianData) {
             // Check if politician with same full name and country already exists
-        
+            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($politicianData['fullName'], $country);
+            
+            if ($existingPolitician) {
+                // Skip if politician already exists
+                $this->logger->info("ShadyMeter: Skipping duplicate trending politician - {$politicianData['fullName']} from {$country} already exists");
+                $savedTrending[] = [
+                    'id' => $existingPolitician->getId(),
+                    'fullName' => $existingPolitician->getFullName(),
+                    'country' => $existingPolitician->getCountry(),
+                    'party' => $existingPolitician->getParty(),
+                    'position' => $existingPolitician->getPosition(),
+                    'score' => $existingPolitician->getScore(),
+                    'status' => $existingPolitician->getStatus(),
+                    'note' => $existingPolitician->getNote(),
+                    'trending' => $existingPolitician->isTrending(),
+                    'created' => false,
+                    'cached' => true,
+                    'skipped' => true
+                ];
+                continue;
+            }
             
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
@@ -2072,6 +2092,39 @@ Return ONLY a valid JSON object with these fields: country, score, status, note.
     public function addPolitician(array $politicianData): array
     {
         try {
+            // Check if politician already exists by full name and country
+            $fullName = $politicianData['fullName'] ?? '';
+            $country = $politicianData['country'] ?? '';
+            
+            if (empty($fullName) || empty($country)) {
+                throw new \Exception('Full name and country are required');
+            }
+            
+            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($fullName, $country);
+            
+            if ($existingPolitician) {
+                $this->logger->info("ShadyMeter: Politician already exists - {$fullName} from {$country}");
+                return [
+                    'success' => false,
+                    'message' => 'Politician with this name and country already exists',
+                    'politician_id' => $existingPolitician->getId(),
+                    'politician' => [
+                        'id' => $existingPolitician->getId(),
+                        'fullName' => $existingPolitician->getFullName(),
+                        'country' => $existingPolitician->getCountry(),
+                        'party' => $existingPolitician->getParty(),
+                        'position' => $existingPolitician->getPosition(),
+                        'score' => $existingPolitician->getScore(),
+                        'status' => $existingPolitician->getStatus(),
+                        'note' => $existingPolitician->getNote(),
+                        'trending' => $existingPolitician->isTrending(),
+                        'createdAt' => $existingPolitician->getCreatedAt()->format('c'),
+                        'updatedAt' => $existingPolitician->getUpdatedAt()?->format('c')
+                    ],
+                    'created' => false
+                ];
+            }
+            
             // Create new politician entity
             $politician = new Politician();
             $politician->setFullName($politicianData['fullName']);
@@ -2121,23 +2174,23 @@ Return ONLY a valid JSON object with these fields: country, score, status, note.
     {
         try {
             $fullName = $politicianData['fullName'] ?? '';
-            $position = $politicianData['position'] ?? '';
+            $country = $politicianData['country'] ?? '';
             
-            if (empty($fullName) || empty($position)) {
+            if (empty($fullName) || empty($country)) {
                 return [
                     'exists' => false,
                     'message' => 'Missing required data for check'
                 ];
             }
             
-            // Check if politician with same full name and position already exists
-            $existingPolitician = $this->politicianRepository->findByFullNameAndPosition($fullName, $position);
+            // Check if politician with same full name and country already exists
+            $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($fullName, $country);
             
             if ($existingPolitician) {
                 return [
                     'exists' => true,
                     'success' => false,
-                    'message' => 'Politician with this name and position already exists',
+                    'message' => 'Politician with this name and country already exists',
                     'politician_id' => $existingPolitician->getId(),
                     'politician' => [
                         'id' => $existingPolitician->getId(),
