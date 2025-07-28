@@ -132,4 +132,34 @@ class PoliticianRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * Find politician by full name and position
+     */
+    public function findByFullNameAndPosition(string $fullName, string $position): ?Politician
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.fullName = :fullName')
+            ->andWhere('p.position = :position')
+            ->setParameter('fullName', $fullName)
+            ->setParameter('position', $position)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Search politicians by name containing search string and country
+     */
+    public function searchByNameAndCountry(string $searchString, string $country, int $limit = 20): array
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.fullName LIKE :searchString')
+            ->andWhere('p.country = :country')
+            ->setParameter('searchString', '%' . $searchString . '%')
+            ->setParameter('country', $country)
+            ->orderBy('p.score', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
 } 

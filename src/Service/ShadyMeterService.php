@@ -168,6 +168,147 @@ class ShadyMeterService
         return $this->politicianRepository->findByCountry($country);
     }
 
+    /**
+     * Search politicians by name containing search string and country
+     */
+    public function searchPoliticians(string $searchString, string $country, int $limit = 20): array
+    {
+        return $this->politicianRepository->searchByNameAndCountry($searchString, $country, $limit);
+    }
+
+    /**
+     * Search for politically affiliated people by name and country using AI web search
+     */
+    public function searchPoliticallyAffiliatedPeople(string $name, string $country): array
+    {
+        if (empty($this->openaiApiKey)) {
+            throw new \Exception('OpenAI API key not set');
+        }
+
+        $input = "Search the internet for anyone named '{$name}' in {$country} who has appeared in news articles, reports, or public records related to government, politics, political scandals, corruption allegations, public office, government positions, political parties, or political activities. This includes:
+
+- Current or former politicians, government officials, and public servants
+- Political party members, leaders, or activists
+- Individuals involved in political scandals or corruption cases
+- Government contractors or business people with political connections
+- Political advisors, lobbyists, or campaign staff
+- Anyone mentioned in political news, government reports, or political investigations
+- People involved in political protests, movements, or political events
+
+For each person found, return a JSON object with: fullName (their complete name), position (their current or former position, role, or title), and party (their political party, affiliation, or 'Independent'/'Unknown' if not specified). Include the country where they are primarily active.
+
+Return as a JSON array. Only include real, documented individuals with verifiable news coverage. If no relevant people are found with this name, return an empty array.";
+
+        // Debug: Log the API key status (masked for security)
+        $maskedKey = substr($this->openaiApiKey, 0, 8) . '...' . substr($this->openaiApiKey, -4);
+        $this->logger->info("ShadyMeter: Using OpenAI API key: {$maskedKey}");
+        $this->logger->info("ShadyMeter: Input: " . $input);
+        
+        try {
+            // Use /responses endpoint with gpt-4.1 and web search
+            $data = [
+                'model' => 'gpt-4.1',
+                'tools' => [
+                    [
+                        'type' => 'web_search_preview'
+                    ]
+                ],
+                'input' => $input
+            ];
+
+            $this->logger->info("ShadyMeter: Request data: " . json_encode($data));
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => 'https://api.openai.com/v1/responses',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->openaiApiKey
+                ],
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_TIMEOUT => 60,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 3
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                throw new \Exception('cURL error: ' . $error);
+            }
+
+            if ($httpCode !== 200) {
+                throw new \Exception('OpenAI API error: HTTP ' . $httpCode . ' - ' . $response);
+            }
+
+            $this->logger->info("ShadyMeter: Raw response received: " . substr($response, 0, 500));
+
+            $responseData = json_decode($response, true);
+            if (!$responseData) {
+                throw new \Exception('Failed to decode JSON response: ' . json_last_error_msg());
+            }
+
+            if (!isset($responseData['output']) || !is_array($responseData['output'])) {
+                throw new \Exception('Response missing output array: ' . json_encode($responseData));
+            }
+
+            // Extract the text content from the output array
+            $content = null;
+            foreach ($responseData['output'] as $outputItem) {
+                if (isset($outputItem['type']) && $outputItem['type'] === 'message' && isset($outputItem['content'])) {
+                    foreach ($outputItem['content'] as $contentItem) {
+                        if (isset($contentItem['type']) && $contentItem['type'] === 'output_text' && isset($contentItem['text'])) {
+                            $content = $contentItem['text'];
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if (empty($content)) {
+                throw new \Exception('No text content found in response output: ' . json_encode($responseData['output']));
+            }
+
+            $this->logger->info("ShadyMeter: Extracted content: " . $content);
+            
+            $result = $this->parseOpenAIResponse($content);
+            $this->logger->info("ShadyMeter: Parsed result count: " . count($result));
+            
+            // Check database for each person found and add politician ID if they exist
+            $enhancedResult = [];
+            foreach ($result as $person) {
+                $fullName = $person['fullName'] ?? '';
+                $personCountry = $person['country'] ?? $country;
+                
+                // Search for exact match in database
+                $existingPolitician = $this->politicianRepository->findByFullNameAndCountry($fullName, $personCountry);
+                
+                if ($existingPolitician) {
+                    $person['politician_id'] = $existingPolitician->getId();
+                    $person['in_database'] = true;
+                } else {
+                    $person['politician_id'] = null;
+                    $person['in_database'] = false;
+                }
+                
+                $enhancedResult[] = $person;
+            }
+            
+            return $enhancedResult;
+        } catch (\Exception $e) {
+            $this->logger->error("ShadyMeter: OpenAI API error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
     public function generateTrendingPoliticians(string $country): array
     {
         // Check if we already have trending politicians for this country created today
@@ -1802,5 +1943,229 @@ class ShadyMeterService
                 ? "Connections found for politicians in {$country}"
                 : "No connections found for politicians in {$country}"
         ];
+    }
+
+    /**
+     * Generate politician details using AI based on provided information
+     */
+    public function generatePoliticianDetails(array $politicianData): array
+    {
+        if (empty($this->openaiApiKey)) {
+            throw new \Exception('OpenAI API key not set');
+        }
+
+        $fullName = $politicianData['fullName'] ?? '';
+        $position = $politicianData['position'] ?? '';
+        $party = $politicianData['party'] ?? '';
+
+        $input = "Based on the following information about a politician, provide additional details for a corruption tracking database. 
+
+Politician Information:
+- Full Name: {$fullName}
+- Position: {$position}
+- Party: {$party}
+
+Please provide the following details in JSON format:
+1. country (the country where this politician is primarily active)
+2. score (a corruption risk score from 1-100, where higher means more allegations or suspicious activities - be objective and fair)
+3. status (active, retired, deceased, or suspended)
+4. note (a brief, factual note about any corruption allegations, scandals, or suspicious activities - keep it professional and factual)
+
+Return ONLY a valid JSON object with these fields: country, score, status, note. If you cannot determine any field, use 'Unknown' for country, 0 for score, 'active' for status, and null for note.";
+
+        // Debug: Log the API key status (masked for security)
+        $maskedKey = substr($this->openaiApiKey, 0, 8) . '...' . substr($this->openaiApiKey, -4);
+        $this->logger->info("ShadyMeter: Using OpenAI API key: {$maskedKey}");
+        $this->logger->info("ShadyMeter: Input: " . $input);
+        
+        try {
+            // Use /responses endpoint with gpt-4.1 and web search
+            $data = [
+                'model' => 'gpt-4.1',
+                'tools' => [
+                    [
+                        'type' => 'web_search_preview'
+                    ]
+                ],
+                'input' => $input
+            ];
+
+            $this->logger->info("ShadyMeter: Request data: " . json_encode($data));
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => 'https://api.openai.com/v1/responses',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->openaiApiKey
+                ],
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_TIMEOUT => 60,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 3
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                throw new \Exception('cURL error: ' . $error);
+            }
+
+            if ($httpCode !== 200) {
+                throw new \Exception('OpenAI API error: HTTP ' . $httpCode . ' - ' . $response);
+            }
+
+            $this->logger->info("ShadyMeter: Raw response received: " . substr($response, 0, 500));
+
+            $responseData = json_decode($response, true);
+            if (!$responseData) {
+                throw new \Exception('Failed to decode JSON response: ' . json_last_error_msg());
+            }
+
+            if (!isset($responseData['output']) || !is_array($responseData['output'])) {
+                throw new \Exception('Response missing output array: ' . json_encode($responseData));
+            }
+
+            // Extract the text content from the output array
+            $content = null;
+            foreach ($responseData['output'] as $outputItem) {
+                if (isset($outputItem['type']) && $outputItem['type'] === 'message' && isset($outputItem['content'])) {
+                    foreach ($outputItem['content'] as $contentItem) {
+                        if (isset($contentItem['type']) && $contentItem['type'] === 'output_text' && isset($contentItem['text'])) {
+                            $content = $contentItem['text'];
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if (empty($content)) {
+                throw new \Exception('No text content found in response output: ' . json_encode($responseData['output']));
+            }
+
+            $this->logger->info("ShadyMeter: Extracted content: " . $content);
+            
+            $result = $this->parseOpenAIResponse($content);
+            $this->logger->info("ShadyMeter: Parsed result: " . json_encode($result));
+            
+            // Merge the AI-generated details with the provided data
+            $completeData = array_merge($politicianData, $result);
+            
+            return $completeData;
+        } catch (\Exception $e) {
+            $this->logger->error("ShadyMeter: OpenAI API error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Add a new politician to the database
+     */
+    public function addPolitician(array $politicianData): array
+    {
+        try {
+            // Create new politician entity
+            $politician = new Politician();
+            $politician->setFullName($politicianData['fullName']);
+            $politician->setCountry($politicianData['country']);
+            $politician->setParty($politicianData['party'] ?? null);
+            $politician->setPosition($politicianData['position'] ?? null);
+            $politician->setScore($politicianData['score'] ?? 0);
+            $politician->setStatus($politicianData['status'] ?? 'active');
+            $politician->setNote($politicianData['note'] ?? null);
+            $politician->setTrending(false);
+            $politician->setUpdatedAt(new \DateTime());
+
+            // Save to database
+            $this->politicianRepository->save($politician, true);
+            
+            $this->logger->info("ShadyMeter: Created new politician - {$politician->getFullName()} from {$politician->getCountry()}");
+            
+            return [
+                'success' => true,
+                'message' => 'Politician added successfully',
+                'politician_id' => $politician->getId(),
+                'politician' => [
+                    'id' => $politician->getId(),
+                    'fullName' => $politician->getFullName(),
+                    'country' => $politician->getCountry(),
+                    'party' => $politician->getParty(),
+                    'position' => $politician->getPosition(),
+                    'score' => $politician->getScore(),
+                    'status' => $politician->getStatus(),
+                    'note' => $politician->getNote(),
+                    'trending' => $politician->isTrending(),
+                    'createdAt' => $politician->getCreatedAt()->format('c'),
+                    'updatedAt' => $politician->getUpdatedAt()?->format('c')
+                ],
+                'created' => true
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("ShadyMeter: Error adding politician: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Check if politician already exists in database
+     */
+    public function checkPoliticianExists(array $politicianData): array
+    {
+        try {
+            $fullName = $politicianData['fullName'] ?? '';
+            $position = $politicianData['position'] ?? '';
+            
+            if (empty($fullName) || empty($position)) {
+                return [
+                    'exists' => false,
+                    'message' => 'Missing required data for check'
+                ];
+            }
+            
+            // Check if politician with same full name and position already exists
+            $existingPolitician = $this->politicianRepository->findByFullNameAndPosition($fullName, $position);
+            
+            if ($existingPolitician) {
+                return [
+                    'exists' => true,
+                    'success' => false,
+                    'message' => 'Politician with this name and position already exists',
+                    'politician_id' => $existingPolitician->getId(),
+                    'politician' => [
+                        'id' => $existingPolitician->getId(),
+                        'fullName' => $existingPolitician->getFullName(),
+                        'country' => $existingPolitician->getCountry(),
+                        'party' => $existingPolitician->getParty(),
+                        'position' => $existingPolitician->getPosition(),
+                        'score' => $existingPolitician->getScore(),
+                        'status' => $existingPolitician->getStatus(),
+                        'note' => $existingPolitician->getNote(),
+                        'trending' => $existingPolitician->isTrending(),
+                        'createdAt' => $existingPolitician->getCreatedAt()->format('c'),
+                        'updatedAt' => $existingPolitician->getUpdatedAt()?->format('c')
+                    ],
+                    'created' => false
+                ];
+            }
+            
+            return [
+                'exists' => false,
+                'message' => 'Politician not found in database'
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error("ShadyMeter: Error checking politician existence: " . $e->getMessage());
+            return [
+                'exists' => false,
+                'message' => 'Error checking database'
+            ];
+        }
     }
 } 

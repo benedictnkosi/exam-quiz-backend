@@ -82,6 +82,153 @@ class PoliticianController extends AbstractController
     }
 
     /**
+     * GET - Search Politicians
+     * 
+     * Searches for politicians in the database by name containing the search string and country.
+     */
+    #[Route('/search', name: 'search_politicians', methods: ['GET'])]
+    public function searchPoliticians(Request $request): JsonResponse
+    {
+        $searchString = $request->query->get('q');
+        $country = $request->query->get('country');
+        $limit = (int) $request->query->get('limit', 20);
+        
+        if (!$searchString || empty($searchString)) {
+            return $this->json([
+                'error' => 'Missing or invalid search query',
+                'details' => 'Query parameter "q" is required'
+            ], 400);
+        }
+        
+        if (!$country || empty($country)) {
+            return $this->json([
+                'error' => 'Missing or invalid country',
+                'details' => 'Country query parameter is required'
+            ], 400);
+        }
+
+        try {
+            $politicians = $this->shadyMeterService->searchPoliticians($searchString, $country, $limit);
+            
+            // Extract only the required fields
+            $data = [];
+            foreach ($politicians as $politician) {
+                $data[] = [
+                    'id' => $politician->getId(),
+                    'fullName' => $politician->getFullName(),
+                    'party' => $politician->getParty(),
+                    'position' => $politician->getPosition()
+                ];
+            }
+            
+            return $this->json([
+                'search_query' => $searchString,
+                'country' => $country,
+                'results_count' => count($data),
+                'politicians' => $data
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to search politicians',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * GET - Search Politically Affiliated People (AI Web Search)
+     * 
+     * Uses AI web search to find politically affiliated people by name and country.
+     */
+    #[Route('/ai-search', name: 'ai_search_politically_affiliated', methods: ['GET'])]
+    public function searchPoliticallyAffiliatedPeople(Request $request): JsonResponse
+    {
+        $name = $request->query->get('name');
+        $country = $request->query->get('country');
+        
+        if (!$name || empty($name)) {
+            return $this->json([
+                'error' => 'Missing or invalid name',
+                'details' => 'Name query parameter is required'
+            ], 400);
+        }
+        
+        if (!$country || empty($country)) {
+            return $this->json([
+                'error' => 'Missing or invalid country',
+                'details' => 'Country query parameter is required'
+            ], 400);
+        }
+
+        try {
+            $people = $this->shadyMeterService->searchPoliticallyAffiliatedPeople($name, $country);
+            
+            return $this->json([
+                'search_name' => $name,
+                'country' => $country,
+                'results_count' => count($people),
+                'people' => $people
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to search politically affiliated people',
+                'details' => $e->getMessage()
+            ], 502);
+        }
+    }
+
+    /**
+     * POST - Add Politician
+     * 
+     * Adds a new politician to the database using AI to generate additional details.
+     */
+    #[Route('/add', name: 'add_politician', methods: ['POST'])]
+    public function addPolitician(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        
+        if (!$data) {
+            return $this->json([
+                'error' => 'Invalid JSON data',
+                'details' => 'Request body must contain valid JSON'
+            ], 400);
+        }
+        
+        // Validate required fields
+        $requiredFields = ['fullName', 'position', 'party'];
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field]) || empty($data[$field])) {
+                return $this->json([
+                    'error' => 'Missing required field',
+                    'details' => "Field '{$field}' is required"
+                ], 400);
+            }
+        }
+
+        try {
+            // First check if politician already exists in database (before AI call)
+            $existingCheck = $this->shadyMeterService->checkPoliticianExists($data);
+            
+            if ($existingCheck['exists']) {
+                return $this->json($existingCheck, 200);
+            }
+            
+            // Generate additional details using AI only if politician doesn't exist
+            $aiGeneratedData = $this->shadyMeterService->generatePoliticianDetails($data);
+            
+            // Add politician to database
+            $result = $this->shadyMeterService->addPolitician($aiGeneratedData);
+            
+            return $this->json($result, $result['success'] ? 201 : 200);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Failed to add politician',
+                'details' => $e->getMessage()
+            ], 502);
+        }
+    }
+
+    /**
      * POST - Generate Trending Politicians
      * 
      * Generates a list of 10 most trending politicians for corruption scandals in the current year using OpenAI with web search.
