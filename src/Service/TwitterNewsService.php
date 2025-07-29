@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\NewsRepository;
+use App\Repository\PostedTrendingNewsRepository;
+use App\Entity\PostedTrendingNews;
 use Psr\Log\LoggerInterface;
 
 class TwitterNewsService
@@ -11,6 +13,7 @@ class TwitterNewsService
         private readonly ShadyMeterService $shadyMeterService,
         private readonly TwitterService $twitterService,
         private readonly NewsRepository $newsRepository,
+        private readonly PostedTrendingNewsRepository $postedTrendingNewsRepository,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -73,7 +76,17 @@ class TwitterNewsService
             $endDateStr = $currentDate->format('F j, Y');
 
             $scopeText = $this->getScopeDescription($scope);
-            $input = "Provide the top 1 most significant {$scopeText} corruption-related news story between {$startDateStr} and {$endDateStr}. Focus on political corruption, embezzlement, bribery, and accountability issues. Write a funny, light, and engaging Twitter summary (200-220 characters) with witty commentary, clever wordplay, or humorous observations about the situation. Make it entertaining while still being informative. Include an appropriate emoji at the start (🚨 for high impact, ⚠️ for medium, 📰 for low). End with hashtags #CorruptionNews #GlobalTrending. Do not include any URLs or links. Only include real, documented events - do not invent stories. Return ONLY the Twitter summary text.";
+            $input = "Provide the top 1 most significant {$scopeText} corruption-related news story between {$startDateStr} and {$endDateStr}. Focus on political corruption, embezzlement, bribery, and accountability issues. 
+
+Return the response in this exact JSON format:
+{
+  \"twitterSummary\": \"Write a funny, light, and engaging Twitter summary (200-220 characters) with witty commentary, clever wordplay, or humorous observations about the situation. Make it entertaining while still being informative. Include an appropriate emoji at the start (🚨 for high impact, ⚠️ for medium, 📰 for low). End with hashtags #CorruptionNews #GlobalTrending. Do not include any URLs or links.\",
+  \"politicianName\": \"Full name of the main politician involved (e.g., 'John Doe' or null if no specific politician)\",
+  \"country\": \"Country where the corruption occurred\",
+  \"impact\": \"high|medium|low\"
+}
+
+Only include real, documented events - do not invent stories. Return ONLY the JSON response.";
 
             $data = [
                 'model' => 'gpt-4.1',
@@ -142,8 +155,21 @@ class TwitterNewsService
                 throw new \Exception('No text content found in response output: ' . json_encode($responseData['output']));
             }
             
-            // Clean the response and ensure it's within character limits
-            $twitterSummary = $this->cleanAndFormatTwitterSummary($content);
+            // Parse the JSON response
+            $parsedData = $this->parseAIResponse($content);
+            
+            if (!$parsedData) {
+                throw new \Exception('Failed to parse AI response as JSON: ' . $content);
+            }
+            
+            // Extract data from parsed response
+            $twitterSummary = $parsedData['twitterSummary'] ?? '';
+            $politicianName = $parsedData['politicianName'] ?? null;
+            $country = $parsedData['country'] ?? '';
+            $impact = $parsedData['impact'] ?? 'medium';
+            
+            // Clean and format the Twitter summary
+            $twitterSummary = $this->cleanAndFormatTwitterSummary($twitterSummary);
 
             $this->logger->info('Generated Twitter summary from fresh ' . $scope . ' news');
             
@@ -152,7 +178,15 @@ class TwitterNewsService
                 'summaries' => [
                     [
                         'twitterSummary' => $twitterSummary,
-                        'characterCount' => strlen($twitterSummary)
+                        'characterCount' => strlen($twitterSummary),
+                        'politicianName' => $politicianName,
+                        'country' => $country,
+                        'impact' => $impact,
+                        'originalStory' => [
+                            'politicianName' => $politicianName,
+                            'country' => $country,
+                            'impact' => $impact
+                        ]
                     ]
                 ],
                 'totalCount' => 1,
@@ -176,11 +210,35 @@ class TwitterNewsService
     /**
      * Post a single Twitter summary
      */
-    public function postTwitterSummary(string $summary): array
+    public function postTwitterSummary(string $summary, string $scope = 'global', ?array $originalStory = null): array
     {
         try {
             if (strlen($summary) > 280) {
                 throw new \Exception('Summary exceeds Twitter character limit (280 characters)');
+            }
+
+            // Get politician name from original story or extract from summary as fallback
+            $politicianName = $originalStory['politicianName'] ?? null;
+            
+            // Check if this politician has been posted recently
+            if ($politicianName && $this->postedTrendingNewsRepository->hasPoliticianBeenPostedRecently($politicianName, $scope)) {
+                $this->logger->info("Politician {$politicianName} has been posted recently in scope {$scope}, skipping");
+                return [
+                    'success' => false,
+                    'error' => "Politician {$politicianName} has been posted recently in scope {$scope}",
+                    'politicianName' => $politicianName,
+                    'reason' => 'politician_already_posted'
+                ];
+            }
+
+            // Check if this exact summary has been posted recently
+            if ($this->postedTrendingNewsRepository->hasSummaryBeenPostedRecently($summary, $scope)) {
+                $this->logger->info("Summary has been posted recently in scope {$scope}, skipping");
+                return [
+                    'success' => false,
+                    'error' => 'Summary has been posted recently',
+                    'reason' => 'summary_already_posted'
+                ];
             }
 
             $result = $this->twitterService->postTweet($summary);
@@ -194,13 +252,26 @@ class TwitterNewsService
                 ];
             }
 
+            // Track the posted trending news
+            $postedTrendingNews = new PostedTrendingNews();
+            $postedTrendingNews->setScope($scope);
+            $postedTrendingNews->setPoliticianName($politicianName);
+            $postedTrendingNews->setTwitterSummary($summary);
+            $postedTrendingNews->setTweetId($result['data']['id'] ?? null);
+            $postedTrendingNews->setCharacterCount(strlen($summary));
+            $postedTrendingNews->setOriginalStory($originalStory);
+            
+            $this->postedTrendingNewsRepository->save($postedTrendingNews, true);
+
             $this->logger->info('Successfully posted tweet: ' . substr($summary, 0, 50) . '...');
             
             return [
                 'success' => true,
                 'tweetId' => $result['data']['id'] ?? null,
                 'summary' => $summary,
-                'characterCount' => strlen($summary)
+                'characterCount' => strlen($summary),
+                'politicianName' => $politicianName,
+                'trackingId' => $postedTrendingNews->getId()
             ];
 
         } catch (\Exception $e) {
@@ -229,14 +300,19 @@ class TwitterNewsService
             $failedTweets = [];
 
             foreach ($summaryResult['summaries'] as $summaryData) {
-                $postResult = $this->postTwitterSummary($summaryData['twitterSummary']);
+                $postResult = $this->postTwitterSummary(
+                    $summaryData['twitterSummary'], 
+                    $scope, 
+                    $summaryData['originalStory'] ?? null
+                );
                 
                 if ($postResult['success']) {
                     $postedTweets[] = $postResult;
                 } else {
                     $failedTweets[] = [
                         'summary' => $summaryData['twitterSummary'],
-                        'error' => $postResult['error']
+                        'error' => $postResult['error'],
+                        'reason' => $postResult['reason'] ?? 'unknown'
                     ];
                 }
 
@@ -484,5 +560,42 @@ class TwitterNewsService
             return substr($text, 0, $maxSummaryLength - 3) . '...';
         }
         return $text;
+    }
+
+    /**
+     * Parse AI response as JSON
+     * Handles various response formats and extracts structured data
+     */
+    private function parseAIResponse(string $content): ?array
+    {
+        // Clean the content first
+        $content = trim($content);
+        
+        // Try to extract JSON from code blocks if present
+        if (preg_match('/```json\s*([\s\S]*?)```/i', $content, $matches)) {
+            $content = trim($matches[1]);
+        } elseif (preg_match('/```\s*([\s\S]*?)```/i', $content, $matches)) {
+            $content = trim($matches[1]);
+        }
+        
+        // Try to parse as JSON
+        $data = json_decode($content, true);
+        
+        if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+            return $data;
+        }
+        
+        // If JSON parsing fails, try to extract JSON from the text
+        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+            $jsonText = $matches[0];
+            $data = json_decode($jsonText, true);
+            
+            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+                return $data;
+            }
+        }
+        
+        $this->logger->warning('Failed to parse AI response as JSON: ' . substr($content, 0, 200) . '...');
+        return null;
     }
 } 
