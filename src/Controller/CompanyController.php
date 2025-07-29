@@ -20,15 +20,14 @@ class CompanyController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         
-        // Validate required fields
-        $requiredFields = ['full_name', 'surname', 'id_number', 'residential_address', 'company_address', 'email_address', 'phone_number'];
-        foreach ($requiredFields as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
-                return $this->json([
-                    'status' => 'NOK',
-                    'message' => "Field '$field' is required"
-                ], 400);
-            }
+        // Validate required fields using the service validation
+        $validationErrors = $this->companyService->validateCompanyData($data);
+        if (!empty($validationErrors)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Validation failed',
+                'errors' => $validationErrors
+            ], 400);
         }
 
         try {
@@ -37,19 +36,7 @@ class CompanyController extends AbstractController
             return $this->json([
                 'status' => 'OK',
                 'message' => 'Company created successfully',
-                'data' => [
-                    'id' => $company->getId(),
-                    'company_names' => $company->getCompanyNames(),
-                    'full_name' => $company->getFullName(),
-                    'surname' => $company->getSurname(),
-                    'id_number' => $company->getIdNumber(),
-                    'residential_address' => $company->getResidentialAddress(),
-                    'company_address' => $company->getCompanyAddress(),
-                    'email_address' => $company->getEmailAddress(),
-                    'phone_number' => $company->getPhoneNumber(),
-                    'id_copy' => $company->getIdCopy(),
-                    'power_of_attorney' => $company->getPowerOfAttorney()
-                ]
+                'data' => $company->toArray()
             ]);
         } catch (\Exception $e) {
             return $this->json([
@@ -73,19 +60,7 @@ class CompanyController extends AbstractController
 
         return $this->json([
             'status' => 'OK',
-            'data' => [
-                'id' => $company->getId(),
-                'company_names' => $company->getCompanyNames(),
-                'full_name' => $company->getFullName(),
-                'surname' => $company->getSurname(),
-                'id_number' => $company->getIdNumber(),
-                'residential_address' => $company->getResidentialAddress(),
-                'company_address' => $company->getCompanyAddress(),
-                'email_address' => $company->getEmailAddress(),
-                'phone_number' => $company->getPhoneNumber(),
-                'id_copy' => $company->getIdCopy(),
-                'power_of_attorney' => $company->getPowerOfAttorney()
-            ]
+            'data' => $company->toArray()
         ]);
     }
 
@@ -96,19 +71,7 @@ class CompanyController extends AbstractController
         
         $data = [];
         foreach ($companies as $company) {
-            $data[] = [
-                'id' => $company->getId(),
-                'company_names' => $company->getCompanyNames(),
-                'full_name' => $company->getFullName(),
-                'surname' => $company->getSurname(),
-                'id_number' => $company->getIdNumber(),
-                'residential_address' => $company->getResidentialAddress(),
-                'company_address' => $company->getCompanyAddress(),
-                'email_address' => $company->getEmailAddress(),
-                'phone_number' => $company->getPhoneNumber(),
-                'id_copy' => $company->getIdCopy(),
-                'power_of_attorney' => $company->getPowerOfAttorney()
-            ];
+            $data[] = $company->toArray();
         }
 
         return $this->json([
@@ -135,19 +98,7 @@ class CompanyController extends AbstractController
             return $this->json([
                 'status' => 'OK',
                 'message' => 'Company updated successfully',
-                'data' => [
-                    'id' => $company->getId(),
-                    'company_names' => $company->getCompanyNames(),
-                    'full_name' => $company->getFullName(),
-                    'surname' => $company->getSurname(),
-                    'id_number' => $company->getIdNumber(),
-                    'residential_address' => $company->getResidentialAddress(),
-                    'company_address' => $company->getCompanyAddress(),
-                    'email_address' => $company->getEmailAddress(),
-                    'phone_number' => $company->getPhoneNumber(),
-                    'id_copy' => $company->getIdCopy(),
-                    'power_of_attorney' => $company->getPowerOfAttorney()
-                ]
+                'data' => $company->toArray()
             ]);
         } catch (\Exception $e) {
             return $this->json([
@@ -202,5 +153,89 @@ class CompanyController extends AbstractController
                 'status' => $company->getStatus()
             ]
         ]);
+    }
+
+    #[Route('/enterprise-number/{enterpriseNumber}', methods: ['GET'])]
+    public function getByEnterpriseNumber(string $enterpriseNumber): JsonResponse
+    {
+        $company = $this->companyService->getCompanyByEnterpriseNumber($enterpriseNumber);
+
+        if (!$company) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Company not found'
+            ], 404);
+        }
+
+        return $this->json([
+            'status' => 'OK',
+            'data' => $company->toArray()
+        ]);
+    }
+
+    #[Route('/type/{enterpriseType}', methods: ['GET'])]
+    public function getByEnterpriseType(string $enterpriseType): JsonResponse
+    {
+        $companies = $this->companyService->getCompaniesByEnterpriseType($enterpriseType);
+        
+        $data = [];
+        foreach ($companies as $company) {
+            $data[] = $company->toArray();
+        }
+
+        return $this->json([
+            'status' => 'OK',
+            'data' => $data
+        ]);
+    }
+
+    #[Route('/status/{enterpriseStatus}', methods: ['GET'])]
+    public function getByEnterpriseStatus(string $enterpriseStatus): JsonResponse
+    {
+        $companies = $this->companyService->getCompaniesByEnterpriseStatus($enterpriseStatus);
+        
+        $data = [];
+        foreach ($companies as $company) {
+            $data[] = $company->toArray();
+        }
+
+        return $this->json([
+            'status' => 'OK',
+            'data' => $data
+        ]);
+    }
+
+    #[Route('/upsert', methods: ['POST'])]
+    public function createOrUpdate(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        
+        // Validate required fields using the service validation
+        $validationErrors = $this->companyService->validateCompanyData($data);
+        if (!empty($validationErrors)) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Validation failed',
+                'errors' => $validationErrors
+            ], 400);
+        }
+
+        try {
+            $company = $this->companyService->createOrUpdateCompany($data);
+            
+            $action = $company->getId() ? 'updated' : 'created';
+            
+            return $this->json([
+                'status' => 'OK',
+                'message' => "Company {$action} successfully",
+                'data' => $company->toArray(),
+                'action' => $action
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'status' => 'NOK',
+                'message' => 'Failed to create or update company: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 

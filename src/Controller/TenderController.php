@@ -43,6 +43,27 @@ class TenderController extends AbstractController
         ]);
     }
 
+    #[Route('/basic', name: 'tender_index_basic', methods: ['GET'])]
+    public function indexBasic(Request $request): JsonResponse
+    {
+        $page = $request->query->getInt('page', 1);
+        $limit = $request->query->getInt('limit', 10);
+        $category = $request->query->get('category');
+        $province = $request->query->get('province');
+        $organOfState = $request->query->get('organOfState');
+
+        $tenders = $this->tenderService->getTenders($page, $limit, $category, $province, $organOfState);
+        
+        // Keep successfulBidders in the response (no filtering needed)
+        // The tenders array already includes successfulBidders from the service
+
+        return $this->json([
+            'success' => true,
+            'data' => $tenders,
+            'message' => 'Tenders details retrieved successfully'
+        ]);
+    }
+
     #[Route('/{id}', name: 'tender_show', methods: ['GET'])]
     public function show(int $id): JsonResponse
     {
@@ -59,6 +80,25 @@ class TenderController extends AbstractController
             'success' => true,
             'data' => $tender->toArray(),
             'message' => 'Tender retrieved successfully'
+        ]);
+    }
+
+    #[Route('/{id}/basic', name: 'tender_show_basic', methods: ['GET'])]
+    public function showBasic(int $id): JsonResponse
+    {
+        $tender = $this->tenderRepository->find($id);
+
+        if (!$tender) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Tender not found'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->json([
+            'success' => true,
+            'data' => $tender->toArrayWithBidders(),
+            'message' => 'Tender details retrieved successfully'
         ]);
     }
 

@@ -298,4 +298,26 @@ class Tender
             'updated' => $this->updated->format('Y-m-d H:i:s'),
         ];
     }
+
+    public function toArrayWithBidders(): array
+    {
+        return [
+            'id' => $this->id,
+            'category' => $this->category,
+            'tenderDescription' => $this->tenderDescription,
+            'advertisedAt' => $this->advertisedAt?->format('Y-m-d H:i:s'),
+            'awardedAt' => $this->awardedAt?->format('Y-m-d H:i:s'),
+            'tenderNumber' => $this->tenderNumber,
+            'organOfState' => $this->organOfState,
+            'province' => $this->province,
+            'closingDate' => $this->closingDate->format('Y-m-d H:i:s'),
+            'placeWhereGoodsWorksOrServicesAreRequired' => $this->placeWhereGoodsWorksOrServicesAreRequired,
+            'contactPerson' => $this->contactPerson,
+            'email' => $this->email,
+            'telephoneNumber' => $this->telephoneNumber,
+            'successfulBidders' => $this->successfulBidders,
+            'created' => $this->created->format('Y-m-d H:i:s'),
+            'updated' => $this->updated->format('Y-m-d H:i:s'),
+        ];
+    }
 } 

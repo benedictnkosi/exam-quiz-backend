@@ -16,35 +16,29 @@ class Company
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'json')]
-    private array $companyNames = [];
+    #[ORM\Column(length: 255, unique: true)]
+    private ?string $enterpriseNumber = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $fullName = null;
+    private ?string $enterpriseName = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $surname = null;
+    #[ORM\Column(length: 100)]
+    private ?string $enterpriseType = null;
 
-    #[ORM\Column(length: 50)]
-    private ?string $idNumber = null;
-
-    #[ORM\Column(type: 'text')]
-    private ?string $residentialAddress = null;
-
-    #[ORM\Column(type: 'text')]
-    private ?string $companyAddress = null;
-
-    #[ORM\Column(length: 255)]
-    private ?string $emailAddress = null;
-
-    #[ORM\Column(length: 50)]
-    private ?string $phoneNumber = null;
+    #[ORM\Column(length: 100)]
+    private ?string $enterpriseStatus = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $idCopy = null;
+    private ?string $complianceNotice = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $powerOfAttorney = null;
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $registrationDate = null;
+
+    #[ORM\Column(type: 'text')]
+    private ?string $physicalAddress = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $postalAddress = null;
 
     #[ORM\Column(length: 32, options: ['default' => 'active'])]
     private ?string $status = 'active';
@@ -62,113 +56,91 @@ class Company
         return $this->id;
     }
 
-    public function getCompanyNames(): array
+    public function getEnterpriseNumber(): ?string
     {
-        return $this->companyNames;
+        return $this->enterpriseNumber;
     }
 
-    public function setCompanyNames(array $companyNames): self
+    public function setEnterpriseNumber(string $enterpriseNumber): self
     {
-        $this->companyNames = $companyNames;
+        $this->enterpriseNumber = $enterpriseNumber;
         return $this;
     }
 
-    public function getFullName(): ?string
+    public function getEnterpriseName(): ?string
     {
-        return $this->fullName;
+        return $this->enterpriseName;
     }
 
-    public function setFullName(string $fullName): self
+    public function setEnterpriseName(string $enterpriseName): self
     {
-        $this->fullName = $fullName;
+        $this->enterpriseName = $enterpriseName;
         return $this;
     }
 
-    public function getSurname(): ?string
+    public function getEnterpriseType(): ?string
     {
-        return $this->surname;
+        return $this->enterpriseType;
     }
 
-    public function setSurname(string $surname): self
+    public function setEnterpriseType(string $enterpriseType): self
     {
-        $this->surname = $surname;
+        $this->enterpriseType = $enterpriseType;
         return $this;
     }
 
-    public function getIdNumber(): ?string
+    public function getEnterpriseStatus(): ?string
     {
-        return $this->idNumber;
+        return $this->enterpriseStatus;
     }
 
-    public function setIdNumber(string $idNumber): self
+    public function setEnterpriseStatus(string $enterpriseStatus): self
     {
-        $this->idNumber = $idNumber;
+        $this->enterpriseStatus = $enterpriseStatus;
         return $this;
     }
 
-    public function getResidentialAddress(): ?string
+    public function getComplianceNotice(): ?string
     {
-        return $this->residentialAddress;
+        return $this->complianceNotice;
     }
 
-    public function setResidentialAddress(string $residentialAddress): self
+    public function setComplianceNotice(?string $complianceNotice): self
     {
-        $this->residentialAddress = $residentialAddress;
+        $this->complianceNotice = $complianceNotice;
         return $this;
     }
 
-    public function getCompanyAddress(): ?string
+    public function getRegistrationDate(): ?\DateTimeInterface
     {
-        return $this->companyAddress;
+        return $this->registrationDate;
     }
 
-    public function setCompanyAddress(string $companyAddress): self
+    public function setRegistrationDate(?\DateTimeInterface $registrationDate): self
     {
-        $this->companyAddress = $companyAddress;
+        $this->registrationDate = $registrationDate;
         return $this;
     }
 
-    public function getEmailAddress(): ?string
+    public function getPhysicalAddress(): ?string
     {
-        return $this->emailAddress;
+        return $this->physicalAddress;
     }
 
-    public function setEmailAddress(string $emailAddress): self
+    public function setPhysicalAddress(string $physicalAddress): self
     {
-        $this->emailAddress = $emailAddress;
+        $this->physicalAddress = $physicalAddress;
         return $this;
     }
 
-    public function getPhoneNumber(): ?string
+    public function getPostalAddress(): ?string
     {
-        return $this->phoneNumber;
+        return $this->postalAddress;
     }
 
-    public function setPhoneNumber(string $phoneNumber): self
+    public function setPostalAddress(?string $postalAddress): self
     {
-        $this->phoneNumber = $phoneNumber;
-        return $this;
-    }
-
-    public function getIdCopy(): ?string
-    {
-        return $this->idCopy;
-    }
-
-    public function setIdCopy(?string $idCopy): self
-    {
-        $this->idCopy = $idCopy;
-        return $this;
-    }
-
-    public function getPowerOfAttorney(): ?string
-    {
-        return $this->powerOfAttorney;
-    }
-
-    public function setPowerOfAttorney(?string $powerOfAttorney): self
-    {
-        $this->powerOfAttorney = $powerOfAttorney;
+        $this->postalAddress = $postalAddress;
         return $this;
     }
 
@@ -211,5 +183,21 @@ class Company
         }
 
         return $this;
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'enterpriseNumber' => $this->enterpriseNumber,
+            'enterpriseName' => $this->enterpriseName,
+            'enterpriseType' => $this->enterpriseType,
+            'enterpriseStatus' => $this->enterpriseStatus,
+            'complianceNotice' => $this->complianceNotice,
+            'registrationDate' => $this->registrationDate?->format('Y-m-d'),
+            'physicalAddress' => $this->physicalAddress,
+            'postalAddress' => $this->postalAddress,
+            'status' => $this->status,
+        ];
     }
 } 

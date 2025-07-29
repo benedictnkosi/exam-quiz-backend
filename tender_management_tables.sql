@@ -31,30 +31,29 @@ CREATE TABLE tenders (
     INDEX tender_updated_idx (updated)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB;
 
--- =====================================================
--- TENDER COMPANIES TABLE (if not already exists)
--- =====================================================
+
 CREATE TABLE IF NOT EXISTS tender_companies (
-    id INT AUTO_INCREMENT NOT NULL,
-    company_names JSON NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    surname VARCHAR(255) NOT NULL,
-    id_number VARCHAR(50) NOT NULL,
-    residential_address LONGTEXT NOT NULL,
-    company_address LONGTEXT NOT NULL,
-    email_address VARCHAR(255) NOT NULL,
-    phone_number VARCHAR(50) NOT NULL,
-    id_copy VARCHAR(255) DEFAULT NULL,
-    power_of_attorney VARCHAR(255) DEFAULT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'active',
-    created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY(id),
-    INDEX company_status_idx (status),
-    INDEX company_id_number_idx (id_number),
-    INDEX company_email_idx (email_address),
-    INDEX company_created_idx (created)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB;
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_number VARCHAR(255) UNIQUE NOT NULL,
+    enterprise_name VARCHAR(255) NOT NULL,
+    enterprise_type VARCHAR(100) NOT NULL,
+    enterprise_status VARCHAR(100) NOT NULL,
+    compliance_notice VARCHAR(255) NULL,
+    registration_date DATE NULL,
+    physical_address TEXT NOT NULL,
+    postal_address TEXT NULL,
+    status VARCHAR(32) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    -- Indexes for better performance
+    INDEX idx_enterprise_number (enterprise_number),
+    INDEX idx_enterprise_name (enterprise_name),
+    INDEX idx_enterprise_type (enterprise_type),
+    INDEX idx_enterprise_status (enterprise_status),
+    INDEX idx_status (status)
+);
+
 
 -- =====================================================
 -- TENDER BID WINNERS TABLE

@@ -366,7 +366,7 @@ class TwitterNewsService
         $summary = $this->trimSummaryForTwitter($summary);
         
         // Add the URL (this will always fit since we reserved space for it)
-        $summary .= " Track politicians on https://shadymeter.com";
+        $summary .= " Track politicians on https://corruptionbot.com";
         
         return $summary;
     }
@@ -477,7 +477,7 @@ class TwitterNewsService
      */
     private function trimSummaryForTwitter(string $text): string
     {
-        $url = " read more on https://shadymeter.com";
+        $url = " read more on https://corruptionbot.com";
         $maxSummaryLength = 280 - strlen($url);
         
         if (strlen($text) > $maxSummaryLength) {

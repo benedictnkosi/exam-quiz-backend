@@ -56,6 +56,53 @@
 					"response": []
 				},
 				{
+					"name": "Get All Tenders Basic (No Bid Winners)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/basic?page=1&limit=10&category=Construction&province=Gauteng&organOfState=Department of Public Works",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"basic"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								},
+								{
+									"key": "category",
+									"value": "Construction",
+									"description": "Filter by category"
+								},
+								{
+									"key": "province",
+									"value": "Gauteng",
+									"description": "Filter by province"
+								},
+								{
+									"key": "organOfState",
+									"value": "Department of Public Works",
+									"description": "Filter by organ of state"
+								}
+							]
+						},
+						"description": "Get all tenders with optional filtering and pagination, including bid winner details"
+					},
+					"response": []
+				},
+				{
 					"name": "Get Tender by ID",
 					"request": {
 						"method": "GET",
@@ -72,6 +119,27 @@
 							]
 						},
 						"description": "Get a specific tender by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tender Basic Details (No Bid Winners)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/tenders/1/basic",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenders",
+								"1",
+								"basic"
+							]
+						},
+						"description": "Get a specific tender by ID with bid winner details"
 					},
 					"response": []
 				},
@@ -842,7 +910,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"companyNames\": [\"ABC Construction Ltd\", \"ABC Construction\"],\n    \"fullName\": \"John\",\n    \"surname\": \"Doe\",\n    \"idNumber\": \"8001015009087\",\n    \"residentialAddress\": \"123 Main Street, Pretoria\",\n    \"companyAddress\": \"456 Business Park, Johannesburg\",\n    \"emailAddress\": \"john.doe@abcconstruction.com\",\n    \"phoneNumber\": \"+27 11 123 4567\",\n    \"status\": \"active\"\n}"
+							"raw": "{\n    \"enterprise_number\": \"K2022836785\",\n    \"enterprise_name\": \"ALUVE GUESTHOUSE\",\n    \"enterprise_type\": \"Private Company\",\n    \"enterprise_status\": \"In Business\",\n    \"compliance_notice\": \"NONE\",\n    \"registration_date\": \"2022-11-18\",\n    \"physical_address\": \"187 KITCHENER AVENUE\\nKENSINGTON\\nJHB\\nGAUTENG\\n2194\",\n    \"postal_address\": null,\n    \"status\": \"active\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/companies",
@@ -854,7 +922,36 @@
 								"companies"
 							]
 						},
-						"description": "Create a new company"
+						"description": "Create a new company with enterprise details (will fail if enterprise number already exists)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create or Update Company (Upsert)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"enterprise_number\": \"K2022836785\",\n    \"enterprise_name\": \"ALUVE GUESTHOUSE UPDATED\",\n    \"enterprise_type\": \"Private Company\",\n    \"enterprise_status\": \"In Business\",\n    \"compliance_notice\": \"NONE\",\n    \"registration_date\": \"2022-11-18\",\n    \"physical_address\": \"187 KITCHENER AVENUE\\nKENSINGTON\\nJHB\\nGAUTENG\\n2194\",\n    \"postal_address\": null,\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/companies/upsert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"upsert"
+							]
+						},
+						"description": "Create a new company or update existing one based on enterprise number"
 					},
 					"response": []
 				},
@@ -904,6 +1001,69 @@
 							]
 						},
 						"description": "Delete a company"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Company by Enterprise Number",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/enterprise-number/K2022836785",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"enterprise-number",
+								"K2022836785"
+							]
+						},
+						"description": "Get a company by its enterprise number"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Companies by Enterprise Type",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/type/Private Company",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"type",
+								"Private Company"
+							]
+						},
+						"description": "Get all companies by enterprise type"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Companies by Enterprise Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/status/In Business",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"companies",
+								"status",
+								"In Business"
+							]
+						},
+						"description": "Get all companies by enterprise status"
 					},
 					"response": []
 				}
