@@ -1,13 +1,4 @@
 {
-    "doctrine/annotations": {
-        "version": "2.0",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "1.10",
-            "ref": "64d8583af5ea57b7afa4aba4b159907f3a148b05"
-        }
-    },
     "doctrine/deprecations": {
         "version": "1.1",
         "recipe": {
@@ -150,15 +141,6 @@
             "config/packages/mailer.yaml"
         ]
     },
-    "symfony/mailgun-mailer": {
-        "version": "6.4",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "4.4",
-            "ref": "addcb559b32d9dbb4843826b063565e1b15a2a57"
-        }
-    },
     "symfony/maker-bundle": {
         "version": "1.62",
         "recipe": {
@@ -195,15 +177,6 @@
             "tests/bootstrap.php"
         ]
     },
-    "symfony/postmark-mailer": {
-        "version": "6.4",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "4.4",
-            "ref": "631f81f2fbf58126ae699a04b1d0984442613a19"
-        }
-    },
     "symfony/routing": {
         "version": "6.4",
         "recipe": {
@@ -216,15 +189,6 @@
             "config/packages/routing.yaml",
             "config/routes.yaml"
         ]
-    },
-    "symfony/sendgrid-mailer": {
-        "version": "6.4",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "4.4",
-            "ref": "224aedffb66812dc2b0965dabc14d5f800941da6"
-        }
     },
     "symfony/twig-bundle": {
         "version": "6.4",
@@ -239,20 +203,8 @@
             "templates/base.html.twig"
         ]
     },
-    "symfony/uid": {
-        "version": "6.4",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "6.2",
-            "ref": "d294ad4add3e15d7eb1bae0221588ca89b38e558"
-        },
-        "files": [
-            "config/packages/uid.yaml"
-        ]
-    },
     "symfony/validator": {
-        "version": "6.4",
+        "version": "6.3",
         "recipe": {
             "repo": "github.com/symfony/recipes",
             "branch": "main",

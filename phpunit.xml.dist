@@ -17,19 +17,6 @@
         <!-- ###+ symfony/mailer ### -->
         <env name="MAILER_DSN" value="null://null"/>
         <!-- ###- symfony/mailer ### -->
-
-        <!-- ###+ symfony/mailgun-mailer ### -->
-        <!-- MAILER_DSN=mailgun://KEY:DOMAIN@default?region=us -->
-        <!-- MAILER_DSN=mailgun+smtp://USERNAME:PASSWORD@default?region=us -->
-        <!-- ###- symfony/mailgun-mailer ### -->
-
-        <!-- ###+ symfony/postmark-mailer ### -->
-        <!-- MAILER_DSN=postmark://ID@default -->
-        <!-- ###- symfony/postmark-mailer ### -->
-
-        <!-- ###+ symfony/sendgrid-mailer ### -->
-        <!-- MAILER_DSN=sendgrid://KEY@default -->
-        <!-- ###- symfony/sendgrid-mailer ### -->
     </php>
 
     <testsuites>
