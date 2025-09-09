@@ -9,11 +9,11 @@ class WhatsAppService
 {
     private const API_BASE_URL = 'https://7103.api.greenapi.com';
     private const INSTANCE_ID = '7103294985';
-    private const API_TOKEN = '7392f1117af945f7be1e701af8bb205e22168b8cd1314eea90';
 
     public function __construct(
         private HttpClientInterface $httpClient,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private string $apiToken
     ) {}
 
     /**
@@ -29,7 +29,7 @@ class WhatsAppService
                 '%s/waInstance%s/sendMessage/%s',
                 self::API_BASE_URL,
                 self::INSTANCE_ID,
-                self::API_TOKEN
+                $this->apiToken
             );
 
             $payload = [
@@ -148,4 +148,4 @@ class WhatsAppService
         $message = "🧪 *Test Message*\n\nThis is a test message from your Tender Alert System. If you receive this, your WhatsApp notifications are working correctly! ✅";
         return $this->sendMessage($phoneNumber, $message);
     }
-} 
+}

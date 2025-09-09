@@ -60,7 +60,8 @@ services:
             $apiSecret: "%env(SMS_API_SECRET)%"
 
     App\Service\WhatsAppService:
-        arguments: []
+        arguments:
+            $apiToken: "%env(WHATSAPP_API_TOKEN)%"
 
     App\Service\LearnerEventService:
         arguments:
