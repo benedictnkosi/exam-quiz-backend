@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\EmailService;
+use App\Service\WhatsAppService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,10 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
 class EmailController extends AbstractController
 {
     private EmailService $emailService;
+    private WhatsAppService $whatsAppService;
 
-    public function __construct(EmailService $emailService)
+    public function __construct(EmailService $emailService, WhatsAppService $whatsAppService)
     {
         $this->emailService = $emailService;
+        $this->whatsAppService = $whatsAppService;
     }
 
     #[Route('/api/send-email', name: 'send_email', methods: ['POST'])]
@@ -57,12 +60,37 @@ class EmailController extends AbstractController
         $orderValue = $data['order_value'] ?? null;
         $orderUrl = $data['order_url'] ?? null;
         $products = $data['products'] ?? null;
+        $phoneNumber = $data['phone_number'] ?? null;
 
         if (!$to || !$orderNumber || !$orderValue || !$orderUrl) {
             return $this->json([
                 'success' => false,
                 'message' => 'Missing required fields: to, order_number, order_value, order_url.'
             ], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Send WhatsApp notification if phone number provided
+        if (!empty($phoneNumber)) {
+            $messageLines = [];
+            $messageLines[] = "🛒 New Order Received";
+            $messageLines[] = "Order #: " . (string)$orderNumber;
+            $messageLines[] = "Total: R" . (string)$orderValue;
+            if (!empty($products) && is_array($products)) {
+                $messageLines[] = "Items:";
+                foreach ($products as $product) {
+                    $name = $product['name'] ?? 'Item';
+                    $qty = $product['quantity'] ?? $product['qty'] ?? 1;
+                    $price = $product['price'] ?? null;
+                    $line = " - {$name} x{$qty}";
+                    if ($price !== null) {
+                        $line .= " @ R{$price}";
+                    }
+                    $messageLines[] = $line;
+                }
+            }
+            $messageLines[] = "View order: " . (string)$orderUrl;
+            $waMessage = implode("\n", $messageLines);
+            $this->whatsAppService->sendMessage((string)$phoneNumber, $waMessage);
         }
 
         $success = $this->emailService->sendNewOrderEmail($to, $orderNumber, $orderValue, $orderUrl, $products);
