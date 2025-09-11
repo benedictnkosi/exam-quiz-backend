@@ -22,6 +22,10 @@ class WhatsAppService
     public function sendMessage(string $phoneNumber, string $message): bool
     {
         try {
+            // If phone number starts with 0, replace leading 0 with +27
+            if (str_starts_with($phoneNumber, '0')) {
+                $phoneNumber = '+27' . substr($phoneNumber, 1);
+            }
             // Format phone number for WhatsApp (remove any non-digits and add @c.us)
             $formattedPhoneNumber = $this->formatPhoneNumber($phoneNumber);
             
