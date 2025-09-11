@@ -60,7 +60,7 @@ class EmailController extends AbstractController
         $orderValue = $data['order_value'] ?? null;
         $orderUrl = $data['order_url'] ?? null;
         $products = $data['products'] ?? null;
-        $phoneNumber = $data['phone_number'] ?? null;
+        $phoneNumber = $data['phone'] ?? null;
 
         if (!$to || !$orderNumber || !$orderValue || !$orderUrl) {
             return $this->json([
