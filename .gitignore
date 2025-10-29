@@ -43,3 +43,6 @@
 /public/assets/languages/*
 !/public/assets/languages/.gitkeep
 /public/uploads/
+
+# Google client secrets and other credentials
+client_secret_*.json

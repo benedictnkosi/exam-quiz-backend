@@ -15,15 +15,17 @@ class OpenAIService
     private string $apiKey;
     private string $apiUrl = 'https://api.openai.com/v1/chat/completions';
     private EntityManagerInterface $entityManager;
+    private LoggerInterface $logger;
 
     public function __construct(
         string $openaiApiKey,
-        private readonly LoggerInterface $logger,
+        LoggerInterface $logger,
         EntityManagerInterface $entityManager
     ) {
         $this->client = HttpClient::create();
         $this->apiKey = $openaiApiKey;
         $this->entityManager = $entityManager;
+        $this->logger = $logger;
     }
 
     public function getClient(): HttpClientInterface
@@ -901,6 +903,441 @@ Format your response as follows:
         } catch (\Exception $e) {
             $this->logger->error('OpenAI API Error (generateNearbyMenusByType): ' . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Create a satirical news video script from a transcript file ID targeting a duration in seconds.
+     * Returns the script as a string, ready to read aloud.
+     * 
+     * @param string $fileId The OpenAI file ID containing the transcript
+     * @param int $maxStories Maximum number of stories to include
+     * @param int $targetSeconds Target duration in seconds
+     * @param string $anchorName The name of the news anchor (default: "Dan")
+     * @return string
+     */
+    public function generateVideoScriptFromFileId(string $fileId, int $maxStories = 5, int $targetSeconds = 60, string $anchorName = 'Dan'): string
+    {
+        $wordsPerSecond = 2.6;
+        $targetWords = (int)round($targetSeconds * $wordsPerSecond);
+        $minWords = max(30, (int)floor($targetWords * 0.9));
+        $maxWords = (int)ceil($targetWords * 1.1);
+
+        // Customize intro and outro based on anchor name
+        $taglines = [
+            'Ammy' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Ammy — here's your commission of comedy.",
+                'outro' => "That's your commission of comedy — where the evidence is circumstantial, but the laughs are solid. Goodnight, South Africa."
+            ],
+            'Sam' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Sam — here's your parliamentary punchline.",
+                'outro' => "That's your parliamentary punchline — where the debates are heated, but the jokes are hotter. Goodnight, South Africa."
+            ],
+            'Dan' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Dan — here's your daily dose of drama.",
+                'outro' => "That's your daily dose of drama — where the scandals are serious, but the anchor isn't. Goodnight, South Africa."
+            ]
+        ];
+        
+        $anchorTaglines = $taglines[$anchorName] ?? $taglines['Dan'];
+        $introLine = $anchorTaglines['intro'];
+        $outroLine = $anchorTaglines['outro'];
+
+        $rules = <<<TXT
+TONE & STYLE
+- Satirical, smart, confident — calm under chaos, amused by absurdity.
+- Daily Show meets SABC bulletin.
+- Sentences under 20 words. Sharp, fast, punchy.
+- Use irony and understatement, not sarcasm.
+- Mix real facts with light, clever commentary.
+- Natural to read aloud near the target duration.
+- Always end on humour, optimism, or a wink.
+
+STRUCTURE
+INTRO (5–8s) — EXACT lines (do not change):
+"{$introLine}"
+Optionally add [Music fades].
+
+MAIN STORIES (descending importance)
+1) National/Political drama — strong, confident, slight mock: "Only in SA"
+2) Corruption/Commission/Crime — dry wit: "Another plot twist"
+3) Social/Economic — light humour or empathy
+4) Lifestyle/Global/Feel-good — playful uplift
+5) Comic relief — fun or hopeful closer
+Each story: 1–2 factual sentences + 1 punchline.
+
+OUTRO — CONSISTENT line:
+"{$outroLine}"
+Allowed alternates occasionally:
+- "That’s your daily dose of drama — where the evidence is cold, the humour’s hot."
+- "We laugh before we cry, and then we laugh again. Goodnight, Mzansi."
+
+LENGTH & PACING (duration target)
+- Target {$targetSeconds}s total. Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} wps).
+- Each story: 1–2 factual sentences + 1 short punchline. Max stories: {$maxStories}.
+
+HUMOUR RULES
+- Use irony, wordplay, understatement, light self-awareness.
+- Avoid mocking victims, real tragedy, or communities.
+- No partisan bias. Avoid short-lived internet slang.
+
+BRAND
+- Keep Why So Serious News + {$anchorName}'s tagline.
+- Professional yet playful; add one quick credible fact/quote.
+- Optionally mark music cues: [Music], [Music fades].
+TXT;
+
+        $prompt = <<<PR
+You will write a satirical news script using the RULES below for a target duration of {$targetSeconds} seconds.
+
+Source transcript (summarize into 4–5 stories, keep facts accurate):
+Please analyze the transcript from the uploaded file and create a script based on its content.
+
+OUTPUT REQUIREMENTS
+- Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} words/second) for ~{$targetSeconds}s.
+- Up to {$maxStories} stories.
+- Each story: 1–2 factual sentences + 1 short punchline sentence.
+- Keep sentences under 18 words.
+- Start with BOTH exact INTRO lines merged into the paragraph:
+  "{$introLine}"
+- End with one OUTRO line.
+- Do not include any explanation outside the script.
+- Include at least one short verifiable fact from the transcript.
+
+STRICT OUTPUT FORMAT (PLAIN PARAGRAPH)
+- Do NOT include headings, labels, brackets, tags, numbering, or list markers.
+- Output as ONE single paragraph with no line breaks and no \n characters.
+- No extra whitespace or blank lines.
+
+RULES
+{$rules}
+PR;
+
+        try {
+            $response = $this->client->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'You are a seasoned satirical news writer for a bulletin. You strictly follow style, length, and brand rules and aim to match the target duration.'
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt
+                        ]
+                    ],
+                    'temperature' => 0.5,
+                    'max_tokens' => 1200
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $script = trim($data['choices'][0]['message']['content'] ?? '');
+            if ($script === '') {
+                return 'Failed to generate script.';
+            }
+            // Enforce approximate length around target
+            $words = preg_split('/\s+/', strip_tags($script));
+            $count = is_array($words) ? count($words) : 0;
+            if ($count < $minWords || $count > $maxWords) {
+                // Second-pass adjustment request to hit the window
+                try {
+                    $rewritePrompt = "Rewrite the following as ONE paragraph, no line breaks, no numbering. Keep the exact intro and a valid outro. Aim for {$minWords}-{$maxWords} words. Keep sentences under 18 words. Max {$maxStories} stories. Script: '" . $script . "'";
+                    $resp2 = $this->client->request('POST', $this->apiUrl, [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $this->apiKey,
+                            'Content-Type' => 'application/json',
+                        ],
+                        'json' => [
+                            'model' => 'gpt-4o-mini',
+                            'messages' => [
+                                [ 'role' => 'system', 'content' => 'You compress scripts to exact word budgets without changing specified required lines.' ],
+                                [ 'role' => 'user', 'content' => $rewritePrompt ],
+                            ],
+                            'temperature' => 0.3,
+                            'max_tokens' => 1200,
+                        ],
+                    ]);
+                    $d2 = json_decode($resp2->getContent(), true);
+                    $s2 = trim($d2['choices'][0]['message']['content'] ?? '');
+                    if ($s2 !== '') {
+                        $script = $s2;
+                        $words = preg_split('/\s+/', strip_tags($script));
+                        $count = is_array($words) ? count($words) : 0;
+                    }
+                } catch (\Exception $e) {
+                    // fall through
+                }
+            }
+            // No final hard clamp for long-form targets to preserve coherence
+            $this->logger->info('Generated video script from transcript', [ 'approx_words' => is_array($words) ? count($words) : null ]);
+            return $script;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateVideoScriptFromTranscript): ' . $e->getMessage());
+            return 'Failed to generate script due to an API error.';
+        }
+    }
+
+    /**
+     * Simplify South African names that AI struggles to pronounce correctly.
+     */
+    private function simplifySouthAfricanNames(string $text): string
+    {
+        $replacements = [
+            'Bheki Cele' => 'Bheki',
+            'Senzo Mchunu' => 'Senzo',
+            'matlala' => '',
+            'Nhlanhla Mkhwanazi' => 'Mkhwanazi',
+        ];
+
+        foreach ($replacements as $fullName => $shortName) {
+            $text = str_ireplace($fullName, $shortName, $text);
+        }
+
+        return $text;
+    }
+
+    /**
+     * Upload a file to OpenAI and return the file ID
+     */
+    public function uploadTranscriptFile(string $filePath, string $purpose = 'assistants'): ?string
+    {
+        try {
+            // Create multipart form data manually
+            $boundary = uniqid();
+            $fileContent = file_get_contents($filePath);
+            $fileName = basename($filePath);
+            
+            $body = "--{$boundary}\r\n";
+            $body .= "Content-Disposition: form-data; name=\"file\"; filename=\"{$fileName}\"\r\n";
+            $body .= "Content-Type: text/plain\r\n\r\n";
+            $body .= $fileContent . "\r\n";
+            $body .= "--{$boundary}\r\n";
+            $body .= "Content-Disposition: form-data; name=\"purpose\"\r\n\r\n";
+            $body .= $purpose . "\r\n";
+            $body .= "--{$boundary}--\r\n";
+
+            $response = $this->client->request('POST', 'https://api.openai.com/v1/files', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => "multipart/form-data; boundary={$boundary}",
+                ],
+                'body' => $body
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            return $data['id'] ?? null;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI file upload error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Delete a file from OpenAI
+     */
+    public function deleteTranscriptFile(string $fileId): bool
+    {
+        try {
+            $this->client->request('DELETE', "https://api.openai.com/v1/files/{$fileId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                ]
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI file deletion error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create a satirical news video script from a transcript targeting a duration in seconds.
+     * Returns the script as a string, ready to read aloud.
+     * 
+     * @param string $transcript The source transcript
+     * @param int $maxStories Maximum number of stories to include
+     * @param int $targetSeconds Target duration in seconds
+     * @param string $anchorName The name of the news anchor (default: "Dan")
+     * @return string
+     */
+    public function generateVideoScriptFromTranscript(string $transcript, int $maxStories = 5, int $targetSeconds = 60, string $anchorName = 'Dan'): string
+    {
+        $wordsPerSecond = 2.6;
+        $targetWords = (int)round($targetSeconds * $wordsPerSecond);
+        $minWords = max(30, (int)floor($targetWords * 0.9));
+        $maxWords = (int)ceil($targetWords * 1.1);
+
+        // Customize intro and outro based on anchor name
+        $taglines = [
+            'Ammy' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Ammy — here's your commission of comedy.",
+                'outro' => "That's your commission of comedy — where the evidence is circumstantial, but the laughs are solid. Goodnight, Mzansi."
+            ],
+            'Sam' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Sam — here's your parliamentary punchline.",
+                'outro' => "That's your parliamentary punchline — where the debates are heated, but the jokes are hotter. Goodnight, Mzansi."
+            ],
+            'Dan' => [
+                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Dan — here's your daily dose of drama.",
+                'outro' => "That's your daily dose of drama — where the scandals are serious, but the anchor isn't. Goodnight, Mzansi."
+            ]
+        ];
+        
+        $anchorTaglines = $taglines[$anchorName] ?? $taglines['Dan'];
+        $introLine = $anchorTaglines['intro'];
+        $outroLine = $anchorTaglines['outro'];
+
+        $rules = <<<TXT
+TONE & STYLE
+- Satirical, smart, confident — calm under chaos, amused by absurdity.
+- Daily Show meets SABC bulletin.
+- Sentences under 20 words. Sharp, fast, punchy.
+- Use irony and understatement, not sarcasm.
+- Mix real facts with light, clever commentary.
+- Natural to read aloud near the target duration.
+- Always end on humour, optimism, or a wink.
+
+STRUCTURE
+INTRO (5–8s) — EXACT lines (do not change):
+"{$introLine}"
+Optionally add [Music fades].
+
+MAIN STORIES (descending importance)
+1) National/Political drama — strong, confident, slight mock: "Only in SA"
+2) Corruption/Commission/Crime — dry wit: "Another plot twist"
+3) Social/Economic — light humour or empathy
+4) Lifestyle/Global/Feel-good — playful uplift
+5) Comic relief — fun or hopeful closer
+Each story: 1–2 factual sentences + 1 punchline.
+
+OUTRO — CONSISTENT line:
+"{$outroLine}"
+Allowed alternates occasionally:
+- "That's your daily dose of drama — where the evidence is cold, the humour's hot."
+- "We laugh before we cry, and then we laugh again. Goodnight, Mzansi."
+
+LENGTH & PACING (duration target)
+- Target {$targetSeconds}s total. Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} wps).
+- Each story: 1–2 factual sentences + 1 short punchline. Max stories: {$maxStories}.
+
+HUMOUR RULES
+- Use irony, wordplay, understatement, light self-awareness.
+- Avoid mocking victims, real tragedy, or communities.
+- No partisan bias. Avoid short-lived internet slang.
+
+BRAND
+- Keep Why So Serious News + {$anchorName}'s tagline.
+- Professional yet playful; add one quick credible fact/quote.
+- Optionally mark music cues: [Music], [Music fades].
+TXT;
+
+        $prompt = <<<PR
+You will write a satirical news script using the RULES below for a target duration of {$targetSeconds} seconds.
+
+Source transcript (summarize into 4–5 stories, keep facts accurate):
+"""
+{$transcript}
+"""
+
+OUTPUT REQUIREMENTS
+- Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} words/second) for ~{$targetSeconds}s.
+- Up to {$maxStories} stories.
+- Each story: 1–2 factual sentences + 1 short punchline sentence.
+- Keep sentences under 18 words.
+- Start with BOTH exact INTRO lines merged into the paragraph:
+  "{$introLine}"
+- End with one OUTRO line.
+- Do not include any explanation outside the script.
+- Include at least one short verifiable fact from the transcript.
+
+STRICT OUTPUT FORMAT (PLAIN PARAGRAPH)
+- Do NOT include headings, labels, brackets, tags, numbering, or list markers.
+- Output as ONE single paragraph with no line breaks and no \n characters.
+- No extra whitespace or blank lines.
+
+RULES
+{$rules}
+PR;
+
+        try {
+            $response = $this->client->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'You are a seasoned satirical news writer for a bulletin. You strictly follow style, length, and brand rules and aim to match the target duration.'
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt
+                        ]
+                    ],
+                    'temperature' => 0.5,
+                    'max_tokens' => 1200
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $script = trim($data['choices'][0]['message']['content'] ?? '');
+            if ($script === '') {
+                return 'Failed to generate script.';
+            }
+            // Enforce approximate length around target
+            $words = preg_split('/\s+/', strip_tags($script));
+            $count = is_array($words) ? count($words) : 0;
+            if ($count < $minWords || $count > $maxWords) {
+                // Second-pass adjustment request to hit the window
+                try {
+                    $rewritePrompt = "Rewrite the following as ONE paragraph, no line breaks, no numbering. Keep the exact intro and a valid outro. Aim for {$minWords}-{$maxWords} words. Keep sentences under 18 words. Max {$maxStories} stories. Script: '" . $script . "'";
+                    $resp2 = $this->client->request('POST', $this->apiUrl, [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $this->apiKey,
+                            'Content-Type' => 'application/json',
+                        ],
+                        'json' => [
+                            'model' => 'gpt-4o-mini',
+                            'messages' => [
+                                [ 'role' => 'system', 'content' => 'You compress scripts to exact word budgets without changing specified required lines.' ],
+                                [ 'role' => 'user', 'content' => $rewritePrompt ]
+                            ],
+                            'temperature' => 0.3,
+                            'max_tokens' => 1000
+                        ]
+                    ]);
+                    $data2 = json_decode($resp2->getContent(), true);
+                    $script2 = trim($data2['choices'][0]['message']['content'] ?? '');
+                    if ($script2 !== '') {
+                        $words2 = preg_split('/\s+/', strip_tags($script2));
+                        $count2 = is_array($words2) ? count($words2) : 0;
+                        if ($count2 >= $minWords && $count2 <= $maxWords) {
+                            $script = $script2;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Ignore second-pass errors
+                }
+            }
+            // Final hard clamp if still too long
+            $words = preg_split('/\s+/', strip_tags($script));
+            if (is_array($words) && count($words) > $maxWords) {
+                $script = implode(' ', array_slice($words, 0, $maxWords));
+            }
+            $this->logger->info('Generated video script from transcript', [ 'approx_words' => is_array($words) ? count($words) : null ]);
+            return $script;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateVideoScriptFromTranscript): ' . $e->getMessage());
+            return 'Failed to generate script due to an API error.';
         }
     }
 }

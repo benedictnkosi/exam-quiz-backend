@@ -10,6 +10,7 @@
         "doctrine/doctrine-bundle": "^2.10",
         "doctrine/doctrine-migrations-bundle": "^3.2",
         "doctrine/orm": "^2.15",
+        "google/apiclient": "^2.17",
         "intervention/image": "^3.11",
         "jms/serializer-bundle": "^5.0",
         "nelmio/cors-bundle": "^2.3",

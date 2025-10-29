@@ -142,3 +142,11 @@ services:
         arguments:
             $openaiApiKey: "%openai_api_key%"
             $logger: "@logger"
+
+    App\Service\YouTubeTranscriptService:
+        arguments:
+            $transcriptApiKey: "%env(TRANSCRIPT_API_KEY)%"
+
+    App\Service\HeyGenService:
+        arguments:
+            $heyGenApiKey: "%env(HEY_GEN_API_KEY)%"
