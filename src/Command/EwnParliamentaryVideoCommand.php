@@ -265,7 +265,7 @@ class EwnParliamentaryVideoCommand extends Command
 
     private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output): void
     {
-        $publicDir = dirname(__DIR__, 3) . '/public/uploads/documents/heygen/rendered';
+        $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
         if (!is_dir($publicDir)) { @mkdir($publicDir, 0755, true); }
         $outputFile = $publicDir . '/' . $id . '.mp4';
         if (is_file($outputFile)) { $output->writeln('<info>Rendered file already exists, skipping burn.</info>'); return; }
