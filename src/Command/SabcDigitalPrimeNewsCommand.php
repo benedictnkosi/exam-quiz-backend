@@ -12,6 +12,8 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\HeyGenVideo;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Component\Process\Process;
 
 #[AsCommand(
     name: 'app:sabcdigital:scrape-prime-news',
@@ -19,6 +21,7 @@ use App\Entity\HeyGenVideo;
 )]
 class SabcDigitalPrimeNewsCommand extends Command
 {
+    use PrimeNewsBurnHelpers;
     private SabcDigitalScraper $scraper;
     private LoggerInterface $logger;
     private \App\Service\YouTubeTranscriptService $transcriptService;
@@ -26,8 +29,9 @@ class SabcDigitalPrimeNewsCommand extends Command
     private string $defaultAvatarId = '93bf36d167184854bdde4ffb3b340981';
     private string $defaultVoiceId = 'QOdz6iaNL4YniX0zO8BV';
     private EntityManagerInterface $em;
+    private HttpClientInterface $httpClient;
 
-    public function __construct(SabcDigitalScraper $scraper, LoggerInterface $logger, \App\Service\YouTubeTranscriptService $transcriptService, \App\Service\HeyGenService $heyGenService, EntityManagerInterface $em)
+    public function __construct(SabcDigitalScraper $scraper, LoggerInterface $logger, \App\Service\YouTubeTranscriptService $transcriptService, \App\Service\HeyGenService $heyGenService, EntityManagerInterface $em, HttpClientInterface $httpClient)
     {
         parent::__construct();
         $this->scraper = $scraper;
@@ -35,6 +39,7 @@ class SabcDigitalPrimeNewsCommand extends Command
         $this->transcriptService = $transcriptService;
         $this->heyGenService = $heyGenService;
         $this->em = $em;
+        $this->httpClient = $httpClient;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -139,6 +144,9 @@ class SabcDigitalPrimeNewsCommand extends Command
                                 $entity = new HeyGenVideo($title ?? 'Prime News', $videoUrl, false, $captionUrl);
                                 $this->em->persist($entity);
                                 $this->em->flush();
+
+                                // Post-process: download and burn captions now
+                                $this->burnAndCache((int)$entity->getId(), $videoUrl, $captionUrl ?? null, $output);
                             }
                         }
                     }
@@ -165,6 +173,61 @@ class SabcDigitalPrimeNewsCommand extends Command
             ->addOption('days', null, InputOption::VALUE_OPTIONAL, 'Days back to search (0=today, 1=yesterday, etc.)', 0)
             ->addOption('html-file', null, InputOption::VALUE_OPTIONAL, 'Path to a saved HTML file to parse instead of fetching')
             ->addOption('combine-ewn', null, InputOption::VALUE_NONE, 'Combine with EWN "The day that was" transcript before generating script');
+    }
+}
+
+// Helpers
+namespace App\Command;
+
+use Symfony\Component\Console\Output\OutputInterface;
+
+trait PrimeNewsBurnHelpers
+{
+    private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output): void
+    {
+        $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
+        if (!is_dir($publicDir)) { @mkdir($publicDir, 0755, true); }
+        $outputFile = $publicDir . '/' . $id . '.mp4';
+        if (is_file($outputFile)) { $output->writeln('<info>Rendered file already exists, skipping burn.</info>'); return; }
+
+        $tmpDir = sys_get_temp_dir() . '/heygen_' . $id;
+        if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0700, true); }
+        $videoTmp = $tmpDir . '/video.mp4';
+        $subsTmp = $tmpDir . '/subs.ass';
+
+        $this->downloadToFile($videoUrl, $videoTmp);
+
+        if (is_string($captionUrl) && $captionUrl !== '') {
+            $clean = preg_replace('/[?#].*$/', '', $captionUrl);
+            $ext = strtolower(pathinfo($clean ?? '', PATHINFO_EXTENSION));
+            $subsPath = $tmpDir . '/subs.' . ($ext ?: 'ass');
+            $this->downloadToFile($captionUrl, $subsPath);
+            @rename($subsPath, $subsTmp);
+        }
+
+        if (is_file($subsTmp) && filesize($subsTmp) > 0) {
+            $escaped = str_replace(':', '\\:', $subsTmp);
+            $force = "Alignment=5,MarginV=150,MarginL=40,MarginR=5,Outline=1,FontSize=20,LineSpacing=2,WrapStyle=0";
+            $filter = "subtitles='" . $escaped . "':force_style='" . $force . "'";
+            $cmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($videoTmp) . ' -vf ' . escapeshellarg($filter) . ' -c:a copy ' . escapeshellarg($outputFile);
+        } else {
+            $cmd = 'cp ' . escapeshellarg($videoTmp) . ' ' . escapeshellarg($outputFile);
+        }
+        $proc = new \Symfony\Component\Process\Process(['bash', '-lc', $cmd]);
+        $proc->setTimeout(600);
+        $proc->run();
+        if ($proc->isSuccessful()) {
+            $output->writeln('<info>Rendered video prepared: ' . $outputFile . '</info>');
+        } else {
+            $output->writeln('<comment>Burn step failed: ' . $proc->getErrorOutput() . '</comment>');
+        }
+    }
+
+    private function downloadToFile(string $url, string $dest): void
+    {
+        $response = $this->httpClient->request('GET', $url, ['timeout' => 120, 'max_redirects' => 5]);
+        $content = $response->getContent();
+        file_put_contents($dest, $content);
     }
 }
 

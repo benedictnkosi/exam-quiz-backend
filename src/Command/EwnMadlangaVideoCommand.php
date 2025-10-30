@@ -9,6 +9,7 @@ use App\Service\SabcDigitalScraper;
 use App\Service\YouTubeTranscriptService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Process\Process;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -256,6 +257,9 @@ class EwnMadlangaVideoCommand extends Command
         ]);
 
         $output->writeln('<info>Madlanga Commission video created successfully!</info>');
+        
+        // Post-process: download and burn captions now
+        $this->burnAndCache((int)$heyGenVideo->getId(), $videoUrl, $status['caption_url'] ?? null, $output);
         return Command::SUCCESS;
     }
 
@@ -371,6 +375,53 @@ class EwnMadlangaVideoCommand extends Command
         ]);
 
         return [null, null];
+    }
+
+    private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output): void
+    {
+        $publicDir = dirname(__DIR__, 3) . '/public/uploads/documents/heygen/rendered';
+        if (!is_dir($publicDir)) { @mkdir($publicDir, 0755, true); }
+        $outputFile = $publicDir . '/' . $id . '.mp4';
+        if (is_file($outputFile)) { $output->writeln('<info>Rendered file already exists, skipping burn.</info>'); return; }
+
+        $tmpDir = sys_get_temp_dir() . '/heygen_' . $id;
+        if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0700, true); }
+        $videoTmp = $tmpDir . '/video.mp4';
+        $subsTmp = $tmpDir . '/subs.ass';
+
+        $this->downloadToFile($videoUrl, $videoTmp);
+
+        if (is_string($captionUrl) && $captionUrl !== '') {
+            $clean = preg_replace('/[?#].*$/', '', $captionUrl);
+            $ext = strtolower(pathinfo($clean ?? '', PATHINFO_EXTENSION));
+            $subsPath = $tmpDir . '/subs.' . ($ext ?: 'ass');
+            $this->downloadToFile($captionUrl, $subsPath);
+            @rename($subsPath, $subsTmp);
+        }
+
+        if (is_file($subsTmp) && filesize($subsTmp) > 0) {
+            $escaped = str_replace(':', '\\:', $subsTmp);
+            $force = "Alignment=5,MarginV=150,MarginL=40,MarginR=5,Outline=1,FontSize=20,LineSpacing=2,WrapStyle=0";
+            $filter = "subtitles='" . $escaped . "':force_style='" . $force . "'";
+            $cmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($videoTmp) . ' -vf ' . escapeshellarg($filter) . ' -c:a copy ' . escapeshellarg($outputFile);
+        } else {
+            $cmd = 'cp ' . escapeshellarg($videoTmp) . ' ' . escapeshellarg($outputFile);
+        }
+        $proc = new Process(['bash', '-lc', $cmd]);
+        $proc->setTimeout(600);
+        $proc->run();
+        if ($proc->isSuccessful()) {
+            $output->writeln('<info>Rendered video prepared: ' . $outputFile . '</info>');
+        } else {
+            $output->writeln('<comment>Burn step failed: ' . $proc->getErrorOutput() . '</comment>');
+        }
+    }
+
+    private function downloadToFile(string $url, string $dest): void
+    {
+        $response = $this->httpClient->request('GET', $url, ['timeout' => 120, 'max_redirects' => 5]);
+        $content = $response->getContent();
+        file_put_contents($dest, $content);
     }
 
     private function extractJsonBetween(string $html, string $start, string $end): ?string

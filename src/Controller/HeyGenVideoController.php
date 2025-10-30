@@ -42,8 +42,12 @@ class HeyGenVideoController extends AbstractController
         }
         $video->setUploaded(true);
         $this->em->flush();
+
+        // Delete rendered file from server cache
+        $renderPath = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered/' . $id . '.mp4';
+        if (is_file($renderPath)) {
+            @unlink($renderPath);
+        }
         return new JsonResponse(['status' => 'ok']);
     }
 }
-
-
