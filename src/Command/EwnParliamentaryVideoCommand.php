@@ -102,13 +102,25 @@ class EwnParliamentaryVideoCommand extends Command
 
         // Save transcript to file and upload to OpenAI
         $output->writeln('<info>Saving transcript to file...</info>');
-        $transcriptDir = '/tmp/heygen_transcripts';
+        $transcriptDir = sys_get_temp_dir() . '/heygen_transcripts';
         if (!is_dir($transcriptDir)) {
-            mkdir($transcriptDir, 0755, true);
+            if (!@mkdir($transcriptDir, 0755, true) && !is_dir($transcriptDir)) {
+                $output->writeln('<error>Failed to create transcript directory: ' . $transcriptDir . '</error>');
+                return Command::FAILURE;
+            }
+        }
+        
+        if (!is_writable($transcriptDir)) {
+            $output->writeln('<error>Transcript directory is not writable: ' . $transcriptDir . '</error>');
+            return Command::FAILURE;
         }
         
         $transcriptFile = $transcriptDir . '/parliamentary_' . $videoId . '_' . date('Y-m-d_H-i-s') . '.txt';
-        file_put_contents($transcriptFile, $transcript);
+        $result = @file_put_contents($transcriptFile, $transcript);
+        if ($result === false) {
+            $output->writeln('<error>Failed to write transcript file: ' . $transcriptFile . '</error>');
+            return Command::FAILURE;
+        }
         
         // Create UploadedFile object for OpenAI service
         $uploadedFile = new \Symfony\Component\HttpFoundation\File\UploadedFile(
