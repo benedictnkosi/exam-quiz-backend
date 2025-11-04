@@ -478,24 +478,25 @@ class EwnMadlangaVideoCommand extends Command
 
     private function looksLikeWithinDays(?string $published, int $daysBack): bool
     {
-        if (!$published) {
+        if ($published === null) {
             return false;
         }
-
-        $published = strtolower($published);
-        
-        if ($daysBack === 0) {
-            return str_contains($published, 'hour') || str_contains($published, 'minute') || str_contains($published, 'today');
+        $lower = strtolower(trim($published));
+        // Hours/minutes ago => 0 days
+        if (str_contains($lower, 'hour ago') || str_contains($lower, 'hours ago') || str_contains($lower, 'minute ago') || str_contains($lower, 'minutes ago')) {
+            return 0 <= $daysBack;
         }
-        
-        if ($daysBack === 1) {
-            return str_contains($published, 'day') || str_contains($published, 'yesterday');
+        if ($lower === 'today') {
+            return 0 <= $daysBack;
         }
-        
-        if ($daysBack <= 7) {
-            return str_contains($published, 'day') || str_contains($published, 'week');
+        if ($lower === 'yesterday') {
+            return 1 <= $daysBack;
         }
-        
-        return true; // For longer periods, be more permissive
+        if (preg_match('/^(\d+)\s+day(s)?\s+ago$/', $lower, $m)) {
+            $days = (int)($m[1] ?? 999);
+            return $days <= $daysBack;
+        }
+        // Unknown wording => be conservative
+        return false;
     }
 }
