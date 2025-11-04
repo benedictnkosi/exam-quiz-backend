@@ -916,7 +916,7 @@ Format your response as follows:
      * @param string $anchorName The name of the news anchor (default: "Dan")
      * @return string
      */
-    public function generateVideoScriptFromFileId(string $fileId, int $maxStories = 5, int $targetSeconds = 60, string $anchorName = 'Dan'): string
+    public function generateVideoScriptFromFileId(string $fileId, int $maxStories = 10, int $targetSeconds = 60, string $anchorName = 'Dan'): string
     {
         $wordsPerSecond = 2.6;
         $targetWords = (int)round($targetSeconds * $wordsPerSecond);
@@ -926,16 +926,16 @@ Format your response as follows:
         // Customize intro and outro based on anchor name
         $taglines = [
             'Ammy' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Ammy — here's your commission of comedy.",
-                'outro' => "That's your commission of comedy — where the evidence is circumstantial, but the laughs are solid. Goodnight, South Africa."
+                'intro' => "I'm Ammy — here's your commission daily update.",
+                'outro' => "Goodnight, Mzansi."
             ],
             'Sam' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Sam — here's your parliamentary punchline.",
-                'outro' => "That's your parliamentary punchline — where the debates are heated, but the jokes are hotter. Goodnight, South Africa."
+                'intro' => "I'm Sam — here's your parliamentary ad-hoc daily update.",
+                'outro' => "Goodnight, Mzansi."
             ],
             'Dan' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Dan — here's your daily dose of drama.",
-                'outro' => "That's your daily dose of drama — where the scandals are serious, but the anchor isn't. Goodnight, South Africa."
+                'intro' => "I'm Dan — here's your daily update.",
+                'outro' => "Goodnight, Mzansi."
             ]
         ];
         
@@ -945,62 +945,47 @@ Format your response as follows:
 
         $rules = <<<TXT
 TONE & STYLE
-- Satirical, smart, confident — calm under chaos, amused by absurdity.
-- Daily Show meets SABC bulletin.
-- Sentences under 20 words. Sharp, fast, punchy.
-- Use irony and understatement, not sarcasm.
-- Mix real facts with light, clever commentary.
+- Neutral, authoritative, fast-paced. No jokes, no sarcasm, no wordplay.
+- Broadcast headline style. Concise, direct, fact-driven.
+- Sentences under 14 words. Sharp, punchy, information-dense.
 - Natural to read aloud near the target duration.
-- Always end on humour, optimism, or a wink.
 
 STRUCTURE
-INTRO (5–8s) — EXACT lines (do not change):
+INTRO (5–8s) — EXACT line (do not change):
 "{$introLine}"
 Optionally add [Music fades].
 
 MAIN STORIES (descending importance)
-1) National/Political drama — strong, confident, slight mock: "Only in SA"
-2) Corruption/Commission/Crime — dry wit: "Another plot twist"
-3) Social/Economic — light humour or empathy
-4) Lifestyle/Global/Feel-good — playful uplift
-5) Comic relief — fun or hopeful closer
-Each story: 1–2 factual sentences + 1 punchline.
+- Rapid-fire updates across national, politics, crime/commission, economy, society, global.
+- Cover many points briefly; prefer breadth over depth.
+- Each story: 1 short factual sentence. Optional second sentence for key context.
 
 OUTRO — CONSISTENT line:
 "{$outroLine}"
-Allowed alternates occasionally:
-- "That’s your daily dose of drama — where the evidence is cold, the humour’s hot."
-- "We laugh before we cry, and then we laugh again. Goodnight, Mzansi."
 
 LENGTH & PACING (duration target)
 - Target {$targetSeconds}s total. Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} wps).
-- Each story: 1–2 factual sentences + 1 short punchline. Max stories: {$maxStories}.
+- Max stories: {$maxStories}. Prefer 8–12 micro-updates if content allows.
 
-HUMOUR RULES
-- Use irony, wordplay, understatement, light self-awareness.
-- Avoid mocking victims, real tragedy, or communities.
-- No partisan bias. Avoid short-lived internet slang.
-
-BRAND
-- Keep Why So Serious News + {$anchorName}'s tagline.
-- Professional yet playful; add one quick credible fact/quote.
-- Optionally mark music cues: [Music], [Music fades].
+STANDARDS
+- No editorialising beyond neutral qualifiers. No humour or punchlines.
+- At least one verifiable fact or figure from the transcript.
 TXT;
 
         $prompt = <<<PR
-You will write a satirical news script using the RULES below for a target duration of {$targetSeconds} seconds.
+You will write a neutral, fast-paced news script using the RULES below for a target duration of {$targetSeconds} seconds.
 
-Source transcript (summarize into 4–5 stories, keep facts accurate):
+Source transcript (summarize into many concise points, keep facts accurate):
 Please analyze the transcript from the uploaded file and create a script based on its content.
 
 OUTPUT REQUIREMENTS
 - Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} words/second) for ~{$targetSeconds}s.
-- Up to {$maxStories} stories.
-- Each story: 1–2 factual sentences + 1 short punchline sentence.
-- Keep sentences under 18 words.
-- Start with BOTH exact INTRO lines merged into the paragraph:
+- Up to {$maxStories} stories; prefer many short updates.
+- Each story: 1 short factual sentence; optional second sentence for key context.
+- Keep sentences under 14 words.
+- Start with the exact INTRO line:
   "{$introLine}"
-- End with one OUTRO line.
+- End with the exact OUTRO line.
 - Do not include any explanation outside the script.
 - Include at least one short verifiable fact from the transcript.
 
@@ -1024,7 +1009,7 @@ PR;
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'You are a seasoned satirical news writer for a bulletin. You strictly follow style, length, and brand rules and aim to match the target duration.'
+                            'content' => 'You are a senior broadcast news writer. You write neutral, fast-paced headline scripts with many concise updates, no humour, and strict timing.'
                         ],
                         [
                             'role' => 'user',
@@ -1166,7 +1151,7 @@ PR;
      * @param string $anchorName The name of the news anchor (default: "Dan")
      * @return string
      */
-    public function generateVideoScriptFromTranscript(string $transcript, int $maxStories = 5, int $targetSeconds = 60, string $anchorName = 'Dan'): string
+    public function generateVideoScriptFromTranscript(string $transcript, int $maxStories = 10, int $targetSeconds = 60, string $anchorName = 'Dan'): string
     {
         $wordsPerSecond = 2.6;
         $targetWords = (int)round($targetSeconds * $wordsPerSecond);
@@ -1176,16 +1161,16 @@ PR;
         // Customize intro and outro based on anchor name
         $taglines = [
             'Ammy' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Ammy — here's your commission of comedy.",
-                'outro' => "That's your commission of comedy — where the evidence is circumstantial, but the laughs are solid. Goodnight, Mzansi."
+                'intro' => "I'm Ammy — here's your commission daily update.",
+                'outro' => "Goodnight, Mzansi."
             ],
             'Sam' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Sam — here's your parliamentary punchline.",
-                'outro' => "That's your parliamentary punchline — where the debates are heated, but the jokes are hotter. Goodnight, Mzansi."
+                'intro' => "I'm Sam — here's your parliamentary ad-hoc daily update.",
+                'outro' => "Goodnight, Mzansi."
             ],
             'Dan' => [
-                'intro' => "Good evening! You're watching South Africa Why So Serious News. I'm Dan — here's your daily dose of drama.",
-                'outro' => "That's your daily dose of drama — where the scandals are serious, but the anchor isn't. Goodnight, Mzansi."
+                'intro' => "I'm Dan — here's your daily update.",
+                'outro' => "Goodnight, Mzansi."
             ]
         ];
         
@@ -1195,64 +1180,49 @@ PR;
 
         $rules = <<<TXT
 TONE & STYLE
-- Satirical, smart, confident — calm under chaos, amused by absurdity.
-- Daily Show meets SABC bulletin.
-- Sentences under 20 words. Sharp, fast, punchy.
-- Use irony and understatement, not sarcasm.
-- Mix real facts with light, clever commentary.
+- Neutral, authoritative, fast-paced. No jokes, no sarcasm, no wordplay.
+- Broadcast headline style. Concise, direct, fact-driven.
+- Sentences under 14 words. Sharp, punchy, information-dense.
 - Natural to read aloud near the target duration.
-- Always end on humour, optimism, or a wink.
 
 STRUCTURE
-INTRO (5–8s) — EXACT lines (do not change):
+INTRO (5–8s) — EXACT line (do not change):
 "{$introLine}"
 Optionally add [Music fades].
 
 MAIN STORIES (descending importance)
-1) National/Political drama — strong, confident, slight mock: "Only in SA"
-2) Corruption/Commission/Crime — dry wit: "Another plot twist"
-3) Social/Economic — light humour or empathy
-4) Lifestyle/Global/Feel-good — playful uplift
-5) Comic relief — fun or hopeful closer
-Each story: 1–2 factual sentences + 1 punchline.
+- Rapid-fire updates across national, politics, crime/commission, economy, society, global.
+- Cover many points briefly; prefer breadth over depth.
+- Each story: 1 short factual sentence. Optional second sentence for key context.
 
 OUTRO — CONSISTENT line:
 "{$outroLine}"
-Allowed alternates occasionally:
-- "That's your daily dose of drama — where the evidence is cold, the humour's hot."
-- "We laugh before we cry, and then we laugh again. Goodnight, Mzansi."
 
 LENGTH & PACING (duration target)
 - Target {$targetSeconds}s total. Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} wps).
-- Each story: 1–2 factual sentences + 1 short punchline. Max stories: {$maxStories}.
+- Max stories: {$maxStories}. Prefer 8–12 micro-updates if content allows.
 
-HUMOUR RULES
-- Use irony, wordplay, understatement, light self-awareness.
-- Avoid mocking victims, real tragedy, or communities.
-- No partisan bias. Avoid short-lived internet slang.
-
-BRAND
-- Keep Why So Serious News + {$anchorName}'s tagline.
-- Professional yet playful; add one quick credible fact/quote.
-- Optionally mark music cues: [Music], [Music fades].
+STANDARDS
+- No editorialising beyond neutral qualifiers. No humour or punchlines.
+- At least one verifiable fact or figure from the transcript.
 TXT;
 
         $prompt = <<<PR
-You will write a satirical news script using the RULES below for a target duration of {$targetSeconds} seconds.
+You will write a neutral, fast-paced news script using the RULES below for a target duration of {$targetSeconds} seconds.
 
-Source transcript (summarize into 4–5 stories, keep facts accurate):
+Source transcript (summarize into many concise points, keep facts accurate):
 """
 {$transcript}
 """
 
 OUTPUT REQUIREMENTS
 - Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} words/second) for ~{$targetSeconds}s.
-- Up to {$maxStories} stories.
-- Each story: 1–2 factual sentences + 1 short punchline sentence.
-- Keep sentences under 18 words.
-- Start with BOTH exact INTRO lines merged into the paragraph:
+- Up to {$maxStories} stories; prefer many short updates.
+- Each story: 1 short factual sentence; optional second sentence for key context.
+- Keep sentences under 14 words.
+- Start with the exact INTRO line:
   "{$introLine}"
-- End with one OUTRO line.
+- End with the exact OUTRO line.
 - Do not include any explanation outside the script.
 - Include at least one short verifiable fact from the transcript.
 
@@ -1276,7 +1246,7 @@ PR;
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'You are a seasoned satirical news writer for a bulletin. You strictly follow style, length, and brand rules and aim to match the target duration.'
+                            'content' => 'You are a senior broadcast news writer. You write neutral, fast-paced headline scripts with many concise updates, no humour, and strict timing.'
                         ],
                         [
                             'role' => 'user',

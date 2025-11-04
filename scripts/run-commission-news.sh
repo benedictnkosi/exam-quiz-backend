@@ -16,5 +16,3 @@ CONSOLE="$(dirname "$0")/../bin/console"
   --days=1 \
   --avatar-id=bb645f6e5a1b4407bc002967034f65e8 \
   --voice-id=d41b5163f39044129d06aca88d7a8f4f
-
-"$CONSOLE" app:sabcdigital:scrape-prime-news
