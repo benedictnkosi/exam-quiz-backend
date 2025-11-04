@@ -189,7 +189,7 @@ class EwnParliamentaryVideoCommand extends Command
 
         // Wait for completion with retry logic
         $output->writeln('<info>Waiting for video completion...</info>');
-        $maxRetries = 60; // 10 minutes with 10-second intervals
+        $maxRetries = 180; // 30 minutes with 10-second intervals
         $retryCount = 0;
         
         while ($retryCount < $maxRetries) {
@@ -241,7 +241,7 @@ class EwnParliamentaryVideoCommand extends Command
         }
         
         if ($retryCount >= $maxRetries) {
-            $output->writeln('<error>Video generation timed out after 10 minutes</error>');
+            $output->writeln('<error>Video generation timed out after 30 minutes</error>');
             $this->logger->error('HeyGen video timeout', ['video_id' => $heyGenVideoId]);
             return Command::FAILURE;
         }
