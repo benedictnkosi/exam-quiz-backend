@@ -150,13 +150,22 @@ class SabcDigitalPrimeNewsCommand extends Command
                                 $this->logger->info('HeyGen caption available', ['caption_url' => $captionUrl]);
                             }
                             if (is_string($videoUrl) && $videoUrl !== '') {
-                                // Save to DB with uploaded=false and caption url
+                                // Post-process: download and burn captions first (using temporary ID)
+                                $tempId = (int)time();
+                                $this->burnAndCache($tempId, $videoUrl, $captionUrl ?? null, $output);
+
+                                // Save to DB with uploaded=false and caption url after captions are burnt
                                 $entity = new HeyGenVideo($title ?? 'Prime News', $videoUrl, false, $captionUrl);
                                 $this->em->persist($entity);
                                 $this->em->flush();
 
-                                // Post-process: download and burn captions now
-                                $this->burnAndCache((int)$entity->getId(), $videoUrl, $captionUrl ?? null, $output);
+                                // Rename the rendered file to match the database ID
+                                $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
+                                $tempFile = $publicDir . '/' . $tempId . '.mp4';
+                                $finalFile = $publicDir . '/' . $entity->getId() . '.mp4';
+                                if (is_file($tempFile)) {
+                                    @rename($tempFile, $finalFile);
+                                }
                             }
                         }
                     }

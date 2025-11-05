@@ -258,7 +258,11 @@ class EwnMadlangaVideoCommand extends Command
             return Command::FAILURE;
         }
 
-        // Create database entry
+        // Post-process: download and burn captions first (using temporary ID)
+        $tempId = (int)time();
+        $this->burnAndCache($tempId, $videoUrl, $status['caption_url'] ?? null, $output);
+
+        // Create database entry after captions are burnt
         $date = date('Y-m-d');
         $dbTitle = "Madlanga Commission of Inquiry {$date}";
         
@@ -268,6 +272,14 @@ class EwnMadlangaVideoCommand extends Command
         $this->entityManager->persist($heyGenVideo);
         $this->entityManager->flush();
 
+        // Rename the rendered file to match the database ID
+        $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
+        $tempFile = $publicDir . '/' . $tempId . '.mp4';
+        $finalFile = $publicDir . '/' . $heyGenVideo->getId() . '.mp4';
+        if (is_file($tempFile)) {
+            @rename($tempFile, $finalFile);
+        }
+
         $output->writeln('<info>Video saved to database with ID: ' . $heyGenVideo->getId() . '</info>');
         $this->logger->info('Madlanga Commission video created', [
             'heyGenVideoId' => $heyGenVideoId,
@@ -276,9 +288,6 @@ class EwnMadlangaVideoCommand extends Command
         ]);
 
         $output->writeln('<info>Madlanga Commission video created successfully!</info>');
-        
-        // Post-process: download and burn captions now
-        $this->burnAndCache((int)$heyGenVideo->getId(), $videoUrl, $status['caption_url'] ?? null, $output);
         return Command::SUCCESS;
     }
 

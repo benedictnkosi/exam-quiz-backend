@@ -258,7 +258,11 @@ class EwnParliamentaryVideoCommand extends Command
             return Command::FAILURE;
         }
 
-        // Create database entry
+        // Post-process: download and burn captions first (using temporary ID)
+        $tempId = (int)time();
+        $this->burnAndCache($tempId, $videoUrl, $status['caption_url'] ?? null, $output);
+
+        // Create database entry after captions are burnt
         $date = date('Y-m-d');
         $dbTitle = "Parliamentary ad hoc {$date}";
         
@@ -268,15 +272,20 @@ class EwnParliamentaryVideoCommand extends Command
         $this->entityManager->persist($heyGenVideo);
         $this->entityManager->flush();
 
+        // Rename the rendered file to match the database ID
+        $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
+        $tempFile = $publicDir . '/' . $tempId . '.mp4';
+        $finalFile = $publicDir . '/' . $heyGenVideo->getId() . '.mp4';
+        if (is_file($tempFile)) {
+            @rename($tempFile, $finalFile);
+        }
+
         $output->writeln('<info>Video saved to database with ID: ' . $heyGenVideo->getId() . '</info>');
         $this->logger->info('Parliamentary ad hoc video created', [
             'heyGenVideoId' => $heyGenVideoId,
             'videoUrl' => $videoUrl,
             'dbId' => $heyGenVideo->getId()
         ]);
-
-        // Post-process: download and burn captions now
-        $this->burnAndCache((int)$heyGenVideo->getId(), $videoUrl, $status['caption_url'] ?? null, $output);
 
         $output->writeln('<info>Parliamentary ad hoc video created successfully!</info>');
         return Command::SUCCESS;
