@@ -141,3 +141,10 @@ php bin/console app:ewn-madlanga-video --days=1  --avatar-id=bb645f6e5a1b4407bc0
 # Daily news4721
 
 bin/console app:sabcdigital:scrape-prime-news
+
+private string $defaultAvatarId = '93bf36d167184854bdde4ffb3b340981';
+    private string $defaultVoiceId = 'QOdz6iaNL4YniX0zO8BV';
+
+
+# run 4 hrs
+php bin/console app:sabc-past-four-hours --avatar-id=93bf36d167184854bdde4ffb3b340981 --voice-id=QOdz6iaNL4YniX0zO8BV

@@ -1216,9 +1216,11 @@ TXT;
      * @param int $maxStories Maximum number of stories to include
      * @param int $targetSeconds Target duration in seconds
      * @param string $anchorName The name of the news anchor (default: "Dan")
+     * @param string|null $customIntro Optional custom intro line (overrides anchor-based intro)
+     * @param string|null $customOutro Optional custom outro line (overrides anchor-based outro)
      * @return string
      */
-    public function generateVideoScriptFromTranscript(string $transcript, int $maxStories = 10, int $targetSeconds = 60, string $anchorName = 'Dan'): string
+    public function generateVideoScriptFromTranscript(string $transcript, int $maxStories = 10, int $targetSeconds = 60, string $anchorName = 'Dan', ?string $customIntro = null, ?string $customOutro = null): string
     {
         $wordsPerSecond = 2.6;
         $targetWords = (int)round($targetSeconds * $wordsPerSecond);
@@ -1236,14 +1238,14 @@ TXT;
                 'outro' => "Goodnight, Mzansi."
             ],
             'Dan' => [
-                'intro' => "I'm Dan — here's your daily update.",
-                'outro' => "Goodnight, Mzansi."
+                'intro' => "I'm Dan — here's your news update.",
+                'outro' => "Like and subscribe for more news"
             ]
         ];
         
         $anchorTaglines = $taglines[$anchorName] ?? $taglines['Dan'];
-        $introLine = $anchorTaglines['intro'];
-        $outroLine = $anchorTaglines['outro'];
+        $introLine = $customIntro ?? $anchorTaglines['intro'];
+        $outroLine = $customOutro ?? $anchorTaglines['outro'];
 
         $rules = <<<TXT
 TONE & STYLE
