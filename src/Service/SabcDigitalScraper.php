@@ -71,7 +71,7 @@ class SabcDigitalScraper
             $this->logger->warning('Unable to fetch transcript for video', ['videoId' => $videoId]);
             return null;
         }
-        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptText, 3, 60);
+        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptText, 10, 60);
         if (!is_string($script) || trim($script) === '' || str_starts_with($script, 'Failed to generate')) {
             $this->logger->warning('Script generation failed', ['videoId' => $videoId, 'title' => $title]);
             return null;
@@ -169,7 +169,7 @@ class SabcDigitalScraper
             return null;
         }
         $combined = implode("\n\n", $parts);
-        return $this->openAIService->generateVideoScriptFromTranscript($combined, 3, 60);
+        return $this->openAIService->generateVideoScriptFromTranscript($combined, 10, 60);
     }
 
     /**

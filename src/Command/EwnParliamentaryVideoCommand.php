@@ -148,7 +148,7 @@ class EwnParliamentaryVideoCommand extends Command
         
         // Generate 60-second script with Sam as anchor using full transcript
         $output->writeln('<info>Generating 60-second script...</info>');
-        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 3, 60, 'Sam');
+        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 10, 60, 'Sam');
 
         if (!$script) {
             $output->writeln('<error>Failed to generate script</error>');
@@ -169,10 +169,17 @@ class EwnParliamentaryVideoCommand extends Command
         $this->openAIService->deleteFile($fileId);
         unlink($transcriptFile);
 
+        // Fact-check and correct the script using web search before creating video
+        $output->writeln('<info>Fact-checking script against SA current affairs...</info>');
+        $correctedScript = $this->openAIService->factCheckAndCorrectScript($script);
+        if ($correctedScript !== $script) {
+            $this->logger->info('Script corrected after fact-check', [ 'preview' => mb_substr($correctedScript, 0, 160) ]);
+        }
+
         // Create HeyGen video
         $output->writeln('<info>Creating HeyGen video...</info>');
         $heyGenVideoId = $this->heyGenService->createAvatarVideoFromText(
-            $script,
+            $correctedScript,
             $avatarId,
             $voiceId,
             1080,

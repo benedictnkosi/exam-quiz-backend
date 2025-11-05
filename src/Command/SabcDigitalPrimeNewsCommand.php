@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\HeyGenVideo;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\Process\Process;
+use App\Service\OpenAIService;
 
 #[AsCommand(
     name: 'app:sabcdigital:scrape-prime-news',
@@ -30,8 +31,9 @@ class SabcDigitalPrimeNewsCommand extends Command
     private string $defaultVoiceId = 'QOdz6iaNL4YniX0zO8BV';
     private EntityManagerInterface $em;
     private HttpClientInterface $httpClient;
+    private OpenAIService $openAIService;
 
-    public function __construct(SabcDigitalScraper $scraper, LoggerInterface $logger, \App\Service\YouTubeTranscriptService $transcriptService, \App\Service\HeyGenService $heyGenService, EntityManagerInterface $em, HttpClientInterface $httpClient)
+    public function __construct(SabcDigitalScraper $scraper, LoggerInterface $logger, \App\Service\YouTubeTranscriptService $transcriptService, \App\Service\HeyGenService $heyGenService, EntityManagerInterface $em, HttpClientInterface $httpClient, OpenAIService $openAIService)
     {
         parent::__construct();
         $this->scraper = $scraper;
@@ -40,6 +42,7 @@ class SabcDigitalPrimeNewsCommand extends Command
         $this->heyGenService = $heyGenService;
         $this->em = $em;
         $this->httpClient = $httpClient;
+        $this->openAIService = $openAIService;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -114,9 +117,16 @@ class SabcDigitalPrimeNewsCommand extends Command
                 $output->writeln('<info>News script generated and logged. Preview:</info>');
                 $output->writeln($preview . (mb_strlen($script) > 240 ? '…' : ''));
 
-                // Generate HeyGen avatar video from the script with provided defaults
+                // Fact-check and correct the script against SA current affairs before video creation
+                $output->writeln('<info>Fact-checking script against SA current affairs...</info>');
+                $correctedScript = $this->openAIService->factCheckAndCorrectScript($script);
+                if ($correctedScript !== $script) {
+                    $this->logger->info('Script corrected after fact-check', ['preview' => mb_substr($correctedScript, 0, 160)]);
+                }
+
+                // Generate HeyGen avatar video from the corrected script with provided defaults
                 $videoIdHeyGen = $this->heyGenService->createAvatarVideoFromText(
-                    $script,
+                    $correctedScript,
                     $this->defaultAvatarId,
                     $this->defaultVoiceId,
                     1080,

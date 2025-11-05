@@ -1088,6 +1088,73 @@ PR;
     }
 
     /**
+     * Fact-check and correct a news script using OpenAI web search, focusing on South African current affairs.
+     * Correct misspelled proper nouns (e.g., "Madlanga Commission"), people, places, parties, dates, titles, and acronyms.
+     * Keep wording and length as close as possible; output ONLY the corrected script text.
+     */
+    public function factCheckAndCorrectScript(string $script): string
+    {
+        $instructions = <<<TXT
+You are a South African news fact-checker.
+
+Task: Review the script below. Use web search to verify and CORRECT any factual errors and misspellings based on South African current affairs, including:
+- Commission names (e.g., "Madlanga Commission" not "Mandanga").
+- Names of people, political parties, ministries, places, acronyms, and institutions.
+- Dates, titles, positions, and numbers.
+
+Constraints:
+- Make the minimal edits required to fix correctness and spelling.
+- Preserve tone, pacing, and approximate length; do not add commentary.
+- OUTPUT ONLY the corrected script as plain text (no headings, quotes, or explanations).
+TXT;
+
+        $aiInput = $instructions . "\n\nSCRIPT TO CHECK:\n" . $script;
+
+        try {
+            $response = $this->client->request('POST', 'https://api.openai.com/v1/responses', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4.1',
+                    'tools' => [[ 'type' => 'web_search_preview' ]],
+                    'input' => $aiInput,
+                ],
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $corrected = trim($data['choices'][0]['message']['content'] ?? '');
+
+            // If the model returned nothing or obviously wrapped text, fall back to original
+            if ($corrected === '') {
+                return $script;
+            }
+
+            // In case the model echoes with surrounding quotes or code fences, strip them conservatively
+            $corrected = preg_replace('/^```[\s\S]*?\n|```$/', '', $corrected ?? '');
+            $corrected = preg_replace('/^\s*\"|\"\s*$/', '', $corrected ?? '');
+
+            // Avoid returning something wildly different in size; if off by >50%, keep original
+            $origLen = max(1, mb_strlen($script));
+            $newLen = mb_strlen($corrected);
+            if ($newLen < $origLen * 0.5 || $newLen > $origLen * 1.5) {
+                return $script;
+            }
+
+            $this->logger->info('Script fact-checked and corrected via web search', [
+                'original_preview' => mb_substr($script, 0, 160),
+                'corrected_preview' => mb_substr($corrected, 0, 160),
+            ]);
+
+            return $corrected;
+        } catch (\Throwable $e) {
+            $this->logger->error('OpenAI API Error (factCheckAndCorrectScript): ' . $e->getMessage());
+            return $script; // fail-safe: use original if correction fails
+        }
+    }
+
+    /**
      * Upload a file to OpenAI and return the file ID
      */
     public function uploadTranscriptFile(string $filePath, string $purpose = 'assistants'): ?string
