@@ -409,6 +409,16 @@ class SabcPastFourHoursCommand extends Command
                 $titleText = $this->extractTextFromRuns($vr['title']['runs'] ?? null) ?? ($vr['title']['simpleText'] ?? null);
                 
                 if ($titleText !== null) {
+                    // Exclude videos with "Prime News" or "Headlines" in the title
+                    $titleLower = strtolower($titleText);
+                    if (str_contains($titleLower, 'prime news') || str_contains($titleLower, 'headlines')) {
+                        $this->logger->info('Excluding video (Prime News or Headlines)', [
+                            'title' => $titleText,
+                            'videoId' => $vr['videoId'] ?? 'unknown'
+                        ]);
+                        continue;
+                    }
+                    
                     // Check if it's within the last 4 hours
                     $published = $this->extractTextFromRuns($vr['publishedTimeText']['runs'] ?? null) ?? ($vr['publishedTimeText']['simpleText'] ?? null);
                     if ($this->isWithinLastFourHours($published)) {
