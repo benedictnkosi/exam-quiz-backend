@@ -55,7 +55,8 @@ class SabcPastFourHoursCommand extends Command
     {
         $this
             ->addOption('avatar-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Avatar ID', '0d457d33c46049f0b42b538abfc8913b')
-            ->addOption('voice-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Voice ID', 'QOdz6iaNL4YniX0zO8BV');
+            ->addOption('voice-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Voice ID', 'QOdz6iaNL4YniX0zO8BV')
+            ->addOption('no-burn', null, InputOption::VALUE_NONE, 'Do not burn captions into the video (copy original video)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -296,10 +297,11 @@ class SabcPastFourHoursCommand extends Command
             return Command::FAILURE;
         }
 
-        // Post-process: download and burn captions first (using temporary ID)
+        // Post-process: download and optionally burn captions first (using temporary ID)
         $output->writeln('<info>Downloading video and burning captions...</info>');
         $tempId = (int)time();
-        $this->burnAndCache($tempId, $videoUrl, $captionUrl, $output);
+        $noBurn = (bool)$input->getOption('no-burn');
+        $this->burnAndCache($tempId, $videoUrl, $captionUrl, $output, !$noBurn);
 
         // Create database entry after captions are burnt
         $date = date('Y-m-d H:i');
@@ -454,7 +456,7 @@ class SabcPastFourHoursCommand extends Command
         return $videos;
     }
 
-    private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output): void
+    private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output, bool $burnCaptions = true): void
     {
         $publicDir = dirname(__DIR__, 2) . '/public/uploads/documents/heygen/rendered';
         if (!is_dir($publicDir)) { @mkdir($publicDir, 0755, true); }
@@ -473,7 +475,7 @@ class SabcPastFourHoursCommand extends Command
         $this->downloadToFile($videoUrl, $videoTmp);
 
         $hasCaptions = false;
-        if (is_string($captionUrl) && $captionUrl !== '') {
+        if ($burnCaptions && is_string($captionUrl) && $captionUrl !== '') {
             $output->writeln('<info>Downloading captions...</info>');
             $clean = preg_replace('/[?#].*$/', '', $captionUrl);
             $ext = strtolower(pathinfo($clean ?? '', PATHINFO_EXTENSION));
@@ -483,7 +485,7 @@ class SabcPastFourHoursCommand extends Command
 
             // Shift subtitle timing to lead the audio slightly (fix small lag)
             // Negative offset means captions appear earlier. Tune as needed.
-            $this->shiftSubtitleTiming($subsTmp, -0.99);
+            $this->shiftSubtitleTiming($subsTmp, -2.0);
 
             $hasCaptions = is_file($subsTmp) && filesize($subsTmp) > 0;
         }

@@ -6,4 +6,4 @@ set -euo pipefail
 
 CONSOLE="$(dirname "$0")/../bin/console"
 
-"$CONSOLE" app:sabc-past-four-hours --avatar-id=93bf36d167184854bdde4ffb3b340981 --voice-id=QOdz6iaNL4YniX0zO8BV
+"$CONSOLE" app:sabc-past-four-hours --avatar-id=93bf36d167184854bdde4ffb3b340981 --voice-id=QOdz6iaNL4YniX0zO8BV --no-burn
