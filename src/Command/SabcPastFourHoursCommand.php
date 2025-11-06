@@ -467,7 +467,7 @@ class SabcPastFourHoursCommand extends Command
         $tmpDir = sys_get_temp_dir() . '/heygen_' . $id;
         if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0700, true); }
         $videoTmp = $tmpDir . '/video.mp4';
-        $subsTmp = $tmpDir . '/subs.ass';
+        $subsTmp = null; // will be set after download based on extension
 
         $output->writeln('<info>Downloading video...</info>');
         $this->downloadToFile($videoUrl, $videoTmp);
@@ -477,9 +477,14 @@ class SabcPastFourHoursCommand extends Command
             $output->writeln('<info>Downloading captions...</info>');
             $clean = preg_replace('/[?#].*$/', '', $captionUrl);
             $ext = strtolower(pathinfo($clean ?? '', PATHINFO_EXTENSION));
-            $subsPath = $tmpDir . '/subs.' . ($ext ?: 'ass');
-            $this->downloadToFile($captionUrl, $subsPath);
-            @rename($subsPath, $subsTmp);
+            $ext = $ext ?: 'ass';
+            $subsTmp = $tmpDir . '/subs.' . $ext;
+            $this->downloadToFile($captionUrl, $subsTmp);
+
+            // Shift subtitle timing to lead the audio slightly (fix small lag)
+            // Negative offset means captions appear earlier. Tune as needed.
+            $this->shiftSubtitleTiming($subsTmp, -0.99);
+
             $hasCaptions = is_file($subsTmp) && filesize($subsTmp) > 0;
         }
 
@@ -503,6 +508,99 @@ class SabcPastFourHoursCommand extends Command
         } else {
             $output->writeln('<comment>Burn step failed: ' . $proc->getErrorOutput() . '</comment>');
         }
+    }
+
+    /**
+     * Shift subtitle timestamps by a given offset in seconds. Supports ASS, SRT, and VTT.
+     */
+    private function shiftSubtitleTiming(string $subtitlePath, float $offsetSeconds): void
+    {
+        if (!is_file($subtitlePath) || !is_readable($subtitlePath)) {
+            return;
+        }
+
+        $ext = strtolower(pathinfo($subtitlePath, PATHINFO_EXTENSION));
+        $content = @file_get_contents($subtitlePath);
+        if ($content === false || $content === '') {
+            return;
+        }
+
+        // Helper formatters
+        $formatSrtTime = static function (float $seconds): string {
+            if ($seconds < 0) { $seconds = 0.0; }
+            $h = floor($seconds / 3600);
+            $m = floor(($seconds % 3600) / 60);
+            $s = floor($seconds % 60);
+            $ms = (int)round(($seconds - floor($seconds)) * 1000);
+            return sprintf('%02d:%02d:%02d,%03d', $h, $m, $s, $ms);
+        };
+
+        $formatAssTime = static function (float $seconds): string {
+            if ($seconds < 0) { $seconds = 0.0; }
+            $h = floor($seconds / 3600);
+            $m = floor(($seconds % 3600) / 60);
+            $s = floor($seconds % 60);
+            $cs = (int)round(($seconds - floor($seconds)) * 100); // centiseconds
+            return sprintf('%d:%02d:%02d.%02d', $h, $m, $s, $cs);
+        };
+
+        // Shift logic by type
+        if ($ext === 'srt') {
+            // 00:00:01,000 --> 00:00:02,000
+            $content = preg_replace_callback(
+                '/^(\d{2}):(\d{2}):(\d{2}),(\d{3})\s+-->\s+(\d{2}):(\d{2}):(\d{2}),(\d{3})/m',
+                function ($m) use ($offsetSeconds, $formatSrtTime) {
+                    $start = ((int)$m[1]) * 3600 + ((int)$m[2]) * 60 + (int)$m[3] + ((int)$m[4]) / 1000.0;
+                    $end = ((int)$m[5]) * 3600 + ((int)$m[6]) * 60 + (int)$m[7] + ((int)$m[8]) / 1000.0;
+                    $start += $offsetSeconds;
+                    $end += $offsetSeconds;
+                    return $formatSrtTime($start) . ' --> ' . $formatSrtTime($end);
+                },
+                $content
+            );
+            @file_put_contents($subtitlePath, $content);
+            return;
+        }
+
+        if ($ext === 'vtt' || $ext === 'webvtt') {
+            // 00:00:01.000 --> 00:00:02.000
+            $content = preg_replace_callback(
+                '/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s+-->\s+(\d{2}):(\d{2}):(\d{2})\.(\d{3})/m',
+                function ($m) use ($offsetSeconds) {
+                    $fmt = function (float $seconds): string {
+                        if ($seconds < 0) { $seconds = 0.0; }
+                        $h = floor($seconds / 3600);
+                        $m2 = floor(($seconds % 3600) / 60);
+                        $s = floor($seconds % 60);
+                        $ms = (int)round(($seconds - floor($seconds)) * 1000);
+                        return sprintf('%02d:%02d:%02d.%03d', $h, $m2, $s, $ms);
+                    };
+                    $start = ((int)$m[1]) * 3600 + ((int)$m[2]) * 60 + (int)$m[3] + ((int)$m[4]) / 1000.0;
+                    $end = ((int)$m[5]) * 3600 + ((int)$m[6]) * 60 + (int)$m[7] + ((int)$m[8]) / 1000.0;
+                    $start += $offsetSeconds;
+                    $end += $offsetSeconds;
+                    return $fmt($start) . ' --> ' . $fmt($end);
+                },
+                $content
+            );
+            @file_put_contents($subtitlePath, $content);
+            return;
+        }
+
+        // Default: treat as ASS
+        // Dialogue: 0,0:00:03.37,0:00:05.69,Default,,0,0,0,,Text
+        $content = preg_replace_callback(
+            '/^(Dialogue:[^,]*,)(\d+):(\d{2}):(\d{2})\.(\d{2}),(\d+):(\d{2}):(\d{2})\.(\d{2})(,.*)$/m',
+            function ($m) use ($offsetSeconds, $formatAssTime) {
+                $start = ((int)$m[2]) * 3600 + ((int)$m[3]) * 60 + (int)$m[4] + ((int)$m[5]) / 100.0;
+                $end = ((int)$m[6]) * 3600 + ((int)$m[7]) * 60 + (int)$m[8] + ((int)$m[9]) / 100.0;
+                $start += $offsetSeconds;
+                $end += $offsetSeconds;
+                return $m[1] . $formatAssTime($start) . ',' . $formatAssTime($end) . $m[10];
+            },
+            $content
+        );
+        @file_put_contents($subtitlePath, $content);
     }
 
     private function downloadToFile(string $url, string $dest): void
