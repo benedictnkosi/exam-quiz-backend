@@ -12,7 +12,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsCommand(
     name: 'app:late:upload-youtube',
-    description: 'Upload a video to YouTube via Late API (testing helper)'
+    description: 'Upload a video to YouTube/TikTok/Facebook via Late API (testing helper)'
 )]
 class LateUploadYouTubeCommand extends Command
 {
@@ -30,10 +30,16 @@ class LateUploadYouTubeCommand extends Command
     {
         $this
             ->addOption('video-url', null, InputOption::VALUE_OPTIONAL, 'Video URL to upload', 'https://files2.heygen.ai/aws_pacific/avatar_tmp/6e14c07771804ffaad19670e4febd520/c75e150c3d3f4cef82a4d39b3bd92013.mp4?Expires=1763029814&Signature=IBkgLGFAYTZWzta4IqMF5~PvRdOifTGwgNc1vHA2vrmXHmU-JKV9tNqJaTYJPob1HQsprgpNjhpvsRRxvGprgtv823ZiTbidR7Eg2GT7wz4uSzwu9MpN~TX8iXF1hvEFfL5Ijw~gvZjhF9UOR5NGSJrwcMDxUPbVsD~wQH4eeMQdHcgQMUkc17iETRtlrxZ8lcqAKHGQ8JpHn~BksrGfHXeH3wkJWPOzyI3rvPfKsKDnRh~OpI6P6fv8dR9hkjb5AfUGkRp11B5w7squPOrGC6-5WRbRyYfrLrVWqb3q~zoVNQ6SCG0cFWX9g13tc0NaLokyNiBY0rcWYjRsucBRiQ__&Key-Pair-Id=K38HBHX5LX3X2H')
-            ->addOption('title', null, InputOption::VALUE_OPTIONAL, 'YouTube video title', 'SABC Digital News Test Upload')
-            ->addOption('description', null, InputOption::VALUE_OPTIONAL, 'YouTube video description', 'Automated test upload via Late API from backend command.')
+            ->addOption('title', null, InputOption::VALUE_OPTIONAL, 'Video title', 'SABC Digital News Test Upload')
+            ->addOption('description', null, InputOption::VALUE_OPTIONAL, 'Video description', 'Automated test upload via Late API from backend command.')
             ->addOption('privacy', null, InputOption::VALUE_OPTIONAL, 'YouTube privacyStatus (public|unlisted|private)', 'public')
+            ->addOption('upload-youtube', null, InputOption::VALUE_NONE, 'Upload to YouTube')
+            ->addOption('upload-tiktok', null, InputOption::VALUE_NONE, 'Upload to TikTok')
+            ->addOption('upload-facebook', null, InputOption::VALUE_NONE, 'Upload to Facebook')
+            ->addOption('upload-all', null, InputOption::VALUE_NONE, 'Upload to YouTube, TikTok and Facebook')
             ->addOption('late-account-id', null, InputOption::VALUE_OPTIONAL, 'Late YouTube accountId (or set GETLATE_YOUTUBE_ACCOUNT_ID)')
+            ->addOption('late-tiktok-account-id', null, InputOption::VALUE_OPTIONAL, 'Late TikTok accountId (or set GETLATE_TIKTOK_ACCOUNT_ID)')
+            ->addOption('late-facebook-account-id', null, InputOption::VALUE_OPTIONAL, 'Late Facebook accountId (or set GETLATE_FACEBOOK_ACCOUNT_ID)')
             ->addOption('scheduled-for', null, InputOption::VALUE_OPTIONAL, 'ISO8601 UTC time to schedule (omit to publish now)');
     }
 
@@ -45,10 +51,12 @@ class LateUploadYouTubeCommand extends Command
             return Command::FAILURE;
         }
 
-        $accountId = (string)($input->getOption('late-account-id') ?: ($this->resolveEnv('GETLATE_YOUTUBE_ACCOUNT_ID') ?: $this->resolveEnv('GETLATE_ACCOUNT_ID') ?: ''));
-        if ($accountId === '') {
-            $output->writeln('<error>No Late accountId provided. Use --late-account-id or set GETLATE_YOUTUBE_ACCOUNT_ID.</error>');
-            return Command::FAILURE;
+        $uploadYouTube = (bool)$input->getOption('upload-youtube') || (bool)$input->getOption('upload-all');
+        $uploadTikTok = (bool)$input->getOption('upload-tiktok') || (bool)$input->getOption('upload-all');
+        $uploadFacebook = (bool)$input->getOption('upload-facebook') || (bool)$input->getOption('upload-all');
+
+        if (!$uploadYouTube && !$uploadTikTok && !$uploadFacebook) {
+            $uploadYouTube = true; // default to YouTube for backward compatibility
         }
 
         $videoUrl = (string)$input->getOption('video-url');
@@ -57,17 +65,52 @@ class LateUploadYouTubeCommand extends Command
         $privacy = (string)$input->getOption('privacy');
         $scheduledFor = $input->getOption('scheduled-for');
 
-        $endpoint = 'https://getlate.dev/api/v1/posts';
-        $payload = [
-            'platforms' => [[
+        $ytAccountId = (string)($input->getOption('late-account-id') ?: ($this->resolveEnv('GETLATE_YOUTUBE_ACCOUNT_ID') ?: $this->resolveEnv('GETLATE_ACCOUNT_ID') ?: ''));
+        $ttAccountId = (string)($input->getOption('late-tiktok-account-id') ?: $this->resolveEnv('GETLATE_TIKTOK_ACCOUNT_ID'));
+        $fbAccountId = (string)($input->getOption('late-facebook-account-id') ?: $this->resolveEnv('GETLATE_FACEBOOK_ACCOUNT_ID'));
+
+        $platforms = [];
+        if ($uploadYouTube) {
+            if ($ytAccountId === '') {
+                $output->writeln('<error>No YouTube accountId. Use --late-account-id or set GETLATE_YOUTUBE_ACCOUNT_ID.</error>');
+                return Command::FAILURE;
+            }
+            $platforms[] = [
                 'platform' => 'youtube',
-                'accountId' => $accountId,
+                'accountId' => $ytAccountId,
                 'platformSpecificData' => [
                     'privacyStatus' => $privacy,
                     'title' => $title,
                     'description' => $description,
                 ],
-            ]],
+            ];
+        }
+        if ($uploadTikTok) {
+            if ($ttAccountId === '') {
+                $output->writeln('<error>No TikTok accountId. Use --late-tiktok-account-id or set GETLATE_TIKTOK_ACCOUNT_ID.</error>');
+                return Command::FAILURE;
+            }
+            $platforms[] = [
+                'platform' => 'tiktok',
+                'accountId' => $ttAccountId,
+                'platformSpecificData' => new \stdClass(),
+            ];
+        }
+        if ($uploadFacebook) {
+            if ($fbAccountId === '') {
+                $output->writeln('<error>No Facebook accountId. Use --late-facebook-account-id or set GETLATE_FACEBOOK_ACCOUNT_ID.</error>');
+                return Command::FAILURE;
+            }
+            $platforms[] = [
+                'platform' => 'facebook',
+                'accountId' => $fbAccountId,
+                'platformSpecificData' => new \stdClass(),
+            ];
+        }
+
+        $endpoint = 'https://getlate.dev/api/v1/posts';
+        $payload = [
+            'platforms' => $platforms,
             'content' => $title,
             'mediaItems' => [[
                 'type' => 'video',

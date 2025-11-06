@@ -58,7 +58,12 @@ class SabcPastFourHoursCommand extends Command
             ->addOption('voice-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Voice ID', 'QOdz6iaNL4YniX0zO8BV')
             ->addOption('no-burn', null, InputOption::VALUE_NONE, 'Do not burn captions into the video (copy original video)')
             ->addOption('upload-youtube', null, InputOption::VALUE_NONE, 'Upload the created video to YouTube via Late API')
+            ->addOption('upload-tiktok', null, InputOption::VALUE_NONE, 'Also upload to TikTok via Late API')
+            ->addOption('upload-facebook', null, InputOption::VALUE_NONE, 'Also upload to Facebook via Late API')
+            ->addOption('upload-all', null, InputOption::VALUE_NONE, 'Upload to YouTube, TikTok and Facebook via Late API')
             ->addOption('late-account-id', null, InputOption::VALUE_OPTIONAL, 'Late YouTube accountId (overrides env)')
+            ->addOption('late-tiktok-account-id', null, InputOption::VALUE_OPTIONAL, 'Late TikTok accountId (overrides env)')
+            ->addOption('late-facebook-account-id', null, InputOption::VALUE_OPTIONAL, 'Late Facebook accountId (overrides env)')
             ->addOption('privacy', null, InputOption::VALUE_OPTIONAL, 'YouTube privacyStatus via Late (public|unlisted|private)', 'public');
     }
 
@@ -349,47 +354,81 @@ class SabcPastFourHoursCommand extends Command
             'videoCount' => count($videos)
         ]);
 
-        // Optional upload to YouTube via Late API
-        if ((bool)$input->getOption('upload-youtube')) {
-            $output->writeln('<info>Uploading video to YouTube via Late...</info>');
+        // Optional upload to platforms via Late API
+        $uploadYouTube = (bool)$input->getOption('upload-youtube') || (bool)$input->getOption('upload-all');
+        $uploadTikTok = (bool)$input->getOption('upload-tiktok') || (bool)$input->getOption('upload-all');
+        $uploadFacebook = (bool)$input->getOption('upload-facebook') || (bool)$input->getOption('upload-all');
+
+        if ($uploadYouTube || $uploadTikTok || $uploadFacebook) {
+            $output->writeln('<info>Uploading video via Late...</info>');
             $privacy = 'public';
-            $lateAccountId = $input->getOption('late-account-id') ?: $this->resolveEnv('GETLATE_YOUTUBE_ACCOUNT_ID') ?: $this->resolveEnv('GETLATE_ACCOUNT_ID');
             $apiKey = $this->resolveEnv('GETLATE_API_KEY');
+            $ytAccountId = $input->getOption('late-account-id') ?: $this->resolveEnv('GETLATE_YOUTUBE_ACCOUNT_ID') ?: $this->resolveEnv('GETLATE_ACCOUNT_ID');
+            $ttAccountId = $input->getOption('late-tiktok-account-id') ?: $this->resolveEnv('GETLATE_TIKTOK_ACCOUNT_ID');
+            $fbAccountId = $input->getOption('late-facebook-account-id') ?: $this->resolveEnv('GETLATE_FACEBOOK_ACCOUNT_ID');
 
             if (!$apiKey) {
                 $output->writeln('<error>GETLATE_API_KEY is not set in environment. Skipping upload.</error>');
-            } elseif (!$lateAccountId) {
-                $output->writeln('<error>No Late accountId provided (use --late-account-id or env GETLATE_YOUTUBE_ACCOUNT_ID). Skipping upload.</error>');
             } else {
-                try {
-                    $success = $this->uploadToYouTubeViaLate(
-                        apiKey: (string)$apiKey,
-                        accountId: (string)$lateAccountId,
-                        videoUrl: (string)$videoUrl,
-                        title: (string)$uploadTitle,
-                        description: 'Welcome to South Africa Why So Serious News — real news, no fluff.
-Fast, factual, and to the point — updated every four hours at 12:00, 16:00, and 20:00.
-
-We cover what matters most in South Africa: politics, justice, economy, and breaking stories — all delivered in under a minute.
-No drama, no spin — just the headlines you need when you need them.
-
-Stay informed. Stay sharp.
-
-🕛 New updates daily — 12:00 | 16:00 | 20:00
-#SouthAfrica #WhySoSerious #BreakingNews',
-                        privacyStatus: (string)$privacy,
-                        output: $output
-                    );
-                    if ($success) {
-                        if (is_file($finalFile)) {
-                            @unlink($finalFile);
-                            $output->writeln('<comment>Local rendered video deleted after successful upload: ' . $finalFile . '</comment>');
-                            $this->logger->info('Deleted local rendered video after Late upload', ['path' => $finalFile]);
-                        }
+                $platforms = [];
+                if ($uploadYouTube) {
+                    if (!$ytAccountId) {
+                        $output->writeln('<comment>Skipping YouTube: No account id (use --late-account-id or env GETLATE_YOUTUBE_ACCOUNT_ID)</comment>');
+                    } else {
+                        $platforms[] = [
+                            'platform' => 'youtube',
+                            'accountId' => (string)$ytAccountId,
+                            'platformSpecificData' => [
+                                'privacyStatus' => $privacy,
+                                'title' => (string)$uploadTitle,
+                                'description' => 'Welcome to South Africa Why So Serious News — real news, no fluff. Fast, factual, and to the point — updated every four hours at 12:00, 16:00, and 20:00. Stay informed. Stay sharp. \n#SouthAfrica #WhySoSerious #BreakingNews',
+                            ],
+                        ];
                     }
-                } catch (\Throwable $e) {
-                    $this->logger->error('Late upload failed', ['error' => $e->getMessage()]);
-                    $output->writeln('<error>Late upload failed: ' . $e->getMessage() . '</error>');
+                }
+                if ($uploadTikTok) {
+                    if (!$ttAccountId) {
+                        $output->writeln('<comment>Skipping TikTok: No account id (use --late-tiktok-account-id or env GETLATE_TIKTOK_ACCOUNT_ID)</comment>');
+                    } else {
+                        $platforms[] = [
+                            'platform' => 'tiktok',
+                            'accountId' => (string)$ttAccountId,
+                            'platformSpecificData' => new \stdClass(),
+                        ];
+                    }
+                }
+                if ($uploadFacebook) {
+                    if (!$fbAccountId) {
+                        $output->writeln('<comment>Skipping Facebook: No account id (use --late-facebook-account-id or env GETLATE_FACEBOOK_ACCOUNT_ID)</comment>');
+                    } else {
+                        $platforms[] = [
+                            'platform' => 'facebook',
+                            'accountId' => (string)$fbAccountId,
+                            'platformSpecificData' => new \stdClass(),
+                        ];
+                    }
+                }
+
+                if (!empty($platforms)) {
+                    try {
+                        $success = $this->uploadToLate(
+                            apiKey: (string)$apiKey,
+                            platforms: $platforms,
+                            content: (string)$uploadTitle,
+                            videoUrl: (string)$videoUrl,
+                            output: $output
+                        );
+                        if ($success) {
+                            if (is_file($finalFile)) {
+                                @unlink($finalFile);
+                                $output->writeln('<comment>Local rendered video deleted after successful upload: ' . $finalFile . '</comment>');
+                                $this->logger->info('Deleted local rendered video after Late upload', ['path' => $finalFile]);
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        $this->logger->error('Late upload failed', ['error' => $e->getMessage()]);
+                        $output->writeln('<error>Late upload failed: ' . $e->getMessage() . '</error>');
+                    }
                 }
             }
         }
@@ -679,27 +718,17 @@ Stay informed. Stay sharp.
     /**
      * Upload the produced video to YouTube via Late API.
      */
-    private function uploadToYouTubeViaLate(
+    private function uploadToLate(
         string $apiKey,
-        string $accountId,
+        array $platforms,
+        string $content,
         string $videoUrl,
-        string $title,
-        string $description,
-        string $privacyStatus,
         OutputInterface $output
     ): bool {
         $endpoint = 'https://getlate.dev/api/v1/posts';
         $body = [
-            'platforms' => [[
-                'platform' => 'youtube',
-                'accountId' => $accountId,
-                'platformSpecificData' => [
-                    'privacyStatus' => $privacyStatus,
-                    'title' => $title,
-                    'description' => $description,
-                ],
-            ]],
-            'content' => $title,
+            'platforms' => $platforms,
+            'content' => $content,
             'mediaItems' => [[
                 'type' => 'video',
                 'url' => $videoUrl,
