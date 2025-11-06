@@ -56,7 +56,10 @@ class SabcPastFourHoursCommand extends Command
         $this
             ->addOption('avatar-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Avatar ID', '0d457d33c46049f0b42b538abfc8913b')
             ->addOption('voice-id', null, InputOption::VALUE_OPTIONAL, 'HeyGen Voice ID', 'QOdz6iaNL4YniX0zO8BV')
-            ->addOption('no-burn', null, InputOption::VALUE_NONE, 'Do not burn captions into the video (copy original video)');
+            ->addOption('no-burn', null, InputOption::VALUE_NONE, 'Do not burn captions into the video (copy original video)')
+            ->addOption('upload-youtube', null, InputOption::VALUE_NONE, 'Upload the created video to YouTube via Late API')
+            ->addOption('late-account-id', null, InputOption::VALUE_OPTIONAL, 'Late YouTube accountId (overrides env)')
+            ->addOption('privacy', null, InputOption::VALUE_OPTIONAL, 'YouTube privacyStatus via Late (public|unlisted|private)', 'public');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -307,6 +310,22 @@ class SabcPastFourHoursCommand extends Command
         $date = date('Y-m-d H:i');
         $videoCount = count($videos);
         $dbTitle = "SABC Digital News - Last 4 Hours ({$videoCount} videos) - {$date}";
+
+        // Compute YouTube upload title based on time of day
+        $dateOnly = date('Y-m-d');
+        $period = 'Afternoon';
+        if (isset($currentHour)) {
+            if ($currentHour >= 18) {
+                $period = 'Evening';
+            } elseif ($currentHour === 12) {
+                $period = 'Midday';
+            } elseif ($currentHour >= 13 && $currentHour < 18) {
+                $period = 'Afternoon';
+            } else {
+                $period = 'Midday';
+            }
+        }
+        $uploadTitle = $period . ' News Update - ' . $dateOnly;
         
         // Save caption URL if it was provided by HeyGen
         $heyGenVideo = new HeyGenVideo($dbTitle, $videoUrl, false, $captionUrl);
@@ -329,6 +348,51 @@ class SabcPastFourHoursCommand extends Command
             'dbId' => $heyGenVideo->getId(),
             'videoCount' => count($videos)
         ]);
+
+        // Optional upload to YouTube via Late API
+        if ((bool)$input->getOption('upload-youtube')) {
+            $output->writeln('<info>Uploading video to YouTube via Late...</info>');
+            $privacy = 'public';
+            $lateAccountId = $input->getOption('late-account-id') ?: $this->resolveEnv('GETLATE_YOUTUBE_ACCOUNT_ID') ?: $this->resolveEnv('GETLATE_ACCOUNT_ID');
+            $apiKey = $this->resolveEnv('GETLATE_API_KEY');
+
+            if (!$apiKey) {
+                $output->writeln('<error>GETLATE_API_KEY is not set in environment. Skipping upload.</error>');
+            } elseif (!$lateAccountId) {
+                $output->writeln('<error>No Late accountId provided (use --late-account-id or env GETLATE_YOUTUBE_ACCOUNT_ID). Skipping upload.</error>');
+            } else {
+                try {
+                    $success = $this->uploadToYouTubeViaLate(
+                        apiKey: (string)$apiKey,
+                        accountId: (string)$lateAccountId,
+                        videoUrl: (string)$videoUrl,
+                        title: (string)$uploadTitle,
+                        description: 'Welcome to South Africa Why So Serious News — real news, no fluff.
+Fast, factual, and to the point — updated every four hours at 12:00, 16:00, and 20:00.
+
+We cover what matters most in South Africa: politics, justice, economy, and breaking stories — all delivered in under a minute.
+No drama, no spin — just the headlines you need when you need them.
+
+Stay informed. Stay sharp.
+
+🕛 New updates daily — 12:00 | 16:00 | 20:00
+#SouthAfrica #WhySoSerious #BreakingNews',
+                        privacyStatus: (string)$privacy,
+                        output: $output
+                    );
+                    if ($success) {
+                        if (is_file($finalFile)) {
+                            @unlink($finalFile);
+                            $output->writeln('<comment>Local rendered video deleted after successful upload: ' . $finalFile . '</comment>');
+                            $this->logger->info('Deleted local rendered video after Late upload', ['path' => $finalFile]);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->error('Late upload failed', ['error' => $e->getMessage()]);
+                    $output->writeln('<error>Late upload failed: ' . $e->getMessage() . '</error>');
+                }
+            }
+        }
 
         $output->writeln('<info>SABC Past 4 Hours video created successfully!</info>');
         return Command::SUCCESS;
@@ -612,6 +676,72 @@ class SabcPastFourHoursCommand extends Command
         file_put_contents($dest, $content);
     }
 
+    /**
+     * Upload the produced video to YouTube via Late API.
+     */
+    private function uploadToYouTubeViaLate(
+        string $apiKey,
+        string $accountId,
+        string $videoUrl,
+        string $title,
+        string $description,
+        string $privacyStatus,
+        OutputInterface $output
+    ): bool {
+        $endpoint = 'https://getlate.dev/api/v1/posts';
+        $body = [
+            'platforms' => [[
+                'platform' => 'youtube',
+                'accountId' => $accountId,
+                'platformSpecificData' => [
+                    'privacyStatus' => $privacyStatus,
+                    'title' => $title,
+                    'description' => $description,
+                ],
+            ]],
+            'content' => $title,
+            'mediaItems' => [[
+                'type' => 'video',
+                'url' => $videoUrl,
+            ]],
+        ];
+
+        try {
+            $resp = $this->httpClient->request('POST', $endpoint, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+                'json' => $body,
+                'timeout' => 60,
+            ]);
+
+            $statusCode = $resp->getStatusCode();
+            $data = null;
+            try { $data = $resp->toArray(false); } catch (\Throwable $e) { /* ignore */ }
+
+            if ($statusCode >= 200 && $statusCode < 300) {
+                $output->writeln('<info>Late upload request accepted.</info>');
+                if (is_array($data)) {
+                    $preview = json_encode($data);
+                    $this->logger->info('Late upload success', ['response' => $data]);
+                    if ($preview !== false) {
+                        $output->writeln('<comment>Late response: ' . mb_strimwidth($preview, 0, 300, '...') . '</comment>');
+                    }
+                }
+                return true;
+            } else {
+                $this->logger->error('Late upload error', ['status' => $statusCode, 'response' => $data]);
+                $output->writeln('<error>Late upload failed with status ' . $statusCode . '</error>');
+                return false;
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('Late upload exception', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     private function extractJsonBetween(string $html, string $start, string $end): ?string
     {
         $startPos = strpos($html, $start);
@@ -629,6 +759,18 @@ class SabcPastFourHoursCommand extends Command
         $json = trim($json, ' ;');
         
         return $json;
+    }
+
+    private function resolveEnv(string $name): string
+    {
+        if (isset($_SERVER[$name]) && is_string($_SERVER[$name]) && $_SERVER[$name] !== '') {
+            return (string)$_SERVER[$name];
+        }
+        if (isset($_ENV[$name]) && is_string($_ENV[$name]) && $_ENV[$name] !== '') {
+            return (string)$_ENV[$name];
+        }
+        $val = getenv($name);
+        return is_string($val) ? $val : '';
     }
 
     private function extractTextFromRuns(?array $runs): ?string
