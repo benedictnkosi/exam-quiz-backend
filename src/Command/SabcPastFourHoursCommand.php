@@ -529,14 +529,18 @@ class SabcPastFourHoursCommand extends Command
                     if ($this->isWithinLastFourHours($published)) {
                         $videoId = $this->sanitizeVideoId($vr['videoId'] ?? '');
                         if ($videoId) {
+                            $ageInSeconds = $this->getPublishedAgeInSeconds($published);
                             $videos[] = [
                                 'id' => $videoId,
-                                'title' => $titleText
+                                'title' => $titleText,
+                                'published' => $published,
+                                'ageInSeconds' => $ageInSeconds
                             ];
                             $this->logger->info('Found video from last 4 hours', [
                                 'videoId' => $videoId,
                                 'title' => $titleText,
-                                'published' => $published
+                                'published' => $published,
+                                'ageInSeconds' => $ageInSeconds
                             ]);
                         }
                     }
@@ -551,12 +555,34 @@ class SabcPastFourHoursCommand extends Command
             }
         }
         
+        $videosFoundWithinWindow = count($videos);
+
+        if ($videosFoundWithinWindow > 0) {
+            usort($videos, static function (array $a, array $b): int {
+                $ageA = $a['ageInSeconds'] ?? PHP_INT_MAX;
+                $ageB = $b['ageInSeconds'] ?? PHP_INT_MAX;
+
+                return $ageA <=> $ageB;
+            });
+
+            if ($videosFoundWithinWindow > 20) {
+                $videos = array_slice($videos, 0, 20);
+            }
+        }
+
         $this->logger->info('SABC Digital News search completed', [
             'totalVideosFound' => $totalVideosFound,
-            'videosFromLast4Hours' => count($videos)
+            'videosFromLast4Hours' => $videosFoundWithinWindow,
+            'videosReturned' => count($videos),
+            'limit' => 20
         ]);
 
-        return $videos;
+        return array_map(static function (array $video): array {
+            return [
+                'id' => $video['id'],
+                'title' => $video['title']
+            ];
+        }, $videos);
     }
 
     private function burnAndCache(int $id, string $videoUrl, ?string $captionUrl, OutputInterface $output, bool $burnCaptions = true): void
@@ -821,6 +847,49 @@ class SabcPastFourHoursCommand extends Command
     private function sanitizeVideoId(string $videoId): string
     {
         return preg_replace('/[^a-zA-Z0-9_-]/', '', $videoId);
+    }
+
+    private function getPublishedAgeInSeconds(?string $published): ?int
+    {
+        if ($published === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($published));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s*\(.*\)$/', '', $normalized);
+        $normalized = preg_replace('/^(streamed|premiered)\s+/', '', $normalized);
+        $normalized = preg_replace('/^(streamed|premiered)\s+live\s+/', '', $normalized);
+
+        if (preg_match('/^(\d+)\s+second(s)?\s+ago$/', $normalized, $match)) {
+            return (int)$match[1];
+        }
+        if (preg_match('/^(an|a)\s+second\s+ago$/', $normalized)) {
+            return 1;
+        }
+
+        if (preg_match('/^(\d+)\s+minute(s)?\s+ago$/', $normalized, $match)) {
+            return (int)$match[1] * 60;
+        }
+        if (preg_match('/^(an|a)\s+minute\s+ago$/', $normalized)) {
+            return 60;
+        }
+
+        if (preg_match('/^(\d+)\s+hour(s)?\s+ago$/', $normalized, $match)) {
+            return (int)$match[1] * 3600;
+        }
+        if (preg_match('/^(an|a)\s+hour\s+ago$/', $normalized)) {
+            return 3600;
+        }
+
+        if ($normalized === 'today') {
+            return 4 * 3600;
+        }
+
+        return null;
     }
 
     private function isWithinLastFourHours(?string $published): bool
