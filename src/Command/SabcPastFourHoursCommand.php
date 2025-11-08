@@ -184,11 +184,13 @@ class SabcPastFourHoursCommand extends Command
         
         // Determine greeting based on time of day (runs at 12pm, 4pm, 8pm)
         $currentHour = (int)date('G'); // 24-hour format (0-23)
-        $greeting = 'Hi there, here is your afternoon update.'; // Default for 12pm and 4pm
+        $greeting = 'Hi there, here is your midday update.'; // Default for 12pm and 4pm
         if ($currentHour >= 18) { // 6pm or later (covers 8pm)
             $greeting = 'Hi there, here is your evening update.';
         } elseif ($currentHour < 12) { // Before noon (shouldn't happen, but just in case)
             $greeting = 'Hi there, here is your morning update.';
+        }elseif ($currentHour > 13 && $currentHour < 18) { // Before noon (shouldn't happen, but just in case)
+            $greeting = 'Hi there, here is your afternoon update.';
         }
         
         $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 78, 'Dan', $greeting);
