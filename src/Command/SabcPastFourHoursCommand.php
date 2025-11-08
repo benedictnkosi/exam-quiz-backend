@@ -327,7 +327,7 @@ class SabcPastFourHoursCommand extends Command
             } elseif ($currentHour >= 13 && $currentHour < 18) {
                 $period = 'Afternoon';
             } else {
-                $period = 'Midday';
+                $period = 'Morning';
             }
         }
         $uploadTitle = $period . ' News Update - ' . $dateOnly;
