@@ -604,7 +604,7 @@ class SabcPastFourHoursCommand extends Command
         $subsTmp = null; // will be set after download based on extension
 
         // Path to intro video
-        $introVideoPath = dirname(__DIR__, 2) . '/public/assets/news-intro.mp4';
+        $introVideoPath = dirname(__DIR__, 2) . '/news-intro.mp4';
         if (!is_file($introVideoPath)) {
             $output->writeln('<error>Intro video not found at: ' . $introVideoPath . '</error>');
             return;
