@@ -336,7 +336,7 @@ class SabcPastFourHoursDirectCommand extends Command
         $dbTitle = "SABC Digital News - Last 4 Hours ({$videoCount} videos) - {$date}";
 
         // Compute YouTube upload title based on time of day
-        $dateOnly = date('Y-m-d');
+        $dateOnly = date('j F');
         $period = 'Afternoon';
         if (isset($currentHour)) {
             if ($currentHour >= 18) {
