@@ -148,3 +148,5 @@ private string $defaultAvatarId = '93bf36d167184854bdde4ffb3b340981';
 
 # run 4 hrs
 php bin/console app:sabc-past-four-hours --avatar-id=93bf36d167184854bdde4ffb3b340981 --voice-id=QOdz6iaNL4YniX0zO8BV --upload-to-youtube
+
+get refresh token
