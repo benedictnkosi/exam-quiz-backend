@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Entity\HeyGenVideo;
+use App\Repository\WordReplacementRepository;
 use App\Service\HeyGenService;
 use App\Service\OpenAIService;
 use App\Service\SabcDigitalScraper;
@@ -37,6 +38,7 @@ class SabcPastFourHoursDirectCommand extends Command
     private HeyGenService $heyGenService;
     private EntityManagerInterface $entityManager;
     private LoggerInterface $logger;
+    private WordReplacementRepository $wordReplacementRepository;
 
     public function __construct(
         HttpClientInterface $httpClient,
@@ -45,7 +47,8 @@ class SabcPastFourHoursDirectCommand extends Command
         OpenAIService $openAIService,
         HeyGenService $heyGenService,
         EntityManagerInterface $entityManager,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        WordReplacementRepository $wordReplacementRepository
     ) {
         $this->httpClient = $httpClient;
         $this->scraper = $scraper;
@@ -54,6 +57,7 @@ class SabcPastFourHoursDirectCommand extends Command
         $this->heyGenService = $heyGenService;
         $this->entityManager = $entityManager;
         $this->logger = $logger;
+        $this->wordReplacementRepository = $wordReplacementRepository;
         parent::__construct();
     }
 
@@ -227,10 +231,17 @@ class SabcPastFourHoursDirectCommand extends Command
             $this->logger->info('Script corrected after fact-check', [ 'preview' => mb_substr($correctedScript, 0, 160) ]);
         }
 
+        // Apply word replacements before creating video
+        $output->writeln('<info>Applying word replacements...</info>');
+        $finalScript = $this->applyWordReplacements($correctedScript);
+        if ($finalScript !== $correctedScript) {
+            $this->logger->info('Script modified with word replacements', [ 'preview' => mb_substr($finalScript, 0, 160) ]);
+        }
+
         // Create HeyGen video
         $output->writeln('<info>Creating HeyGen video...</info>');
         $heyGenVideoId = $this->heyGenService->createAvatarVideoFromText(
-            $correctedScript,
+            $finalScript,
             $avatarId,
             $voiceId,
             1080,
@@ -1033,5 +1044,32 @@ class SabcPastFourHoursDirectCommand extends Command
         
         // Everything else (yesterday, days ago, etc.) is too old
         return false;
+    }
+
+    /**
+     * Apply word replacements from the database to the script text.
+     * Replaces words with their replacement words (case-insensitive, whole word matching).
+     */
+    private function applyWordReplacements(string $script): string
+    {
+        $replacements = $this->wordReplacementRepository->findActiveReplacements();
+        
+        if (empty($replacements)) {
+            return $script;
+        }
+
+        $result = $script;
+        
+        foreach ($replacements as $replacement) {
+            $word = $replacement->getWord();
+            $replacementWord = $replacement->getReplacementWord();
+            
+            // Use word boundaries to match whole words only (case-insensitive)
+            // \b matches word boundaries, and we use the 'i' flag for case-insensitive matching
+            $pattern = '/\b' . preg_quote($word, '/') . '\b/iu';
+            $result = preg_replace($pattern, $replacementWord, $result);
+        }
+        
+        return $result;
     }
 }
