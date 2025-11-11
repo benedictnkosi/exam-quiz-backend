@@ -600,7 +600,15 @@ class SabcPastFourHoursCommand extends Command
         $tmpDir = sys_get_temp_dir() . '/heygen_' . $id;
         if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0700, true); }
         $videoTmp = $tmpDir . '/video.mp4';
+        $processedVideoTmp = $tmpDir . '/processed.mp4';
         $subsTmp = null; // will be set after download based on extension
+
+        // Path to intro video
+        $introVideoPath = dirname(__DIR__, 2) . '/public/assets/news-intro.mp4';
+        if (!is_file($introVideoPath)) {
+            $output->writeln('<error>Intro video not found at: ' . $introVideoPath . '</error>');
+            return;
+        }
 
         $output->writeln('<info>Downloading video...</info>');
         $this->downloadToFile($videoUrl, $videoTmp);
@@ -621,25 +629,132 @@ class SabcPastFourHoursCommand extends Command
             $hasCaptions = is_file($subsTmp) && filesize($subsTmp) > 0;
         }
 
+        // Step 1: Process the generated video (burn captions if available) to an intermediate file
         if ($hasCaptions) {
             $output->writeln('<info>Burning captions into video...</info>');
             $escaped = str_replace(':', '\\:', $subsTmp);
             $force = "Alignment=5,MarginV=150,MarginL=40,MarginR=5,Outline=1,FontSize=20,LineSpacing=2,WrapStyle=0";
             $filter = "subtitles='" . $escaped . "':force_style='" . $force . "'";
-            $cmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($videoTmp) . ' -vf ' . escapeshellarg($filter) . ' -c:a copy ' . escapeshellarg($outputFile);
+            $cmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($videoTmp) . ' -vf ' . escapeshellarg($filter) . ' -c:a copy ' . escapeshellarg($processedVideoTmp);
         } else {
-            $output->writeln('<comment>No captions available, copying video without captions...</comment>');
-            $cmd = 'cp ' . escapeshellarg($videoTmp) . ' ' . escapeshellarg($outputFile);
+            $output->writeln('<comment>No captions available, processing video without captions...</comment>');
+            // Copy to processed video temp file
+            $cmd = 'cp ' . escapeshellarg($videoTmp) . ' ' . escapeshellarg($processedVideoTmp);
         }
         
         $proc = new Process(['bash', '-lc', $cmd]);
         $proc->setTimeout(600);
         $proc->run();
-        if ($proc->isSuccessful()) {
+        if (!$proc->isSuccessful()) {
+            $output->writeln('<comment>Video processing failed: ' . $proc->getErrorOutput() . '</comment>');
+            return;
+        }
+
+        // Step 2: Merge intro video with processed video (intro first)
+        $output->writeln('<info>Merging intro video with generated video...</info>');
+        
+        // Normalize and merge videos using concat demuxer (more reliable than filter_complex)
+        // First, normalize both videos to the same format
+        $introNormalized = $tmpDir . '/intro_normalized.mp4';
+        $processedNormalized = $tmpDir . '/processed_normalized.mp4';
+        
+        // Normalize intro video: scale to 1080x1920, normalize audio format
+        // Handle audio gracefully - use existing audio or create silent audio track
+        $normalizeIntroCmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($introVideoPath) . 
+                           ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                           ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                           ' -af "aresample=48000:async=1" -c:a aac -b:a 128k -ar 48000 -ac 2' .
+                           ' -shortest ' . escapeshellarg($introNormalized);
+        
+        $normIntroProc = new Process(['bash', '-lc', $normalizeIntroCmd]);
+        $normIntroProc->setTimeout(600);
+        $normIntroProc->run();
+        
+        // If normalization failed (e.g., no audio), try with silent audio
+        if (!$normIntroProc->isSuccessful() || !is_file($introNormalized)) {
+            $output->writeln('<comment>Intro video normalization with audio failed, trying with silent audio...</comment>');
+            $normalizeIntroCmdSilent = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($introVideoPath) . 
+                                     ' -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000' .
+                                     ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                                     ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                                     ' -c:a aac -b:a 128k -shortest -map 0:v:0 -map 1:a:0 ' . escapeshellarg($introNormalized);
+            
+            $normIntroProcSilent = new Process(['bash', '-lc', $normalizeIntroCmdSilent]);
+            $normIntroProcSilent->setTimeout(600);
+            $normIntroProcSilent->run();
+            
+            if (!$normIntroProcSilent->isSuccessful() || !is_file($introNormalized)) {
+                $output->writeln('<error>Failed to normalize intro video: ' . $normIntroProcSilent->getErrorOutput() . '</error>');
+                // Fallback: use processed video without intro
+                if (is_file($processedVideoTmp)) {
+                    @copy($processedVideoTmp, $outputFile);
+                    $output->writeln('<comment>Fallback: Using processed video without intro</comment>');
+                }
+                return;
+            }
+        }
+        
+        // Normalize processed video: scale to 1080x1920, normalize audio format
+        $normalizeProcessedCmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($processedVideoTmp) . 
+                               ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                               ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                               ' -af "aresample=48000:async=1" -c:a aac -b:a 128k -ar 48000 -ac 2' .
+                               ' -shortest ' . escapeshellarg($processedNormalized);
+        
+        $normProcessedProc = new Process(['bash', '-lc', $normalizeProcessedCmd]);
+        $normProcessedProc->setTimeout(600);
+        $normProcessedProc->run();
+        
+        // If normalization failed (e.g., no audio), try with silent audio
+        if (!$normProcessedProc->isSuccessful() || !is_file($processedNormalized)) {
+            $output->writeln('<comment>Processed video normalization with audio failed, trying with silent audio...</comment>');
+            $normalizeProcessedCmdSilent = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($processedVideoTmp) . 
+                                         ' -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000' .
+                                         ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                                         ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                                         ' -c:a aac -b:a 128k -shortest -map 0:v:0 -map 1:a:0 ' . escapeshellarg($processedNormalized);
+            
+            $normProcessedProcSilent = new Process(['bash', '-lc', $normalizeProcessedCmdSilent]);
+            $normProcessedProcSilent->setTimeout(600);
+            $normProcessedProcSilent->run();
+            
+            if (!$normProcessedProcSilent->isSuccessful() || !is_file($processedNormalized)) {
+                $output->writeln('<error>Failed to normalize processed video: ' . $normProcessedProcSilent->getErrorOutput() . '</error>');
+                // Fallback: use processed video without intro
+                if (is_file($processedVideoTmp)) {
+                    @copy($processedVideoTmp, $outputFile);
+                    $output->writeln('<comment>Fallback: Using processed video without intro</comment>');
+                }
+                return;
+            }
+        }
+        
+        // Create concat file list (escape single quotes in paths)
+        $concatFile = $tmpDir . '/concat_list.txt';
+        $introPathEscaped = str_replace("'", "'\\''", $introNormalized);
+        $processedPathEscaped = str_replace("'", "'\\''", $processedNormalized);
+        $concatContent = "file '{$introPathEscaped}'\n";
+        $concatContent .= "file '{$processedPathEscaped}'\n";
+        file_put_contents($concatFile, $concatContent);
+        
+        // Concatenate videos using concat demuxer (fast, no re-encoding)
+        $mergeCmd = 'ffmpeg -y -loglevel error -f concat -safe 0 -i ' . escapeshellarg($concatFile) . 
+                   ' -c copy ' . escapeshellarg($outputFile);
+        
+        $mergeProc = new Process(['bash', '-lc', $mergeCmd]);
+        $mergeProc->setTimeout(900); // 15 minutes timeout for merging
+        $mergeProc->run();
+        
+        if ($mergeProc->isSuccessful()) {
             $captionStatus = $hasCaptions ? ' with captions burned' : ' (no captions)';
-            $output->writeln('<info>Rendered video prepared' . $captionStatus . ': ' . $outputFile . '</info>');
+            $output->writeln('<info>Rendered video prepared' . $captionStatus . ' and merged with intro: ' . $outputFile . '</info>');
         } else {
-            $output->writeln('<comment>Burn step failed: ' . $proc->getErrorOutput() . '</comment>');
+            $output->writeln('<error>Video merge failed: ' . $mergeProc->getErrorOutput() . '</error>');
+            // Fallback: if merge fails, just use the processed video without intro
+            if (is_file($processedVideoTmp)) {
+                @copy($processedVideoTmp, $outputFile);
+                $output->writeln('<comment>Fallback: Using processed video without intro</comment>');
+            }
         }
     }
 
