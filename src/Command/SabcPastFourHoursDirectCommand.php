@@ -341,10 +341,10 @@ class SabcPastFourHoursDirectCommand extends Command
         if (isset($currentHour)) {
             if ($currentHour >= 18) {
                 $period = 'Evening';
-            } elseif ($currentHour > 11 && $currentHour < 14) {
-                $period = 'Midday';
-            } elseif ($currentHour >= 14 && $currentHour < 18) {
+            } elseif ($currentHour >= 13) {
                 $period = 'Afternoon';
+            } elseif ($currentHour >= 10) {
+                $period = 'Midday';
             } else {
                 $period = 'Morning';
             }
