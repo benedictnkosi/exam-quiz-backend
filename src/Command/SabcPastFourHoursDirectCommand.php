@@ -377,7 +377,7 @@ class SabcPastFourHoursDirectCommand extends Command
         $uploadYouTube = (bool)$input->getOption('upload-youtube');
         if ($uploadYouTube) {
             $privacy = (string)$input->getOption('privacy') ?: 'public';
-            $description = 'Welcome to South Africa Why So Serious News — real news, no fluff. Fast, factual, and to the point — updated every four hours at 12:00, 16:00, and 20:00. Stay informed. Stay sharp. 
+            $description = 'Welcome to South Africa 60 seconds news — real news, no fluff. Fast, factual, and to the point — updated every four hours at 12:00, 16:00, and 20:00. Stay informed. Stay sharp. 
 #SouthAfrica #WhySoSerious #BreakingNews';
             if (!is_file($finalFile)) {
                 $output->writeln('<error>Rendered file not found for upload: ' . $finalFile . '</error>');
