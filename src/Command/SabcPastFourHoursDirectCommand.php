@@ -188,9 +188,9 @@ class SabcPastFourHoursDirectCommand extends Command
         // Read the transcript file content and use it directly
         $transcriptContent = file_get_contents($transcriptFile);
         
-        // Generate 55-second script with Dan as anchor using merged transcript
-        // Target 67 seconds to compensate for faster TTS reading speed (actual result will be ~55 seconds)
-        $output->writeln('<info>Generating 55-second script from merged transcripts...</info>');
+        // Generate 45-second script with Dan as anchor using merged transcript
+        // Target 57 seconds to compensate for faster TTS reading speed (actual result will be ~45 seconds)
+        $output->writeln('<info>Generating 45-second script from merged transcripts...</info>');
         
         // Determine greeting based on time of day (runs at 12pm, 4pm, 8pm)
         $currentHour = (int)date('G'); // 24-hour format (0-23)
@@ -203,7 +203,7 @@ class SabcPastFourHoursDirectCommand extends Command
             $greeting = 'Hi there, here is your afternoon update.';
         }
         
-        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 67, 'Dan', $greeting);
+        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 50, 'Dan', $greeting);
 
         if (!$script) {
             $output->writeln('<error>Failed to generate script</error>');
@@ -237,6 +237,14 @@ class SabcPastFourHoursDirectCommand extends Command
         if ($finalScript !== $correctedScript) {
             $this->logger->info('Script modified with word replacements', [ 'preview' => mb_substr($finalScript, 0, 160) ]);
         }
+
+        // Log final script length
+        $finalScriptLength = mb_strlen($finalScript);
+        $finalScriptWordCount = str_word_count($finalScript);
+        $this->logger->info('Final script length', [
+            'characterCount' => $finalScriptLength,
+            'wordCount' => $finalScriptWordCount
+        ]);
 
         // Create HeyGen video
         $output->writeln('<info>Creating HeyGen video...</info>');
