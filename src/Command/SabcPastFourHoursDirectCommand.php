@@ -188,9 +188,9 @@ class SabcPastFourHoursDirectCommand extends Command
         // Read the transcript file content and use it directly
         $transcriptContent = file_get_contents($transcriptFile);
         
-        // Generate 60-second script with Dan as anchor using merged transcript
-        // Target 78 seconds to compensate for faster TTS reading speed (actual result will be ~60 seconds)
-        $output->writeln('<info>Generating 60-second script from merged transcripts...</info>');
+        // Generate 55-second script with Dan as anchor using merged transcript
+        // Target 67 seconds to compensate for faster TTS reading speed (actual result will be ~55 seconds)
+        $output->writeln('<info>Generating 55-second script from merged transcripts...</info>');
         
         // Determine greeting based on time of day (runs at 12pm, 4pm, 8pm)
         $currentHour = (int)date('G'); // 24-hour format (0-23)
@@ -203,7 +203,7 @@ class SabcPastFourHoursDirectCommand extends Command
             $greeting = 'Hi there, here is your afternoon update.';
         }
         
-        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 78, 'Dan', $greeting);
+        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 67, 'Dan', $greeting);
 
         if (!$script) {
             $output->writeln('<error>Failed to generate script</error>');
