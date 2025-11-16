@@ -589,7 +589,7 @@ class SabcPastFourHoursDirectCommand extends Command
             $output->writeln('<error>Intro video not found at: ' . $introVideoPath . '</error>');
             return;
         }
-        $subscribeVideoPath = dirname(__DIR__, 2) . '/public/assets/subscribe.mp4';
+        $subscribeVideoPath = dirname(__DIR__, 2) . '/subscribe.mp4';
         $hasSubscribeVideo = is_file($subscribeVideoPath);
         if (!$hasSubscribeVideo) {
             $output->writeln('<comment>Subscribe video not found at: ' . $subscribeVideoPath . ' (skipping tail video)</comment>');
