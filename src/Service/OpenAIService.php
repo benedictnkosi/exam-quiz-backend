@@ -1269,7 +1269,7 @@ OUTRO — CONSISTENT line:
 
 LENGTH & PACING (duration target)
 - Target {$targetSeconds}s total. Aim for {$minWords}–{$maxWords} words (≈ {$wordsPerSecond} wps).
-- Max stories: {$maxStories}. Prefer 8–12 micro-updates if content allows.
+- Max stories: {$maxStories}. Prefer 5-6 micro-updates if content allows.
 
 STANDARDS
 - No editorialising beyond neutral qualifiers. No humour or punchlines.

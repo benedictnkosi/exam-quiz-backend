@@ -203,7 +203,7 @@ class SabcPastFourHoursDirectCommand extends Command
             $greeting = 'Hi there, here is your afternoon update.';
         }
         
-        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 12, 50, 'Dan', $greeting);
+        $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 5, 50, 'Dan', $greeting);
 
         if (!$script) {
             $output->writeln('<error>Failed to generate script</error>');
