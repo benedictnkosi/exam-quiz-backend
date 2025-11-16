@@ -583,11 +583,16 @@ class SabcPastFourHoursDirectCommand extends Command
         $processedVideoTmp = $tmpDir . '/processed.mp4';
         $subsTmp = null; // will be set after download based on extension
 
-        // Path to intro video
+        // Path to intro and subscribe videos
         $introVideoPath = dirname(__DIR__, 2) . '/news-intro.mp4';
         if (!is_file($introVideoPath)) {
             $output->writeln('<error>Intro video not found at: ' . $introVideoPath . '</error>');
             return;
+        }
+        $subscribeVideoPath = dirname(__DIR__, 2) . '/public/assets/subscribe.mp4';
+        $hasSubscribeVideo = is_file($subscribeVideoPath);
+        if (!$hasSubscribeVideo) {
+            $output->writeln('<comment>Subscribe video not found at: ' . $subscribeVideoPath . ' (skipping tail video)</comment>');
         }
 
         $output->writeln('<info>Downloading video...</info>');
@@ -630,13 +635,14 @@ class SabcPastFourHoursDirectCommand extends Command
             return;
         }
 
-        // Step 2: Merge intro video with processed video (intro first)
-        $output->writeln('<info>Merging intro video with generated video...</info>');
+        // Step 2: Merge intro video with processed video (intro first) and subscribe video (tail)
+        $output->writeln('<info>Merging intro, generated, and subscribe videos...</info>');
         
         // Normalize and merge videos using concat demuxer (more reliable than filter_complex)
-        // First, normalize both videos to the same format
+        // First, normalize all videos to the same format
         $introNormalized = $tmpDir . '/intro_normalized.mp4';
         $processedNormalized = $tmpDir . '/processed_normalized.mp4';
+        $subscribeNormalized = $tmpDir . '/subscribe_normalized.mp4';
         
         // Normalize intro video: scale to 1080x1920, normalize audio format
         // Handle audio gracefully - use existing audio or create silent audio track
@@ -708,6 +714,39 @@ class SabcPastFourHoursDirectCommand extends Command
                 return;
             }
         }
+
+        // Normalize subscribe video: scale to 1080x1920, normalize audio format (only if subscribe video exists)
+        if ($hasSubscribeVideo) {
+            $normalizeSubscribeCmd = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($subscribeVideoPath) .
+                                   ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                                   ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                                   ' -af "aresample=48000:async=1" -c:a aac -b:a 128k -ar 48000 -ac 2' .
+                                   ' -shortest ' . escapeshellarg($subscribeNormalized);
+
+            $normSubscribeProc = new Process(['bash', '-lc', $normalizeSubscribeCmd]);
+            $normSubscribeProc->setTimeout(600);
+            $normSubscribeProc->run();
+
+            // If normalization failed (e.g., no audio), try with silent audio
+            if (!$normSubscribeProc->isSuccessful() || !is_file($subscribeNormalized)) {
+                $output->writeln('<comment>Subscribe video normalization with audio failed, trying with silent audio...</comment>');
+                $normalizeSubscribeCmdSilent = 'ffmpeg -y -loglevel error -i ' . escapeshellarg($subscribeVideoPath) .
+                                             ' -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000' .
+                                             ' -vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30' .
+                                             ' -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p' .
+                                             ' -c:a aac -b:a 128k -shortest -map 0:v:0 -map 1:a:0 ' . escapeshellarg($subscribeNormalized);
+
+                $normSubscribeProcSilent = new Process(['bash', '-lc', $normalizeSubscribeCmdSilent]);
+                $normSubscribeProcSilent->setTimeout(600);
+                $normSubscribeProcSilent->run();
+
+                if (!$normSubscribeProcSilent->isSuccessful() || !is_file($subscribeNormalized)) {
+                    $output->writeln('<error>Failed to normalize subscribe video: ' . $normSubscribeProcSilent->getErrorOutput() . '</error>');
+                    $output->writeln('<comment>Proceeding without subscribe tail video</comment>');
+                    $hasSubscribeVideo = false;
+                }
+            }
+        }
         
         // Create concat file list (escape single quotes in paths)
         $concatFile = $tmpDir . '/concat_list.txt';
@@ -715,6 +754,10 @@ class SabcPastFourHoursDirectCommand extends Command
         $processedPathEscaped = str_replace("'", "'\\''", $processedNormalized);
         $concatContent = "file '{$introPathEscaped}'\n";
         $concatContent .= "file '{$processedPathEscaped}'\n";
+        if ($hasSubscribeVideo && is_file($subscribeNormalized)) {
+            $subscribePathEscaped = str_replace("'", "'\\''", $subscribeNormalized);
+            $concatContent .= "file '{$subscribePathEscaped}'\n";
+        }
         file_put_contents($concatFile, $concatContent);
         
         // Concatenate videos using concat demuxer (fast, no re-encoding)
