@@ -1379,4 +1379,77 @@ PR;
             return 'Failed to generate script due to an API error.';
         }
     }
+
+    /**
+     * Generate a video title from a news script.
+     * The title should focus on one key or emotionally charged story from the script.
+     * 
+     * @param string $script The news script
+     * @return string The generated title, or empty string on failure
+     */
+    public function generateVideoTitleFromScript(string $script): string
+    {
+        $prompt = <<<PR
+You are a news editor creating a compelling video title for a news update video.
+
+Analyze the following news script and identify the ONE most important, key, or emotionally charged story in it.
+
+Create a video title that:
+- Focuses on that single key story
+- Is emotionally engaging and attention-grabbing
+- Is concise (ideally 5-10 words, maximum 15 words)
+- Captures the essence of the most impactful story
+- Uses clear, direct language suitable for YouTube/news video titles
+- Does NOT include dates, times, or generic phrases like "News Update" or "Breaking News"
+
+Return ONLY the title text, nothing else. No quotes, no explanations, no additional text.
+
+SCRIPT:
+"""
+{$script}
+"""
+PR;
+
+        try {
+            $response = $this->client->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'You are a news editor who creates compelling, concise video titles that capture the most important story in a news script.'
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt
+                        ]
+                    ],
+                    'temperature' => 0.7,
+                    'max_tokens' => 50
+                ]
+            ]);
+
+            $data = json_decode($response->getContent(), true);
+            $title = trim($data['choices'][0]['message']['content'] ?? '');
+            
+            // Clean up the title - remove quotes if present
+            $title = preg_replace('/^["\']|["\']$/', '', $title);
+            $title = trim($title);
+            
+            if ($title === '') {
+                $this->logger->warning('Generated video title is empty');
+                return '';
+            }
+            
+            $this->logger->info('Generated video title from script', ['title' => $title]);
+            return $title;
+        } catch (\Exception $e) {
+            $this->logger->error('OpenAI API Error (generateVideoTitleFromScript): ' . $e->getMessage());
+            return '';
+        }
+    }
 }

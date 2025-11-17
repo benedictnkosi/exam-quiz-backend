@@ -246,6 +246,31 @@ class SabcPastFourHoursDirectCommand extends Command
             'wordCount' => $finalScriptWordCount
         ]);
 
+        // Generate video title from script
+        $output->writeln('<info>Generating video title from script...</info>');
+        $uploadTitle = $this->openAIService->generateVideoTitleFromScript($finalScript);
+        
+        // Fallback to date-based title if AI generation failed
+        if (empty($uploadTitle)) {
+            $output->writeln('<comment>AI title generation failed, using date-based title as fallback</comment>');
+            $dateOnly = date('j F');
+            $period = 'Afternoon';
+            if (isset($currentHour)) {
+                if ($currentHour >= 18) {
+                    $period = 'Evening';
+                } elseif ($currentHour >= 13) {
+                    $period = 'Afternoon';
+                } elseif ($currentHour >= 10) {
+                    $period = 'Midday';
+                } else {
+                    $period = 'Morning';
+                }
+            }
+            $uploadTitle = $period . ' News Update - ' . $dateOnly;
+        } else {
+            $output->writeln('<info>Generated title: ' . $uploadTitle . '</info>');
+        }
+
         // Create HeyGen video
         $output->writeln('<info>Creating HeyGen video...</info>');
         $heyGenVideoId = $this->heyGenService->createAvatarVideoFromText(
@@ -342,22 +367,6 @@ class SabcPastFourHoursDirectCommand extends Command
         $date = date('Y-m-d H:i');
         $videoCount = count($videos);
         $dbTitle = "SABC Digital News - Last 4 Hours ({$videoCount} videos) - {$date}";
-
-        // Compute YouTube upload title based on time of day
-        $dateOnly = date('j F');
-        $period = 'Afternoon';
-        if (isset($currentHour)) {
-            if ($currentHour >= 18) {
-                $period = 'Evening';
-            } elseif ($currentHour >= 13) {
-                $period = 'Afternoon';
-            } elseif ($currentHour >= 10) {
-                $period = 'Midday';
-            } else {
-                $period = 'Morning';
-            }
-        }
-        $uploadTitle = $period . ' News Update - ' . $dateOnly;
         
         // Save caption URL if it was provided by HeyGen
         $heyGenVideo = new HeyGenVideo($dbTitle, $videoUrl, false, $captionUrl);
