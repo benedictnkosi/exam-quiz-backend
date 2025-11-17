@@ -1397,10 +1397,12 @@ Analyze the following news script and identify the ONE most important, key, or e
 Create a video title that:
 - Focuses on that single key story
 - Is emotionally engaging and attention-grabbing
-- Is concise (ideally 5-10 words, maximum 15 words)
+- Is STRICTLY less than 45 characters (count every character including spaces)
 - Captures the essence of the most impactful story
 - Uses clear, direct language suitable for YouTube/news video titles
 - Does NOT include dates, times, or generic phrases like "News Update" or "Breaking News"
+
+CRITICAL: The title MUST be less than 45 characters. Count characters carefully before returning.
 
 Return ONLY the title text, nothing else. No quotes, no explanations, no additional text.
 
@@ -1421,7 +1423,7 @@ PR;
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'You are a news editor who creates compelling, concise video titles that capture the most important story in a news script.'
+                            'content' => 'You are a news editor who creates compelling, concise video titles that capture the most important story in a news script. Titles must be under 45 characters.'
                         ],
                         [
                             'role' => 'user',
@@ -1445,7 +1447,19 @@ PR;
                 return '';
             }
             
-            $this->logger->info('Generated video title from script', ['title' => $title]);
+            // Enforce 45 character limit - truncate if necessary
+            if (mb_strlen($title) >= 45) {
+                $title = mb_substr($title, 0, 42) . '...';
+                $this->logger->warning('Generated title exceeded 45 characters, truncated', [
+                    'original_length' => mb_strlen($data['choices'][0]['message']['content'] ?? ''),
+                    'truncated_title' => $title
+                ]);
+            }
+            
+            $this->logger->info('Generated video title from script', [
+                'title' => $title,
+                'length' => mb_strlen($title)
+            ]);
             return $title;
         } catch (\Exception $e) {
             $this->logger->error('OpenAI API Error (generateVideoTitleFromScript): ' . $e->getMessage());
