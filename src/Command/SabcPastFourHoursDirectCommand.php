@@ -200,7 +200,7 @@ class SabcPastFourHoursDirectCommand extends Command
         } elseif ($currentHour < 12) { // Before noon (shouldn't happen, but just in case)
             $greeting = 'Hi there, here is your morning update.';
         }elseif ($currentHour > 13 && $currentHour < 18) { // Before noon (shouldn't happen, but just in case)
-            $greeting = 'Hi there, here is your afternoon update.';
+            $greeting = 'Hi there, here is your evening update.';
         }
         
         $script = $this->openAIService->generateVideoScriptFromTranscript($transcriptContent, 5, 50, 'Dan', $greeting);
