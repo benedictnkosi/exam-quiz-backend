@@ -16,16 +16,16 @@ class LearnerDailyUsageService
 {
     private const TIMEZONE = 'Africa/Johannesburg';
 
-    private $DAILY_QUIZ_LIMIT = 10;
+    private $DAILY_QUIZ_LIMIT = 100;
     private $SILVER_DAILY_QUIZ_LIMIT = 999;
     private $BRONZE_DAILY_QUIZ_LIMIT = 999;
     private $GOLD_DAILY_QUIZ_LIMIT = 999;
-    private $DAILY_LESSON_LIMIT = 10;
-    private $DAILY_PODCAST_LIMIT = 1;
-    private $DAILY_MATHS_PRACTICE_LIMIT = 5;
-    private $LIFETIME_MATHS_PRACTICE_LIMIT = 10;
+    private $DAILY_LESSON_LIMIT = 100;
+    private $DAILY_PODCAST_LIMIT = 100;
+    private $DAILY_MATHS_PRACTICE_LIMIT = 10;
+    private $LIFETIME_MATHS_PRACTICE_LIMIT = 100;
 
-    private $LIFETIME_QUIZ_PRACTICE_LIMIT = 50;
+    private $LIFETIME_QUIZ_PRACTICE_LIMIT = 99999999;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
