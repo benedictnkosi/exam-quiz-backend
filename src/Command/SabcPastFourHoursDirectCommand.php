@@ -7,6 +7,7 @@ use App\Repository\WordReplacementRepository;
 use App\Service\HeyGenService;
 use App\Service\OpenAIService;
 use App\Service\SabcDigitalScraper;
+use App\Service\WhatsAppService;
 use App\Service\YouTubeTranscriptService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -39,6 +40,8 @@ class SabcPastFourHoursDirectCommand extends Command
     private EntityManagerInterface $entityManager;
     private LoggerInterface $logger;
     private WordReplacementRepository $wordReplacementRepository;
+    private WhatsAppService $whatsAppService;
+    private const NOTIFICATION_PHONE = '+27837917430';
 
     public function __construct(
         HttpClientInterface $httpClient,
@@ -48,7 +51,8 @@ class SabcPastFourHoursDirectCommand extends Command
         HeyGenService $heyGenService,
         EntityManagerInterface $entityManager,
         LoggerInterface $logger,
-        WordReplacementRepository $wordReplacementRepository
+        WordReplacementRepository $wordReplacementRepository,
+        WhatsAppService $whatsAppService
     ) {
         $this->httpClient = $httpClient;
         $this->scraper = $scraper;
@@ -58,6 +62,7 @@ class SabcPastFourHoursDirectCommand extends Command
         $this->entityManager = $entityManager;
         $this->logger = $logger;
         $this->wordReplacementRepository = $wordReplacementRepository;
+        $this->whatsAppService = $whatsAppService;
         parent::__construct();
     }
 
@@ -284,6 +289,7 @@ class SabcPastFourHoursDirectCommand extends Command
 
         if (!$heyGenVideoId) {
             $output->writeln('<error>Failed to create HeyGen video</error>');
+            $this->sendNotification("❌ *SABC News Command Failed*\n\nFailed to create HeyGen video. Check logs for details.");
             return Command::FAILURE;
         }
 
@@ -329,6 +335,7 @@ class SabcPastFourHoursDirectCommand extends Command
                 $output->writeln('<error>Video generation failed</error>');
                 $output->writeln("<error>Error details: " . json_encode($errorDetails) . "</error>");
                 $this->logger->error('HeyGen video failed', ['status' => $status]);
+                $this->sendNotification("❌ *SABC News Command Failed*\n\nHeyGen video generation failed.\nError: " . (is_string($errorDetails) ? $errorDetails : json_encode($errorDetails)));
                 return Command::FAILURE;
             } elseif (in_array($videoStatus, ['waiting', 'pending', 'processing'])) {
                 $statusMessages = [
@@ -349,11 +356,13 @@ class SabcPastFourHoursDirectCommand extends Command
         if ($retryCount >= $maxRetries) {
             $output->writeln('<error>Video generation timed out after 30 minutes</error>');
             $this->logger->error('HeyGen video timeout', ['video_id' => $heyGenVideoId]);
+            $this->sendNotification("❌ *SABC News Command Failed*\n\nHeyGen video generation timed out after 30 minutes.\nVideo ID: {$heyGenVideoId}");
             return Command::FAILURE;
         }
         
         if (!$videoUrl) {
             $output->writeln('<error>Video completed but no URL available</error>');
+            $this->sendNotification("❌ *SABC News Command Failed*\n\nVideo completed but no URL available.\nVideo ID: {$heyGenVideoId}");
             return Command::FAILURE;
         }
 
@@ -398,6 +407,7 @@ class SabcPastFourHoursDirectCommand extends Command
 #SouthAfrica #WhySoSerious #BreakingNews';
             if (!is_file($finalFile)) {
                 $output->writeln('<error>Rendered file not found for upload: ' . $finalFile . '</error>');
+                $this->sendNotification("❌ *YouTube Upload Failed*\n\nRendered file not found for upload.\n*Title:* {$uploadTitle}");
             } else {
                 $output->writeln('<info>Uploading video to YouTube...</info>');
                 try {
@@ -414,12 +424,18 @@ class SabcPastFourHoursDirectCommand extends Command
                         // Remove local file after successful upload
                         @unlink($finalFile);
                         $output->writeln('<comment>Local rendered video deleted after successful YouTube upload: ' . $finalFile . '</comment>');
+                        
+                        // Send success notification
+                        $youtubeUrl = "https://www.youtube.com/watch?v={$ytVideoId}";
+                        $this->sendNotification("✅ *YouTube Upload Successful*\n\n*Title:* {$uploadTitle}\n*Video ID:* {$ytVideoId}\n*URL:* {$youtubeUrl}");
                     } else {
                         $output->writeln('<error>YouTube upload did not return a video ID.</error>');
+                        $this->sendNotification("❌ *YouTube Upload Failed*\n\nUpload completed but no video ID returned.\n*Title:* {$uploadTitle}");
                     }
                 } catch (\Throwable $e) {
                     $this->logger->error('YouTube upload failed', ['error' => $e->getMessage()]);
                     $output->writeln('<error>YouTube upload failed: ' . $e->getMessage() . '</error>');
+                    $this->sendNotification("❌ *YouTube Upload Failed*\n\n*Title:* {$uploadTitle}\n*Error:* " . substr($e->getMessage(), 0, 200));
                 }
             }
         }
@@ -1131,5 +1147,20 @@ class SabcPastFourHoursDirectCommand extends Command
         }
         
         return $result;
+    }
+
+    /**
+     * Send WhatsApp notification
+     */
+    private function sendNotification(string $message): void
+    {
+        try {
+            $this->whatsAppService->sendMessage(self::NOTIFICATION_PHONE, $message);
+        } catch (\Throwable $e) {
+            // Don't fail the command if WhatsApp notification fails
+            $this->logger->error('Failed to send WhatsApp notification', [
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
